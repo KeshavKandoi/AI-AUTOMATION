@@ -202,3 +202,80 @@ Keep each line under 20 words. If there are no issues, say so clearly."""
     )
 
     return {"priorities": response.text}
+
+# ---------- Task Manager ----------
+
+@app.get("/tasks/create-from-priorities")
+async def create_tasks_from_priorities(access_token: str, org_id: str):
+    async with httpx.AsyncClient() as client:
+        repos_res = await client.get(
+            "https://api.github.com/user/repos",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+    repos = repos_res.json()
+
+    if not isinstance(repos, list):
+        raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
+
+    repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
+
+    issues_data = []
+    async with httpx.AsyncClient() as client:
+        for r in repos_with_issues:
+            issues_res = await client.get(
+                f"https://api.github.com/repos/{r['full_name']}/issues",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"state": "open"}
+            )
+            issues = issues_res.json()
+            if isinstance(issues, list):
+                for issue in issues:
+                    issues_data.append({
+                        "repo": r["name"],
+                        "title": issue.get("title"),
+                        "comments": issue.get("comments"),
+                    })
+
+    if not issues_data:
+        return {"message": "No open issues, no tasks created", "tasks_created": 0}
+
+    prompt = f"""You are a Planner AI. Given this GitHub issues data: {issues_data}
+
+Return ONLY a valid JSON array (no markdown, no explanation) of up to 5 tasks, each with:
+- title (string, short)
+- description (string, 1 sentence)
+- priority ("high", "medium", or "low")
+
+Example format: [{{"title": "...", "description": "...", "priority": "high"}}]"""
+
+    response = gemini_client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=prompt
+    )
+
+    import json
+    raw_text = response.text.strip()
+    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+
+    try:
+        tasks = json.loads(raw_text)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail=f"Failed to parse AI response: {raw_text}")
+
+    created = []
+    for t in tasks:
+        result = supabase_admin.table("tasks").insert({
+            "organization_id": org_id,
+            "title": t.get("title"),
+            "description": t.get("description"),
+            "priority": t.get("priority", "medium"),
+            "source": "github_planner"
+        }).execute()
+        created.append(result.data[0])
+
+    return {"tasks_created": len(created), "tasks": created}
+
+@app.get("/tasks")
+def get_tasks(org_id: str):
+    result = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).execute()
+    return result.data
