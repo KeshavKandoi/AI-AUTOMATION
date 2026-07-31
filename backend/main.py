@@ -279,3 +279,24 @@ Example format: [{{"title": "...", "description": "...", "priority": "high"}}]""
 def get_tasks(org_id: str):
     result = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).execute()
     return result.data
+
+# ---------- GitHub Agent (Write Actions) ----------
+
+@app.post("/github/create-issue")
+async def github_create_issue(access_token: str, repo_full_name: str, title: str, body: str = ""):
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            f"https://api.github.com/repos/{repo_full_name}/issues",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"title": title, "body": body}
+        )
+
+    if res.status_code != 201:
+        raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
+
+    issue = res.json()
+    return {
+        "status": "created",
+        "issue_number": issue["number"],
+        "url": issue["html_url"]
+    }
