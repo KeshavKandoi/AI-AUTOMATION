@@ -148,3 +148,57 @@ Keep it under 150 words."""
     )
 
     return {"summary": response.text}
+
+# ---------- Planner Agent ----------
+
+@app.get("/planner/priorities")
+async def planner_priorities(access_token: str):
+    async with httpx.AsyncClient() as client:
+        repos_res = await client.get(
+            "https://api.github.com/user/repos",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+    repos = repos_res.json()
+
+    if not isinstance(repos, list):
+        raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
+
+    # Only pull issues for repos that actually have open issues (avoids wasted calls)
+    repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
+
+    issues_data = []
+    async with httpx.AsyncClient() as client:
+        for r in repos_with_issues:
+            issues_res = await client.get(
+                f"https://api.github.com/repos/{r['full_name']}/issues",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"state": "open"}
+            )
+            issues = issues_res.json()
+            if isinstance(issues, list):
+                for issue in issues:
+                    issues_data.append({
+                        "repo": r["name"],
+                        "title": issue.get("title"),
+                        "created_at": issue.get("created_at"),
+                        "comments": issue.get("comments"),
+                    })
+
+    prompt = f"""You are a Planner AI for a busy developer/founder.
+Here is their open GitHub issues data: {issues_data}
+
+Task: Create a prioritized action list (max 5 items) of what needs attention first.
+Consider: how old the issue is, how many comments (engagement), and which repo it's in.
+
+Format your response as a numbered list like:
+1. [Repo name] Issue title — brief reason why it's priority
+2. ...
+
+Keep each line under 20 words. If there are no issues, say so clearly."""
+
+    response = gemini_client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=prompt
+    )
+
+    return {"priorities": response.text}
