@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_SECRET: str
     GITHUB_REDIRECT_URI: str
     GEMINI_API_KEY: str
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str
 
     class Config:
         env_file = ".env"
@@ -330,3 +333,86 @@ async def approve_and_create_issue(task_id: str, access_token: str, repo_full_na
         "issue_url": issue["html_url"],
         "task_id": task_id
     }
+
+# ---------- Gmail OAuth ----------
+
+@app.get("/gmail/login")
+def gmail_login(org_id: str):
+    url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={settings.GOOGLE_CLIENT_ID}"
+        f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
+        f"&response_type=code"
+        f"&scope=https://www.googleapis.com/auth/gmail.readonly"
+        f"&access_type=offline"
+        f"&prompt=consent"
+        f"&state={org_id}"
+    )
+    return RedirectResponse(url)
+
+@app.get("/gmail/callback")
+async def gmail_callback(code: str, state: str):
+    org_id = state
+
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+                "grant_type": "authorization_code"
+            }
+        )
+        token_data = token_res.json()
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail=f"Gmail auth failed: {token_data}")
+
+    integration = supabase_admin.table("integrations").insert({
+        "organization_id": org_id,
+        "provider": "gmail",
+        "connected": True
+    }).execute()
+
+    integration_id = integration.data[0]["id"]
+
+    supabase_admin.table("oauth_tokens").insert({
+        "integration_id": integration_id,
+        "access_token": access_token,
+        "refresh_token": token_data.get("refresh_token")
+    }).execute()
+
+    return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
+
+# ---------- Gmail Data ----------
+
+@app.get("/gmail/unread")
+async def gmail_unread(access_token: str):
+    async with httpx.AsyncClient() as client:
+        list_res = await client.get(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"q": "is:unread", "maxResults": 10}
+        )
+    messages = list_res.json().get("messages", [])
+
+    emails = []
+    async with httpx.AsyncClient() as client:
+        for m in messages:
+            msg_res = await client.get(
+                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{m['id']}",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"format": "metadata", "metadataHeaders": ["From", "Subject"]}
+            )
+            msg = msg_res.json()
+            headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
+            emails.append({
+                "from": headers.get("From"),
+                "subject": headers.get("Subject"),
+                "snippet": msg.get("snippet")
+            })
+
+    return {"unread_count": len(emails), "emails": emails}
