@@ -300,3 +300,33 @@ async def github_create_issue(access_token: str, repo_full_name: str, title: str
         "issue_number": issue["number"],
         "url": issue["html_url"]
     }
+
+@app.post("/tasks/{task_id}/approve-and-create-issue")
+async def approve_and_create_issue(task_id: str, access_token: str, repo_full_name: str):
+    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
+    if not task_res.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = task_res.data[0]
+
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            f"https://api.github.com/repos/{repo_full_name}/issues",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"title": task["title"], "body": task.get("description", "")}
+        )
+
+    if res.status_code != 201:
+        raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
+
+    issue = res.json()
+
+    supabase_admin.table("tasks").update({
+        "status": "issue_created"
+    }).eq("id", task_id).execute()
+
+    return {
+        "status": "issue_created",
+        "issue_url": issue["html_url"],
+        "task_id": task_id
+    }
