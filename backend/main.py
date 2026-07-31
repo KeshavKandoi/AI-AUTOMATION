@@ -416,3 +416,50 @@ async def gmail_unread(access_token: str):
             })
 
     return {"unread_count": len(emails), "emails": emails}
+
+# ---------- Gmail Agent (AI Summary) ----------
+
+@app.get("/gmail/summary")
+async def gmail_summary(access_token: str):
+    async with httpx.AsyncClient() as client:
+        list_res = await client.get(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"q": "is:unread", "maxResults": 10}
+        )
+    messages = list_res.json().get("messages", [])
+
+    emails = []
+    async with httpx.AsyncClient() as client:
+        for m in messages:
+            msg_res = await client.get(
+                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{m['id']}",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"format": "metadata", "metadataHeaders": ["From", "Subject"]}
+            )
+            msg = msg_res.json()
+            headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
+            emails.append({
+                "from": headers.get("From"),
+                "subject": headers.get("Subject"),
+                "snippet": msg.get("snippet")
+            })
+
+    if not emails:
+        return {"summary": "No unread emails. Inbox is clear."}
+
+    prompt = f"""You are an AI assistant summarizing unread emails for a busy founder.
+Here is the email data: {emails}
+
+Give a short summary covering:
+- How many unread emails
+- Which ones seem urgent or need a reply
+- Any patterns (spam, newsletters, real messages)
+Keep it under 150 words."""
+
+    response = gemini_client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=prompt
+    )
+
+    return {"summary": response.text}
