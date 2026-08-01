@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from email_scheduler import repository
 from email_scheduler.schemas import EmailJobCreate, EmailJobUpdate
-from config import supabase_admin, decrypt_token
+from config import supabase_admin, decrypt_token, get_valid_access_token
 
 
 def _get_gmail_token_for_org(organization_id: str) -> str:
@@ -21,18 +21,15 @@ def _get_gmail_token_for_org(organization_id: str) -> str:
     if not integration_res.data:
         raise HTTPException(status_code=400, detail="No connected Gmail integration for this organization")
 
-    integration_ids = [row["id"] for row in integration_res.data]
+    last_error = None
+    for row in integration_res.data:
+        try:
+            return get_valid_access_token(row["id"])
+        except Exception as e:
+            last_error = e
+            continue
 
-    token_res = supabase_admin.table("oauth_tokens") \
-        .select("access_token, integration_id, created_at") \
-        .in_("integration_id", integration_ids) \
-        .order("created_at", desc=True) \
-        .execute()
-
-    if not token_res.data:
-        raise HTTPException(status_code=400, detail="No Gmail token found for this organization")
-
-    return decrypt_token(token_res.data[0]["access_token"])
+    raise HTTPException(status_code=400, detail=f"No usable Gmail token found for this organization: {last_error}")
 
 
 async def create_scheduled_job(payload: EmailJobCreate) -> dict:
