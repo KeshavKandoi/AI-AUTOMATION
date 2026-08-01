@@ -30,9 +30,10 @@ async def scheduled_orchestrator_run():
 
 def start_scheduler():
     scheduler.add_job(scheduled_orchestrator_run, "interval", hours=1, id="orchestrator_job")
+    scheduler.add_job(check_and_commit_job, "cron", hour=23, minute=0, timezone="Asia/Kolkata", id="check_and_commit_job")
     scheduler.start()
     scheduler.pause_job("orchestrator_job")
-    print("Scheduler started (PAUSED by default) — call /scheduler/resume to enable auto-runs")
+    print("Scheduler started — orchestrator PAUSED, check_and_commit_job ACTIVE at 11pm IST")
 
 
 @router.get("/scheduler/status")
