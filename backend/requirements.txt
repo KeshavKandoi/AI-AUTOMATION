@@ -1,6 +1,7 @@
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.14.2
+APScheduler==3.11.3
 certifi==2026.7.22
 cffi==2.1.0
 charset-normalizer==3.4.9
@@ -60,6 +61,7 @@ supabase-functions==2.31.0
 tenacity==9.1.4
 typing-inspection==0.4.2
 typing_extensions==4.16.0
+tzlocal==5.4.4
 urllib3==2.7.0
 uuid_utils==0.17.0
 uvicorn==0.52.0
