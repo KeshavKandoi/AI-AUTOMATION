@@ -9,6 +9,7 @@ from config import settings, supabase_admin, gemini_client, logger, encrypt_toke
 import orchestrator
 import scheduler
 from commit_scheduler.routes import router as commit_scheduler_router
+from email_scheduler.routes import router as email_scheduler_router
 
 app = FastAPI(title="AI COO Backend")
 
@@ -23,6 +24,7 @@ async def log_requests(request, call_next):
 app.include_router(orchestrator.router)
 app.include_router(scheduler.router)
 app.include_router(commit_scheduler_router)
+app.include_router(email_scheduler_router)
 
 
 @app.on_event("startup")
