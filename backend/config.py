@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     DISCORD_WEBHOOK_URL: str
     TEST_GITHUB_ACCESS_TOKEN: str
     TEST_ORG_ID: str
+    GITHUB_WEBHOOK_SECRET: str
+    GENERIC_WEBHOOK_SECRET: str
     ENVIRONMENT: str = "development"
     TOKEN_ENCRYPTION_KEY: str
 
