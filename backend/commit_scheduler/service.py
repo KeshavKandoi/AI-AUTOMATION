@@ -3,7 +3,7 @@ Business logic for commit scheduling: validation, org access control,
 and orchestration between repository.py (DB) and git_ops.py (Git provider).
 """
 import httpx
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 from fastapi import HTTPException
 
@@ -115,13 +115,20 @@ def get_job_with_runs(job_id: str, organization_id: str) -> dict:
 
 
 async def _has_real_commit_today(access_token: str, repo_full_name: str) -> bool:
-    """Used by guard mode: checks if any commit already landed on the repo today."""
-    today = date.today().isoformat()
+    """Used by guard mode: checks if any commit already landed on the repo today,
+    using the user'\''s local (IST) calendar day, converted correctly to UTC for
+    comparison against GitHub'\''s UTC commit timestamps."""
+    from zoneinfo import ZoneInfo
+    ist = ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(ist)
+    midnight_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
+    since_utc = midnight_ist.astimezone(timezone.utc).isoformat()
+
     async with httpx.AsyncClient() as client:
         res = await client.get(
             f"https://api.github.com/repos/{repo_full_name}/commits",
             headers={"Authorization": f"Bearer {access_token}"},
-            params={"since": f"{today}T00:00:00Z"}
+            params={"since": since_utc}
         )
     if res.status_code != 200:
         return False
