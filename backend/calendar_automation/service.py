@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 from calendar_automation import repository
 from calendar_automation.schemas import LunchBlockSettingsUpsert
-from config import supabase_admin, decrypt_token
+from config import supabase_admin, decrypt_token, get_valid_access_token
 
 
 def _get_calendar_token_for_org(organization_id: str) -> str:
@@ -19,18 +19,15 @@ def _get_calendar_token_for_org(organization_id: str) -> str:
     if not integration_res.data:
         raise HTTPException(status_code=400, detail="No connected Calendar integration for this organization")
 
-    integration_ids = [row["id"] for row in integration_res.data]
+    last_error = None
+    for row in integration_res.data:
+        try:
+            return get_valid_access_token(row["id"])
+        except Exception as e:
+            last_error = e
+            continue
 
-    token_res = supabase_admin.table("oauth_tokens") \
-        .select("access_token, integration_id, created_at") \
-        .in_("integration_id", integration_ids) \
-        .order("created_at", desc=True) \
-        .execute()
-
-    if not token_res.data:
-        raise HTTPException(status_code=400, detail="No Calendar token found for this organization")
-
-    return decrypt_token(token_res.data[0]["access_token"])
+    raise HTTPException(status_code=400, detail=f"No usable Calendar token found for this organization: {last_error}")
 
 
 def upsert_settings(payload: LunchBlockSettingsUpsert) -> dict:
