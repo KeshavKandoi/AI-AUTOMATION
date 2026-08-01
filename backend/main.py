@@ -646,3 +646,18 @@ async def approve_and_create_event(task_id: str, access_token: str, start_time: 
     supabase_admin.table("tasks").update({"status": "event_created"}).eq("id", task_id).execute()
 
     return {"status": "event_created", "event_link": event.get("htmlLink"), "task_id": task_id}
+
+# ---------- Scheduled Commits ----------
+
+@app.post("/commits/schedule")
+def schedule_commit(org_id: str, target_date: str, folder_path: str,
+                     file_name: str = None, content: str = None, branch_target: str = "main"):
+    result = supabase_admin.table("scheduled_commits").insert({
+        "organization_id": org_id,
+        "target_date": target_date,
+        "folder_path": folder_path,
+        "file_name": file_name,
+        "content": content,
+        "branch_target": branch_target
+    }).execute()
+    return {"status": "scheduled", "entry": result.data[0]}
