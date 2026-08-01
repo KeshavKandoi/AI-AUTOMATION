@@ -1,3 +1,4 @@
+import logging
 from pydantic_settings import BaseSettings
 from supabase import create_client
 from google import genai
@@ -25,6 +26,12 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 settings = Settings()
+
+logging.basicConfig(
+    level=logging.INFO if settings.ENVIRONMENT == "production" else logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("ai_coo")
 
 supabase_admin = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
