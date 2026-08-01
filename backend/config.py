@@ -21,11 +21,25 @@ class Settings(BaseSettings):
     TEST_GITHUB_ACCESS_TOKEN: str
     TEST_ORG_ID: str
     ENVIRONMENT: str = "development"
+    TOKEN_ENCRYPTION_KEY: str
 
     class Config:
         env_file = ".env"
 
 settings = Settings()
+
+from cryptography.fernet import Fernet
+fernet = Fernet(settings.TOKEN_ENCRYPTION_KEY.encode())
+
+def encrypt_token(token: str) -> str:
+    if not token:
+        return token
+    return fernet.encrypt(token.encode()).decode()
+
+def decrypt_token(token: str) -> str:
+    if not token:
+        return token
+    return fernet.decrypt(token.encode()).decode()
 
 logging.basicConfig(
     level=logging.INFO if settings.ENVIRONMENT == "production" else logging.DEBUG,
