@@ -1,3 +1,4 @@
+import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter
 
