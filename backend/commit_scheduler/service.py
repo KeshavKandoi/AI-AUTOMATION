@@ -2,6 +2,7 @@
 Business logic for commit scheduling: validation, org access control,
 and orchestration between repository.py (DB) and git_ops.py (Git provider).
 """
+import httpx
 from datetime import date
 from typing import Optional
 from fastapi import HTTPException
