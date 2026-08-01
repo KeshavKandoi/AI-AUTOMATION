@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from config import settings, supabase_admin
 from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from email_scheduler.scheduler_jobs import run_due_email_jobs
+from calendar_automation.scheduler_jobs import run_daily_lunch_block_check
 from orchestrator import coo_graph
 
 router = APIRouter()
@@ -36,6 +37,7 @@ def start_scheduler():
     scheduler.add_job(check_and_commit_job, "cron", hour=23, minute=0, timezone="Asia/Kolkata", id="check_and_commit_job")
     scheduler.add_job(run_due_commit_jobs, "interval", hours=1, id="commit_scheduler_job")
     scheduler.add_job(run_due_email_jobs, "interval", hours=1, id="email_scheduler_job")
+    scheduler.add_job(run_daily_lunch_block_check, "cron", hour=8, minute=0, timezone="Asia/Kolkata", id="lunch_block_job")
     scheduler.start()
     scheduler.pause_job("orchestrator_job")
     print("Scheduler started — orchestrator PAUSED, check_and_commit_job + commit_scheduler_job ACTIVE")
