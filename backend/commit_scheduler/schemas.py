@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Optional, Literal
 from pydantic import BaseModel, field_validator
 
@@ -6,6 +6,28 @@ from pydantic import BaseModel, field_validator
 Frequency = Literal["daily", "every_2_days", "weekdays", "custom"]
 JobStatus = Literal["active", "paused", "completed", "cancelled"]
 RunStatus = Literal["pending", "success", "failed", "skipped"]
+JobMode = Literal["scheduled", "guard"]
+
+
+class CommitJobFile(BaseModel):
+    target_date: Optional[date] = None
+    folder_path: str
+    file_name: str
+    content: Optional[str] = None
+
+    @field_validator("folder_path")
+    @classmethod
+    def no_path_traversal_file(cls, v):
+        if ".." in v or v.startswith("/"):
+            raise ValueError("folder_path must not contain '\''..'\'' or start with '\''/'\''")
+        return v.strip("/")
+
+    @field_validator("file_name")
+    @classmethod
+    def no_slashes_file(cls, v):
+        if "/" in v or ".." in v:
+            raise ValueError("file_name must not contain '\''/'\'' or '\''..'\''")
+        return v
 
 
 class CommitJobCreate(BaseModel):
@@ -13,14 +35,18 @@ class CommitJobCreate(BaseModel):
     provider: str = "github"
     repo_full_name: str
     branch: str = "main"
-    folder_path: str
-    file_name: str
+    folder_path: Optional[str] = None
+    file_name: Optional[str] = None
     file_content: Optional[str] = None
     commit_message: str
     start_date: date
     end_date: date
     frequency: Frequency = "daily"
     custom_dates: Optional[list[date]] = None
+    mode: JobMode = "scheduled"
+    guard_cutoff_time: time = time(23, 30, 0)
+    use_pr: bool = False
+    files: Optional[list[CommitJobFile]] = None
 
     @field_validator("end_date")
     @classmethod
