@@ -97,7 +97,10 @@ async def execute_job(job: dict) -> dict:
             )
 
         if res.status_code != 200:
-            raise RuntimeError(f"Gmail send failed ({res.status_code}): {res.text}")
+            return repository.create_run({
+                "job_id": job["id"], "run_date": run_date, "status": "failed",
+                "error_message": f"Gmail API error {res.status_code}: {res.text}"
+            })
 
         message_id = res.json().get("id")
 
@@ -107,6 +110,7 @@ async def execute_job(job: dict) -> dict:
         })
 
     except Exception as e:
+        import traceback; traceback.print_exc()
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "failed",
             "error_message": str(e)
