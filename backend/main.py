@@ -26,6 +26,9 @@ app.include_router(orchestrator.router)
 app.include_router(scheduler.router)
 app.include_router(commit_scheduler_router)
 app.include_router(email_scheduler_router)
+
+from webhooks.routes import router as webhooks_router
+app.include_router(webhooks_router)
 app.include_router(lunch_block_router)
 
 
