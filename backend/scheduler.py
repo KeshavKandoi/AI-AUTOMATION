@@ -14,9 +14,13 @@ TEST_ORG_ID = settings.TEST_ORG_ID
 async def scheduled_orchestrator_run():
     print("Running scheduled AI COO orchestrator...")
     initial_state = {
-        "access_token": TEST_GITHUB_TOKEN,
+        "github_token": TEST_GITHUB_TOKEN,
+        "gmail_token": None,
+        "calendar_token": None,
         "org_id": TEST_ORG_ID,
         "issues_data": [],
+        "emails_data": [],
+        "events_data": [],
         "tasks": [],
         "report": ""
     }
