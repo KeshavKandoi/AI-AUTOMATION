@@ -661,3 +661,8 @@ def schedule_commit(org_id: str, target_date: str, folder_path: str,
         "branch_target": branch_target
     }).execute()
     return {"status": "scheduled", "entry": result.data[0]}
+
+@app.post("/commits/run-now")
+async def commits_run_now():
+    await scheduler.check_and_commit_job()
+    return {"status": "triggered"}
