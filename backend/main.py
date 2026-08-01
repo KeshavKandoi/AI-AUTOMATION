@@ -281,7 +281,7 @@ def gmail_login(org_id: str):
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
-        f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
+        f"&redirect_uri={settings.GOOGLE_GMAIL_REDIRECT_URI}"
         f"&response_type=code"
         f"&scope=https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"
         f"&access_type=offline&prompt=consent&state={org_id}"
@@ -297,7 +297,7 @@ async def gmail_callback(code: str, state: str):
             "https://oauth2.googleapis.com/token",
             data={
                 "client_id": settings.GOOGLE_CLIENT_ID, "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "code": code, "redirect_uri": settings.GOOGLE_REDIRECT_URI, "grant_type": "authorization_code"
+                "code": code, "redirect_uri": settings.GOOGLE_GMAIL_REDIRECT_URI, "grant_type": "authorization_code"
             }
         )
         token_data = token_res.json()
@@ -387,7 +387,7 @@ def calendar_login(org_id: str):
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
-        f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
+        f"&redirect_uri={settings.GOOGLE_CALENDAR_REDIRECT_URI}"
         f"&response_type=code"
         f"&scope=https://www.googleapis.com/auth/calendar"
         f"&access_type=offline&prompt=consent&state={org_id}"
@@ -403,7 +403,7 @@ async def calendar_callback(code: str, state: str):
             "https://oauth2.googleapis.com/token",
             data={
                 "client_id": settings.GOOGLE_CLIENT_ID, "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "code": code, "redirect_uri": settings.GOOGLE_REDIRECT_URI, "grant_type": "authorization_code"
+                "code": code, "redirect_uri": settings.GOOGLE_CALENDAR_REDIRECT_URI, "grant_type": "authorization_code"
             }
         )
         token_data = token_res.json()
