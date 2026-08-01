@@ -58,18 +58,26 @@ async def validate_repo_and_branch(organization_id: str, repo_full_name: str, br
 async def create_scheduled_job(payload: CommitJobCreate) -> dict:
     await validate_repo_and_branch(payload.organization_id, payload.repo_full_name, payload.branch, payload.provider)
 
-    duplicate = repository.find_duplicate_job(
-        payload.organization_id, payload.repo_full_name, payload.branch,
-        payload.folder_path, payload.file_name
-    )
-    if duplicate:
-        raise HTTPException(
-            status_code=409,
-            detail=f"An active schedule already targets {payload.folder_path}/{payload.file_name} on {payload.branch}"
+    if payload.folder_path and payload.file_name:
+        duplicate = repository.find_duplicate_job(
+            payload.organization_id, payload.repo_full_name, payload.branch,
+            payload.folder_path, payload.file_name
         )
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail=f"An active schedule already targets {payload.folder_path}/{payload.file_name} on {payload.branch}"
+            )
 
-    job_data = payload.model_dump(mode="json")
-    return repository.create_job(job_data)
+    job_data = payload.model_dump(mode="json", exclude={"files"})
+    job = repository.create_job(job_data)
+
+    if payload.files:
+        files_data = [f.model_dump(mode="json") for f in payload.files]
+        repository.create_job_files(job["id"], files_data)
+        job["files"] = repository.get_files_for_job(job["id"])
+
+    return job
 
 
 def get_job_or_404(job_id: str, organization_id: Optional[str] = None) -> dict:
@@ -105,35 +113,96 @@ def get_job_with_runs(job_id: str, organization_id: str) -> dict:
     return {**job, "runs": runs}
 
 
+async def _has_real_commit_today(access_token: str, repo_full_name: str) -> bool:
+    """Used by guard mode: checks if any commit already landed on the repo today."""
+    today = date.today().isoformat()
+    async with httpx.AsyncClient() as client:
+        res = await client.get(
+            f"https://api.github.com/repos/{repo_full_name}/commits",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"since": f"{today}T00:00:00Z"}
+        )
+    if res.status_code != 200:
+        return False
+    return len(res.json()) > 0
+
+
+async def _resolve_files_for_run(job: dict, run_date: str) -> list[dict]:
+    """Returns the list of {folder_path, file_name, content} to commit today.
+    Falls back to the job's single folder_path/file_name/file_content if no
+    commit_job_files rows exist (backward compatible with single-file jobs)."""
+    files = repository.get_files_for_date(job["id"], run_date)
+    if files:
+        return files
+    if job.get("folder_path") and job.get("file_name"):
+        return [{
+            "folder_path": job["folder_path"],
+            "file_name": job["file_name"],
+            "content": job.get("file_content")
+        }]
+    return []
+
+
 async def execute_job(job: dict) -> dict:
-    """Performs the actual Git commit for a due job. Returns the run record."""
+    """Performs the actual Git commit(s) for a due job. Returns the run record."""
     run_date = date.today().isoformat()
 
     if repository.has_run_for_date(job["id"], run_date):
-        run = repository.create_run({
+        return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "skipped",
             "error_message": "Already ran for this date"
         })
-        return run
 
     try:
         access_token = _get_github_token_for_org(job["organization_id"])
         provider = git_ops.get_provider(job["provider"])
-        path = f"{job['folder_path']}/{job['file_name']}"
 
-        existing = await provider.get_file(access_token, job["repo_full_name"], path, job["branch"])
-        sha = existing["sha"] if existing else None
+        if job.get("mode") == "guard":
+            if await _has_real_commit_today(access_token, job["repo_full_name"]):
+                return repository.create_run({
+                    "job_id": job["id"], "run_date": run_date, "status": "skipped",
+                    "error_message": "Real commit already found today — guard mode skipped"
+                })
 
-        content = job.get("file_content") or f"Auto-commit — {run_date}"
+        files_to_commit = await _resolve_files_for_run(job, run_date)
+        if not files_to_commit:
+            return repository.create_run({
+                "job_id": job["id"], "run_date": run_date, "status": "skipped",
+                "error_message": "No files staged for this date"
+            })
 
-        result = await provider.commit_file(
-            access_token, job["repo_full_name"], path, content,
-            job["branch"], job["commit_message"], sha
-        )
+        target_branch = job["branch"]
+        if job.get("use_pr"):
+            target_branch = f"auto/{run_date}"
+            await provider.create_branch(access_token, job["repo_full_name"], job["branch"], target_branch)
+
+        last_result = None
+        for f in files_to_commit:
+            path = f"{f['folder_path']}/{f['file_name']}"
+            existing = await provider.get_file(access_token, job["repo_full_name"], path, target_branch)
+            sha = existing["sha"] if existing else None
+            content = f.get("content") or f"Auto-commit — {run_date}"
+
+            last_result = await provider.commit_file(
+                access_token, job["repo_full_name"], path, content,
+                target_branch, job["commit_message"], sha
+            )
+
+        if job.get("use_pr"):
+            pr = await provider.create_pull_request(
+                access_token, job["repo_full_name"], target_branch, job["branch"],
+                title=job["commit_message"], body=f"Automated commit for {run_date}"
+            )
+            return repository.create_run({
+                "job_id": job["id"], "run_date": run_date, "status": "success",
+                "commit_sha": last_result["sha"] if last_result else None,
+                "commit_url": pr.get("html_url")
+            })
 
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "success",
-            "commit_sha": result["sha"], "commit_url": result["commit_url"]
+            "commit_sha": last_result["sha"] if last_result else None,
+            "commit_url": last_result["commit_url"] if last_result else None
         })
 
     except Exception as e:
