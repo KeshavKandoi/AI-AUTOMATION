@@ -2,7 +2,7 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter
 
-from config import settings
+from config import settings, supabase_admin
 from orchestrator import coo_graph
 
 router = APIRouter()
