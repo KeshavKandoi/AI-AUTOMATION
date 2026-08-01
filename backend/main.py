@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str
     DISCORD_WEBHOOK_URL: str
+    TEST_GITHUB_ACCESS_TOKEN: str
+    TEST_ORG_ID: str
 
     class Config:
         env_file = ".env"
@@ -312,6 +314,9 @@ async def approve_and_create_issue(task_id: str, access_token: str, repo_full_na
         raise HTTPException(status_code=404, detail="Task not found")
 
     task = task_res.data[0]
+
+    if task.get("status") != "approved":
+        raise HTTPException(status_code=403, detail="Task must be approved before creating a GitHub issue")
 
     async with httpx.AsyncClient() as client:
         res = await client.post(
@@ -815,3 +820,78 @@ def get_memory_context(org_id: str) -> str:
     if not memories:
         return "No prior context stored."
     return "\n".join([f"- [{m['category']}] {m['content']}" for m in memories])
+
+# ---------- Background Workers ----------
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+scheduler = AsyncIOScheduler()
+
+# Hardcoded for testing — later this should loop over all connected orgs/integrations
+TEST_GITHUB_TOKEN = settings.TEST_GITHUB_ACCESS_TOKEN
+TEST_ORG_ID = settings.TEST_ORG_ID
+
+async def scheduled_orchestrator_run():
+    print("Running scheduled AI COO orchestrator...")
+    initial_state = {
+        "access_token": TEST_GITHUB_TOKEN,
+        "org_id": TEST_ORG_ID,
+        "issues_data": [],
+        "tasks": [],
+        "report": ""
+    }
+    final_state = await coo_graph.ainvoke(initial_state)
+    print(f"Scheduled run complete: {final_state['report']}")
+
+@app.on_event("startup")
+async def start_scheduler():
+    scheduler.add_job(scheduled_orchestrator_run, "interval", minutes=2, id="orchestrator_job")
+    scheduler.start()
+    print("Scheduler started — orchestrator will run every 2 minutes")
+
+@app.get("/scheduler/status")
+def scheduler_status():
+    jobs = scheduler.get_jobs()
+    return {
+        "running": scheduler.running,
+        "jobs": [{"id": j.id, "next_run": str(j.next_run_time)} for j in jobs]
+    }
+
+# ---------- Human Approval Layer ----------
+
+@app.post("/tasks/{task_id}/approve")
+def approve_task(task_id: str):
+    result = supabase_admin.table("tasks").update({
+        "status": "approved"
+    }).eq("id", task_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    return {"status": "approved", "task": result.data[0]}
+
+@app.post("/tasks/{task_id}/reject")
+def reject_task(task_id: str):
+    result = supabase_admin.table("tasks").update({
+        "status": "rejected"
+    }).eq("id", task_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    return {"status": "rejected", "task": result.data[0]}
+
+@app.get("/tasks/pending-approval")
+def get_pending_tasks(org_id: str):
+    result = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).eq("status", "open").execute()
+    return result.data
+
+@app.post("/scheduler/pause")
+def pause_scheduler():
+    scheduler.pause_job("orchestrator_job")
+    return {"status": "paused"}
+
+@app.post("/scheduler/resume")
+def resume_scheduler():
+    scheduler.resume_job("orchestrator_job")
+    return {"status": "resumed"}
