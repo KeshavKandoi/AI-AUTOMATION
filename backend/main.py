@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 import httpx
 
 import time
-from config import settings, supabase_admin, gemini_client, logger
+from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token
 import orchestrator
 import scheduler
 
@@ -92,7 +92,7 @@ async def github_callback(code: str, state: str):
     integration_id = integration.data[0]["id"]
 
     supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id, "access_token": access_token
+        "integration_id": integration_id, "access_token": encrypt_token(access_token)
     }).execute()
 
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
@@ -321,7 +321,7 @@ async def gmail_callback(code: str, state: str):
     integration_id = integration.data[0]["id"]
 
     supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id, "access_token": access_token, "refresh_token": token_data.get("refresh_token")
+        "integration_id": integration_id, "access_token": encrypt_token(access_token), "refresh_token": encrypt_token(token_data.get("refresh_token"))
     }).execute()
 
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
@@ -427,7 +427,7 @@ async def calendar_callback(code: str, state: str):
     integration_id = integration.data[0]["id"]
 
     supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id, "access_token": access_token, "refresh_token": token_data.get("refresh_token")
+        "integration_id": integration_id, "access_token": encrypt_token(access_token), "refresh_token": encrypt_token(token_data.get("refresh_token"))
     }).execute()
 
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
