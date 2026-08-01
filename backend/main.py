@@ -1,40 +1,27 @@
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.responses import RedirectResponse
-from pydantic_settings import BaseSettings
 from jose import jwt, JWTError
-from supabase import create_client
-from google import genai
 import httpx
 
-class Settings(BaseSettings):
-    SUPABASE_URL: str
-    SUPABASE_ANON_KEY: str
-    SUPABASE_SERVICE_ROLE_KEY: str
-    SUPABASE_JWT_SECRET: str
-    GITHUB_CLIENT_ID: str
-    GITHUB_CLIENT_SECRET: str
-    GITHUB_REDIRECT_URI: str
-    GEMINI_API_KEY: str
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
-    GOOGLE_REDIRECT_URI: str
-    DISCORD_WEBHOOK_URL: str
-    TEST_GITHUB_ACCESS_TOKEN: str
-    TEST_ORG_ID: str
-
-    class Config:
-        env_file = ".env"
-
-settings = Settings()
-
-supabase_admin = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
+from config import settings, supabase_admin, gemini_client
+import orchestrator
+import scheduler
 
 app = FastAPI(title="AI COO Backend")
+
+app.include_router(orchestrator.router)
+app.include_router(scheduler.router)
+
+
+@app.on_event("startup")
+async def on_startup():
+    scheduler.start_scheduler()
+
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -50,6 +37,7 @@ def get_current_user(authorization: str = Header(None)):
         return payload
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
 
 @app.get("/me")
 def get_me(user: dict = Depends(get_current_user)):
@@ -68,10 +56,10 @@ def github_login(org_id: str):
     )
     return RedirectResponse(url)
 
+
 @app.get("/github/callback")
 async def github_callback(code: str, state: str):
     org_id = state
-
     async with httpx.AsyncClient() as client:
         token_res = await client.post(
             "https://github.com/login/oauth/access_token",
@@ -90,21 +78,16 @@ async def github_callback(code: str, state: str):
         raise HTTPException(status_code=400, detail="GitHub auth failed")
 
     integration = supabase_admin.table("integrations").insert({
-        "organization_id": org_id,
-        "provider": "github",
-        "connected": True
+        "organization_id": org_id, "provider": "github", "connected": True
     }).execute()
-
     integration_id = integration.data[0]["id"]
 
     supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id,
-        "access_token": access_token
+        "integration_id": integration_id, "access_token": access_token
     }).execute()
 
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
 
-# ---------- GitHub Data ----------
 
 @app.get("/github/repos")
 async def github_repos(access_token: str):
@@ -115,7 +98,6 @@ async def github_repos(access_token: str):
         )
     return res.json()
 
-# ---------- GitHub Agent (AI Summary) ----------
 
 @app.get("/github/summary")
 async def github_summary(access_token: str):
@@ -125,17 +107,12 @@ async def github_summary(access_token: str):
             headers={"Authorization": f"Bearer {access_token}"},
         )
     repos = repos_res.json()
-
     if not isinstance(repos, list):
         raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
 
     repo_info = [
-        {
-            "name": r["name"],
-            "language": r.get("language"),
-            "open_issues": r.get("open_issues_count"),
-            "description": r.get("description"),
-        }
+        {"name": r["name"], "language": r.get("language"),
+         "open_issues": r.get("open_issues_count"), "description": r.get("description")}
         for r in repos
     ]
 
@@ -148,14 +125,9 @@ Give a short, clear summary covering:
 - What kind of projects they're working on (languages/themes)
 Keep it under 150 words."""
 
-    response = gemini_client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
+    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
     return {"summary": response.text}
 
-# ---------- Planner Agent ----------
 
 @app.get("/planner/priorities")
 async def planner_priorities(access_token: str):
@@ -165,13 +137,10 @@ async def planner_priorities(access_token: str):
             headers={"Authorization": f"Bearer {access_token}"},
         )
     repos = repos_res.json()
-
     if not isinstance(repos, list):
         raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
 
-    # Only pull issues for repos that actually have open issues (avoids wasted calls)
     repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
-
     issues_data = []
     async with httpx.AsyncClient() as client:
         for r in repos_with_issues:
@@ -184,10 +153,8 @@ async def planner_priorities(access_token: str):
             if isinstance(issues, list):
                 for issue in issues:
                     issues_data.append({
-                        "repo": r["name"],
-                        "title": issue.get("title"),
-                        "created_at": issue.get("created_at"),
-                        "comments": issue.get("comments"),
+                        "repo": r["name"], "title": issue.get("title"),
+                        "created_at": issue.get("created_at"), "comments": issue.get("comments"),
                     })
 
     prompt = f"""You are a Planner AI for a busy developer/founder.
@@ -202,14 +169,9 @@ Format your response as a numbered list like:
 
 Keep each line under 20 words. If there are no issues, say so clearly."""
 
-    response = gemini_client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
+    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
     return {"priorities": response.text}
 
-# ---------- Task Manager ----------
 
 @app.get("/tasks/create-from-priorities")
 async def create_tasks_from_priorities(access_token: str, org_id: str):
@@ -219,12 +181,10 @@ async def create_tasks_from_priorities(access_token: str, org_id: str):
             headers={"Authorization": f"Bearer {access_token}"},
         )
     repos = repos_res.json()
-
     if not isinstance(repos, list):
         raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
 
     repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
-
     issues_data = []
     async with httpx.AsyncClient() as client:
         for r in repos_with_issues:
@@ -236,11 +196,7 @@ async def create_tasks_from_priorities(access_token: str, org_id: str):
             issues = issues_res.json()
             if isinstance(issues, list):
                 for issue in issues:
-                    issues_data.append({
-                        "repo": r["name"],
-                        "title": issue.get("title"),
-                        "comments": issue.get("comments"),
-                    })
+                    issues_data.append({"repo": r["name"], "title": issue.get("title"), "comments": issue.get("comments")})
 
     if not issues_data:
         return {"message": "No open issues, no tasks created", "tasks_created": 0}
@@ -254,15 +210,10 @@ Return ONLY a valid JSON array (no markdown, no explanation) of up to 5 tasks, e
 
 Example format: [{{"title": "...", "description": "...", "priority": "high"}}]"""
 
-    response = gemini_client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
+    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
 
     import json
-    raw_text = response.text.strip()
-    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-
+    raw_text = response.text.strip().replace("```json", "").replace("```", "").strip()
     try:
         tasks = json.loads(raw_text)
     except json.JSONDecodeError:
@@ -271,22 +222,19 @@ Example format: [{{"title": "...", "description": "...", "priority": "high"}}]""
     created = []
     for t in tasks:
         result = supabase_admin.table("tasks").insert({
-            "organization_id": org_id,
-            "title": t.get("title"),
-            "description": t.get("description"),
-            "priority": t.get("priority", "medium"),
-            "source": "github_planner"
+            "organization_id": org_id, "title": t.get("title"), "description": t.get("description"),
+            "priority": t.get("priority", "medium"), "source": "github_planner"
         }).execute()
         created.append(result.data[0])
 
     return {"tasks_created": len(created), "tasks": created}
+
 
 @app.get("/tasks")
 def get_tasks(org_id: str):
     result = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).execute()
     return result.data
 
-# ---------- GitHub Agent (Write Actions) ----------
 
 @app.post("/github/create-issue")
 async def github_create_issue(access_token: str, repo_full_name: str, title: str, body: str = ""):
@@ -296,23 +244,17 @@ async def github_create_issue(access_token: str, repo_full_name: str, title: str
             headers={"Authorization": f"Bearer {access_token}"},
             json={"title": title, "body": body}
         )
-
     if res.status_code != 201:
         raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
-
     issue = res.json()
-    return {
-        "status": "created",
-        "issue_number": issue["number"],
-        "url": issue["html_url"]
-    }
+    return {"status": "created", "issue_number": issue["number"], "url": issue["html_url"]}
+
 
 @app.post("/tasks/{task_id}/approve-and-create-issue")
 async def approve_and_create_issue(task_id: str, access_token: str, repo_full_name: str):
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
     if not task_res.data:
         raise HTTPException(status_code=404, detail="Task not found")
-
     task = task_res.data[0]
 
     if task.get("status") != "approved":
@@ -324,21 +266,13 @@ async def approve_and_create_issue(task_id: str, access_token: str, repo_full_na
             headers={"Authorization": f"Bearer {access_token}"},
             json={"title": task["title"], "body": task.get("description", "")}
         )
-
     if res.status_code != 201:
         raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
-
     issue = res.json()
 
-    supabase_admin.table("tasks").update({
-        "status": "issue_created"
-    }).eq("id", task_id).execute()
+    supabase_admin.table("tasks").update({"status": "issue_created"}).eq("id", task_id).execute()
 
-    return {
-        "status": "issue_created",
-        "issue_url": issue["html_url"],
-        "task_id": task_id
-    }
+    return {"status": "issue_created", "issue_url": issue["html_url"], "task_id": task_id}
 
 # ---------- Gmail OAuth ----------
 
@@ -350,25 +284,20 @@ def gmail_login(org_id: str):
         f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
         f"&response_type=code"
         f"&scope=https://www.googleapis.com/auth/gmail.readonly"
-        f"&access_type=offline"
-        f"&prompt=consent"
-        f"&state={org_id}"
+        f"&access_type=offline&prompt=consent&state={org_id}"
     )
     return RedirectResponse(url)
+
 
 @app.get("/gmail/callback")
 async def gmail_callback(code: str, state: str):
     org_id = state
-
     async with httpx.AsyncClient() as client:
         token_res = await client.post(
             "https://oauth2.googleapis.com/token",
             data={
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "code": code,
-                "redirect_uri": settings.GOOGLE_REDIRECT_URI,
-                "grant_type": "authorization_code"
+                "client_id": settings.GOOGLE_CLIENT_ID, "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": code, "redirect_uri": settings.GOOGLE_REDIRECT_URI, "grant_type": "authorization_code"
             }
         )
         token_data = token_res.json()
@@ -378,22 +307,16 @@ async def gmail_callback(code: str, state: str):
         raise HTTPException(status_code=400, detail=f"Gmail auth failed: {token_data}")
 
     integration = supabase_admin.table("integrations").insert({
-        "organization_id": org_id,
-        "provider": "gmail",
-        "connected": True
+        "organization_id": org_id, "provider": "gmail", "connected": True
     }).execute()
-
     integration_id = integration.data[0]["id"]
 
     supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id,
-        "access_token": access_token,
-        "refresh_token": token_data.get("refresh_token")
+        "integration_id": integration_id, "access_token": access_token, "refresh_token": token_data.get("refresh_token")
     }).execute()
 
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
 
-# ---------- Gmail Data ----------
 
 @app.get("/gmail/unread")
 async def gmail_unread(access_token: str):
@@ -415,15 +338,10 @@ async def gmail_unread(access_token: str):
             )
             msg = msg_res.json()
             headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
-            emails.append({
-                "from": headers.get("From"),
-                "subject": headers.get("Subject"),
-                "snippet": msg.get("snippet")
-            })
+            emails.append({"from": headers.get("From"), "subject": headers.get("Subject"), "snippet": msg.get("snippet")})
 
     return {"unread_count": len(emails), "emails": emails}
 
-# ---------- Gmail Agent (AI Summary) ----------
 
 @app.get("/gmail/summary")
 async def gmail_summary(access_token: str):
@@ -445,11 +363,7 @@ async def gmail_summary(access_token: str):
             )
             msg = msg_res.json()
             headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
-            emails.append({
-                "from": headers.get("From"),
-                "subject": headers.get("Subject"),
-                "snippet": msg.get("snippet")
-            })
+            emails.append({"from": headers.get("From"), "subject": headers.get("Subject"), "snippet": msg.get("snippet")})
 
     if not emails:
         return {"summary": "No unread emails. Inbox is clear."}
@@ -463,11 +377,7 @@ Give a short summary covering:
 - Any patterns (spam, newsletters, real messages)
 Keep it under 150 words."""
 
-    response = gemini_client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
+    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
     return {"summary": response.text}
 
 # ---------- Calendar OAuth ----------
@@ -480,25 +390,20 @@ def calendar_login(org_id: str):
         f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
         f"&response_type=code"
         f"&scope=https://www.googleapis.com/auth/calendar"
-        f"&access_type=offline"
-        f"&prompt=consent"
-        f"&state={org_id}"
+        f"&access_type=offline&prompt=consent&state={org_id}"
     )
     return RedirectResponse(url)
+
 
 @app.get("/calendar/callback")
 async def calendar_callback(code: str, state: str):
     org_id = state
-
     async with httpx.AsyncClient() as client:
         token_res = await client.post(
             "https://oauth2.googleapis.com/token",
             data={
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "code": code,
-                "redirect_uri": settings.GOOGLE_REDIRECT_URI,
-                "grant_type": "authorization_code"
+                "client_id": settings.GOOGLE_CLIENT_ID, "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": code, "redirect_uri": settings.GOOGLE_REDIRECT_URI, "grant_type": "authorization_code"
             }
         )
         token_data = token_res.json()
@@ -508,22 +413,16 @@ async def calendar_callback(code: str, state: str):
         raise HTTPException(status_code=400, detail=f"Calendar auth failed: {token_data}")
 
     integration = supabase_admin.table("integrations").insert({
-        "organization_id": org_id,
-        "provider": "calendar",
-        "connected": True
+        "organization_id": org_id, "provider": "calendar", "connected": True
     }).execute()
-
     integration_id = integration.data[0]["id"]
 
     supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id,
-        "access_token": access_token,
-        "refresh_token": token_data.get("refresh_token")
+        "integration_id": integration_id, "access_token": access_token, "refresh_token": token_data.get("refresh_token")
     }).execute()
 
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
 
-# ---------- Calendar Data ----------
 
 @app.get("/calendar/events")
 async def calendar_events(access_token: str):
@@ -531,28 +430,18 @@ async def calendar_events(access_token: str):
         res = await client.get(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
-            params={
-                "timeMin": "2026-08-01T00:00:00Z",
-                "maxResults": 10,
-                "singleEvents": "true",
-                "orderBy": "startTime"
-            }
+            params={"timeMin": "2026-08-01T00:00:00Z", "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
         )
     data = res.json()
     events = data.get("items", [])
-
     formatted = [
-        {
-            "summary": e.get("summary"),
-            "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
-            "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date"),
-        }
+        {"summary": e.get("summary"),
+         "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
+         "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date")}
         for e in events
     ]
-
     return {"event_count": len(formatted), "events": formatted}
 
-# ---------- Calendar Agent (AI Summary) ----------
 
 @app.get("/calendar/summary")
 async def calendar_summary(access_token: str):
@@ -560,25 +449,17 @@ async def calendar_summary(access_token: str):
         res = await client.get(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
-            params={
-                "timeMin": "2026-08-01T00:00:00Z",
-                "maxResults": 10,
-                "singleEvents": "true",
-                "orderBy": "startTime"
-            }
+            params={"timeMin": "2026-08-01T00:00:00Z", "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
         )
     data = res.json()
     events = data.get("items", [])
-
     if not events:
         return {"summary": "No upcoming events. Calendar is clear."}
 
     formatted = [
-        {
-            "summary": e.get("summary"),
-            "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
-            "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date"),
-        }
+        {"summary": e.get("summary"),
+         "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
+         "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date")}
         for e in events
     ]
 
@@ -591,14 +472,9 @@ Give a short summary covering:
 - What's coming up soonest
 Keep it under 150 words."""
 
-    response = gemini_client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
+    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
     return {"summary": response.text}
 
-# ---------- Calendar Agent (Create Event) ----------
 
 @app.post("/calendar/create-event")
 async def calendar_create_event(access_token: str, summary: str, start_time: str, end_time: str):
@@ -606,16 +482,10 @@ async def calendar_create_event(access_token: str, summary: str, start_time: str
         res = await client.post(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
-            json={
-                "summary": summary,
-                "start": {"dateTime": start_time},
-                "end": {"dateTime": end_time},
-            }
+            json={"summary": summary, "start": {"dateTime": start_time}, "end": {"dateTime": end_time}}
         )
-
     if res.status_code != 200:
         raise HTTPException(status_code=400, detail=f"Calendar error: {res.json()}")
-
     event = res.json()
     return {"status": "created", "event_link": event.get("htmlLink")}
 
@@ -624,274 +494,64 @@ async def calendar_create_event(access_token: str, summary: str, start_time: str
 @app.post("/discord/notify")
 async def discord_notify(message: str):
     async with httpx.AsyncClient() as client:
-        res = await client.post(
-            settings.DISCORD_WEBHOOK_URL,
-            json={"content": message}
-        )
-
+        res = await client.post(settings.DISCORD_WEBHOOK_URL, json={"content": message})
     if res.status_code not in [200, 204]:
         raise HTTPException(status_code=400, detail=f"Discord error: {res.text}")
-
     return {"status": "sent", "message": message}
+
 
 @app.post("/discord/daily-report")
 async def discord_daily_report(github_access_token: str, org_id: str):
     tasks_res = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).execute()
     tasks = tasks_res.data
-
     open_tasks = [t for t in tasks if t.get("status") == "open"]
     done_tasks = [t for t in tasks if t.get("status") == "issue_created"]
 
-    report = f"""**📊 Daily AI COO Report**
-
-**Open Tasks:** {len(open_tasks)}
-**Issues Created:** {len(done_tasks)}
-
-**Top Priorities:**
-"""
+    report = f"**📊 Daily AI COO Report**\n\n**Open Tasks:** {len(open_tasks)}\n**Issues Created:** {len(done_tasks)}\n\n**Top Priorities:**\n"
     for t in open_tasks[:5]:
         report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')}\n"
 
     async with httpx.AsyncClient() as client:
-        res = await client.post(
-            settings.DISCORD_WEBHOOK_URL,
-            json={"content": report}
-        )
-
+        res = await client.post(settings.DISCORD_WEBHOOK_URL, json={"content": report})
     if res.status_code not in [200, 204]:
         raise HTTPException(status_code=400, detail=f"Discord error: {res.text}")
 
     return {"status": "sent", "report": report}
-
-# ---------- LangGraph Orchestrator ----------
-
-from langgraph.graph import StateGraph, END
-from typing import TypedDict
-
-class COOState(TypedDict):
-    access_token: str
-    org_id: str
-    issues_data: list
-    tasks: list
-    report: str
-
-async def node_fetch_issues(state: COOState) -> COOState:
-    access_token = state["access_token"]
-    async with httpx.AsyncClient() as client:
-        repos_res = await client.get(
-            "https://api.github.com/user/repos",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-    repos = repos_res.json()
-    repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
-
-    issues_data = []
-    async with httpx.AsyncClient() as client:
-        for r in repos_with_issues:
-            issues_res = await client.get(
-                f"https://api.github.com/repos/{r['full_name']}/issues",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params={"state": "open"}
-            )
-            issues = issues_res.json()
-            if isinstance(issues, list):
-                for issue in issues:
-                    issues_data.append({
-                        "repo": r["name"],
-                        "title": issue.get("title"),
-                        "comments": issue.get("comments"),
-                    })
-
-    state["issues_data"] = issues_data
-    return state
-
-async def node_create_tasks(state: COOState) -> COOState:
-    issues_data = state["issues_data"]
-
-    if not issues_data:
-        state["tasks"] = []
-        return state
-
-    memory_context = get_memory_context(state["org_id"])
-
-    prompt = f"""You are a Planner AI. Here is prior context about this company/project:
-{memory_context}
-
-Given this GitHub issues data: {issues_data}
-
-Return ONLY a valid JSON array (no markdown) of up to 5 tasks, each with:
-- title (string, short)
-- description (string, 1 sentence)
-- priority ("high", "medium", or "low")
-Use the prior context to inform priority — e.g. if a repo/area was flagged important before, weigh it higher."""
-
-    response = gemini_client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-
-    import json
-    raw_text = response.text.strip().replace("```json", "").replace("```", "").strip()
-
-    try:
-        tasks = json.loads(raw_text)
-    except json.JSONDecodeError:
-        tasks = []
-
-    created = []
-    for t in tasks:
-        result = supabase_admin.table("tasks").insert({
-            "organization_id": state["org_id"],
-            "title": t.get("title"),
-            "description": t.get("description"),
-            "priority": t.get("priority", "medium"),
-            "source": "langgraph_orchestrator"
-        }).execute()
-        created.append(result.data[0])
-
-    state["tasks"] = created
-    return state
-
-async def node_notify_discord(state: COOState) -> COOState:
-    tasks = state["tasks"]
-
-    if not tasks:
-        report = "**🤖 AI COO Run Complete**\n\nNo open issues found. Nothing to report."
-    else:
-        report = "**🤖 AI COO Run Complete**\n\n**New Tasks Created:**\n"
-        for t in tasks:
-            report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')}\n"
-
-    async with httpx.AsyncClient() as client:
-        await client.post(settings.DISCORD_WEBHOOK_URL, json={"content": report})
-
-    state["report"] = report
-    return state
-
-workflow = StateGraph(COOState)
-workflow.add_node("fetch_issues", node_fetch_issues)
-workflow.add_node("create_tasks", node_create_tasks)
-workflow.add_node("notify_discord", node_notify_discord)
-
-workflow.set_entry_point("fetch_issues")
-workflow.add_edge("fetch_issues", "create_tasks")
-workflow.add_edge("create_tasks", "notify_discord")
-workflow.add_edge("notify_discord", END)
-
-coo_graph = workflow.compile()
-
-@app.post("/orchestrator/run")
-async def run_orchestrator(access_token: str, org_id: str):
-    initial_state = {
-        "access_token": access_token,
-        "org_id": org_id,
-        "issues_data": [],
-        "tasks": [],
-        "report": ""
-    }
-
-    final_state = await coo_graph.ainvoke(initial_state)
-
-    return {
-        "issues_found": len(final_state["issues_data"]),
-        "tasks_created": len(final_state["tasks"]),
-        "report": final_state["report"]
-    }
 
 # ---------- Memory System ----------
 
 @app.post("/memory/add")
 def memory_add(org_id: str, category: str, content: str):
     result = supabase_admin.table("memory").insert({
-        "organization_id": org_id,
-        "category": category,
-        "content": content
+        "organization_id": org_id, "category": category, "content": content
     }).execute()
     return {"status": "saved", "memory": result.data[0]}
+
 
 @app.get("/memory")
 def memory_get(org_id: str):
     result = supabase_admin.table("memory").select("*").eq("organization_id", org_id).execute()
     return result.data
 
-def get_memory_context(org_id: str) -> str:
-    result = supabase_admin.table("memory").select("*").eq("organization_id", org_id).execute()
-    memories = result.data
-    if not memories:
-        return "No prior context stored."
-    return "\n".join([f"- [{m['category']}] {m['content']}" for m in memories])
-
-# ---------- Background Workers ----------
-
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-scheduler = AsyncIOScheduler()
-
-# Hardcoded for testing — later this should loop over all connected orgs/integrations
-TEST_GITHUB_TOKEN = settings.TEST_GITHUB_ACCESS_TOKEN
-TEST_ORG_ID = settings.TEST_ORG_ID
-
-async def scheduled_orchestrator_run():
-    print("Running scheduled AI COO orchestrator...")
-    initial_state = {
-        "access_token": TEST_GITHUB_TOKEN,
-        "org_id": TEST_ORG_ID,
-        "issues_data": [],
-        "tasks": [],
-        "report": ""
-    }
-    final_state = await coo_graph.ainvoke(initial_state)
-    print(f"Scheduled run complete: {final_state['report']}")
-
-@app.on_event("startup")
-async def start_scheduler():
-    scheduler.add_job(scheduled_orchestrator_run, "interval", minutes=2, id="orchestrator_job")
-    scheduler.start()
-    print("Scheduler started — orchestrator will run every 2 minutes")
-
-@app.get("/scheduler/status")
-def scheduler_status():
-    jobs = scheduler.get_jobs()
-    return {
-        "running": scheduler.running,
-        "jobs": [{"id": j.id, "next_run": str(j.next_run_time)} for j in jobs]
-    }
-
 # ---------- Human Approval Layer ----------
 
 @app.post("/tasks/{task_id}/approve")
 def approve_task(task_id: str):
-    result = supabase_admin.table("tasks").update({
-        "status": "approved"
-    }).eq("id", task_id).execute()
-
+    result = supabase_admin.table("tasks").update({"status": "approved"}).eq("id", task_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
-
     return {"status": "approved", "task": result.data[0]}
+
 
 @app.post("/tasks/{task_id}/reject")
 def reject_task(task_id: str):
-    result = supabase_admin.table("tasks").update({
-        "status": "rejected"
-    }).eq("id", task_id).execute()
-
+    result = supabase_admin.table("tasks").update({"status": "rejected"}).eq("id", task_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
-
     return {"status": "rejected", "task": result.data[0]}
+
 
 @app.get("/tasks/pending-approval")
 def get_pending_tasks(org_id: str):
     result = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).eq("status", "open").execute()
     return result.data
-
-@app.post("/scheduler/pause")
-def pause_scheduler():
-    scheduler.pause_job("orchestrator_job")
-    return {"status": "paused"}
-
-@app.post("/scheduler/resume")
-def resume_scheduler():
-    scheduler.resume_job("orchestrator_job")
-    return {"status": "resumed"}
