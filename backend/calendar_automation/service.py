@@ -65,10 +65,10 @@ async def check_and_block_lunch(settings: dict) -> dict:
     try:
         access_token = _get_calendar_token_for_org(org_id)
 
-        import pytz
-        ist = pytz.timezone("Asia/Kolkata")
-        start_dt = ist.localize(datetime.combine(today, dtime.fromisoformat(settings["start_time"])))
-        end_dt = ist.localize(datetime.combine(today, dtime.fromisoformat(settings["end_time"])))
+        from zoneinfo import ZoneInfo
+        ist = ZoneInfo("Asia/Kolkata")
+        start_dt = datetime.combine(today, dtime.fromisoformat(settings["start_time"]), tzinfo=ist)
+        end_dt = datetime.combine(today, dtime.fromisoformat(settings["end_time"]), tzinfo=ist)
 
         async with httpx.AsyncClient() as client:
             events_res = await client.get(
