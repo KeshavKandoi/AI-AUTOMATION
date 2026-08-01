@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     DISCORD_WEBHOOK_URL: str
     TEST_GITHUB_ACCESS_TOKEN: str
     TEST_ORG_ID: str
+    ENVIRONMENT: str = "development"
 
     class Config:
         env_file = ".env"
