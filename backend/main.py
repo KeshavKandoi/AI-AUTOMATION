@@ -5,7 +5,7 @@ import httpx
 from datetime import datetime, timedelta, timezone
 
 import time
-from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token
+from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token, get_valid_access_token
 import orchestrator
 import scheduler
 
@@ -26,6 +26,15 @@ app.include_router(scheduler.router)
 @app.on_event("startup")
 async def on_startup():
     scheduler.start_scheduler()
+
+
+@app.get("/tokens/{integration_id}/valid")
+def get_valid_token(integration_id: str):
+    try:
+        token = get_valid_access_token(integration_id)
+        return {"status": "ok", "access_token": token}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/health")
