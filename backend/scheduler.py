@@ -3,6 +3,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter
 
 from config import settings, supabase_admin
+from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from orchestrator import coo_graph
 
 router = APIRouter()
@@ -32,9 +33,10 @@ async def scheduled_orchestrator_run():
 def start_scheduler():
     scheduler.add_job(scheduled_orchestrator_run, "interval", hours=1, id="orchestrator_job")
     scheduler.add_job(check_and_commit_job, "cron", hour=23, minute=0, timezone="Asia/Kolkata", id="check_and_commit_job")
+    scheduler.add_job(run_due_commit_jobs, "interval", hours=1, id="commit_scheduler_job")
     scheduler.start()
     scheduler.pause_job("orchestrator_job")
-    print("Scheduler started — orchestrator PAUSED, check_and_commit_job ACTIVE at 11pm IST")
+    print("Scheduler started — orchestrator PAUSED, check_and_commit_job + commit_scheduler_job ACTIVE")
 
 
 @router.get("/scheduler/status")
