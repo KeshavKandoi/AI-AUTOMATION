@@ -707,12 +707,18 @@ async def node_create_tasks(state: COOState) -> COOState:
         state["tasks"] = []
         return state
 
-    prompt = f"""You are a Planner AI. Given this GitHub issues data: {issues_data}
+    memory_context = get_memory_context(state["org_id"])
+
+    prompt = f"""You are a Planner AI. Here is prior context about this company/project:
+{memory_context}
+
+Given this GitHub issues data: {issues_data}
 
 Return ONLY a valid JSON array (no markdown) of up to 5 tasks, each with:
 - title (string, short)
 - description (string, 1 sentence)
-- priority ("high", "medium", or "low")"""
+- priority ("high", "medium", or "low")
+Use the prior context to inform priority — e.g. if a repo/area was flagged important before, weigh it higher."""
 
     response = gemini_client.models.generate_content(
         model="gemini-3.6-flash",
@@ -786,3 +792,26 @@ async def run_orchestrator(access_token: str, org_id: str):
         "tasks_created": len(final_state["tasks"]),
         "report": final_state["report"]
     }
+
+# ---------- Memory System ----------
+
+@app.post("/memory/add")
+def memory_add(org_id: str, category: str, content: str):
+    result = supabase_admin.table("memory").insert({
+        "organization_id": org_id,
+        "category": category,
+        "content": content
+    }).execute()
+    return {"status": "saved", "memory": result.data[0]}
+
+@app.get("/memory")
+def memory_get(org_id: str):
+    result = supabase_admin.table("memory").select("*").eq("organization_id", org_id).execute()
+    return result.data
+
+def get_memory_context(org_id: str) -> str:
+    result = supabase_admin.table("memory").select("*").eq("organization_id", org_id).execute()
+    memories = result.data
+    if not memories:
+        return "No prior context stored."
+    return "\n".join([f"- [{m['category']}] {m['content']}" for m in memories])
