@@ -110,7 +110,6 @@ async def execute_job(job: dict) -> dict:
         })
 
     except Exception as e:
-        import traceback; traceback.print_exc()
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "failed",
             "error_message": str(e)
