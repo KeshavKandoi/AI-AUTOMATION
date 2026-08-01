@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.responses import RedirectResponse
 from jose import jwt, JWTError
 import httpx
+from datetime import datetime, timedelta, timezone
 
 import time
 from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token
@@ -320,8 +321,11 @@ async def gmail_callback(code: str, state: str):
     }).execute()
     integration_id = integration.data[0]["id"]
 
+    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3599))).isoformat()
+
     supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id, "access_token": encrypt_token(access_token), "refresh_token": encrypt_token(token_data.get("refresh_token"))
+        "integration_id": integration_id, "access_token": encrypt_token(access_token),
+        "refresh_token": encrypt_token(token_data.get("refresh_token")), "expires_at": expires_at
     }).execute()
 
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
@@ -426,8 +430,11 @@ async def calendar_callback(code: str, state: str):
     }).execute()
     integration_id = integration.data[0]["id"]
 
+    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3599))).isoformat()
+
     supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id, "access_token": encrypt_token(access_token), "refresh_token": encrypt_token(token_data.get("refresh_token"))
+        "integration_id": integration_id, "access_token": encrypt_token(access_token),
+        "refresh_token": encrypt_token(token_data.get("refresh_token")), "expires_at": expires_at
     }).execute()
 
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
