@@ -9,7 +9,9 @@ click==8.4.2
 cryptography==50.0.0
 deprecation==2.1.0
 distro==1.9.0
+dnspython==2.8.0
 ecdsa==0.19.2
+email-validator==2.3.0
 fastapi==0.141.1
 google-auth==2.56.2
 google-genai==2.16.0
