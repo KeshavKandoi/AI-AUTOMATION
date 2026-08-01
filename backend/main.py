@@ -3,11 +3,20 @@ from fastapi.responses import RedirectResponse
 from jose import jwt, JWTError
 import httpx
 
-from config import settings, supabase_admin, gemini_client
+import time
+from config import settings, supabase_admin, gemini_client, logger
 import orchestrator
 import scheduler
 
 app = FastAPI(title="AI COO Backend")
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = round((time.time() - start) * 1000, 2)
+    logger.info(f"{request.method} {request.url.path} -> {response.status_code} ({duration}ms)")
+    return response
 
 app.include_router(orchestrator.router)
 app.include_router(scheduler.router)
