@@ -12,26 +12,30 @@ from config import supabase_admin, decrypt_token
 
 
 def _get_github_token_for_org(organization_id: str) -> str:
-    """Looks up the org's connected GitHub integration and returns a decrypted access token."""
+    """Looks up the org's connected GitHub integration and returns a decrypted access token.
+    Handles multiple integration rows (from repeated OAuth connects) by finding
+    the most recent one that actually has a token attached."""
     integration_res = supabase_admin.table("integrations") \
         .select("id") \
         .eq("organization_id", organization_id) \
         .eq("provider", "github") \
         .eq("connected", True) \
+        .order("created_at", desc=True) \
         .execute()
 
     if not integration_res.data:
         raise HTTPException(status_code=400, detail="No connected GitHub integration for this organization")
 
-    integration_id = integration_res.data[0]["id"]
+    integration_ids = [row["id"] for row in integration_res.data]
 
     token_res = supabase_admin.table("oauth_tokens") \
-        .select("access_token") \
-        .eq("integration_id", integration_id) \
+        .select("access_token, integration_id, created_at") \
+        .in_("integration_id", integration_ids) \
+        .order("created_at", desc=True) \
         .execute()
 
     if not token_res.data:
-        raise HTTPException(status_code=400, detail="No GitHub token found for this integration")
+        raise HTTPException(status_code=400, detail="No GitHub token found for this organization")
 
     return decrypt_token(token_res.data[0]["access_token"])
 
