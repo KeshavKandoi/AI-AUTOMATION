@@ -47,6 +47,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ai_coo")
 
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("hpack").setLevel(logging.WARNING)
+
 supabase_admin = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
