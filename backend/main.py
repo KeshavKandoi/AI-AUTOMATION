@@ -463,3 +463,152 @@ Keep it under 150 words."""
     )
 
     return {"summary": response.text}
+
+# ---------- Calendar OAuth ----------
+
+@app.get("/calendar/login")
+def calendar_login(org_id: str):
+    url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={settings.GOOGLE_CLIENT_ID}"
+        f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
+        f"&response_type=code"
+        f"&scope=https://www.googleapis.com/auth/calendar"
+        f"&access_type=offline"
+        f"&prompt=consent"
+        f"&state={org_id}"
+    )
+    return RedirectResponse(url)
+
+@app.get("/calendar/callback")
+async def calendar_callback(code: str, state: str):
+    org_id = state
+
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+                "grant_type": "authorization_code"
+            }
+        )
+        token_data = token_res.json()
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail=f"Calendar auth failed: {token_data}")
+
+    integration = supabase_admin.table("integrations").insert({
+        "organization_id": org_id,
+        "provider": "calendar",
+        "connected": True
+    }).execute()
+
+    integration_id = integration.data[0]["id"]
+
+    supabase_admin.table("oauth_tokens").insert({
+        "integration_id": integration_id,
+        "access_token": access_token,
+        "refresh_token": token_data.get("refresh_token")
+    }).execute()
+
+    return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
+
+# ---------- Calendar Data ----------
+
+@app.get("/calendar/events")
+async def calendar_events(access_token: str):
+    async with httpx.AsyncClient() as client:
+        res = await client.get(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={
+                "timeMin": "2026-08-01T00:00:00Z",
+                "maxResults": 10,
+                "singleEvents": "true",
+                "orderBy": "startTime"
+            }
+        )
+    data = res.json()
+    events = data.get("items", [])
+
+    formatted = [
+        {
+            "summary": e.get("summary"),
+            "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
+            "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date"),
+        }
+        for e in events
+    ]
+
+    return {"event_count": len(formatted), "events": formatted}
+
+# ---------- Calendar Agent (AI Summary) ----------
+
+@app.get("/calendar/summary")
+async def calendar_summary(access_token: str):
+    async with httpx.AsyncClient() as client:
+        res = await client.get(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={
+                "timeMin": "2026-08-01T00:00:00Z",
+                "maxResults": 10,
+                "singleEvents": "true",
+                "orderBy": "startTime"
+            }
+        )
+    data = res.json()
+    events = data.get("items", [])
+
+    if not events:
+        return {"summary": "No upcoming events. Calendar is clear."}
+
+    formatted = [
+        {
+            "summary": e.get("summary"),
+            "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
+            "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date"),
+        }
+        for e in events
+    ]
+
+    prompt = f"""You are an AI assistant summarizing a founder's upcoming calendar.
+Here is the event data: {formatted}
+
+Give a short summary covering:
+- How many upcoming events
+- Any potential scheduling conflicts (overlapping times)
+- What's coming up soonest
+Keep it under 150 words."""
+
+    response = gemini_client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=prompt
+    )
+
+    return {"summary": response.text}
+
+# ---------- Calendar Agent (Create Event) ----------
+
+@app.post("/calendar/create-event")
+async def calendar_create_event(access_token: str, summary: str, start_time: str, end_time: str):
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "summary": summary,
+                "start": {"dateTime": start_time},
+                "end": {"dateTime": end_time},
+            }
+        )
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=400, detail=f"Calendar error: {res.json()}")
+
+    event = res.json()
+    return {"status": "created", "event_link": event.get("htmlLink")}
