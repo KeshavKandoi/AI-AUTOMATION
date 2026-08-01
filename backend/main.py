@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_REDIRECT_URI: str
+    DISCORD_WEBHOOK_URL: str
 
     class Config:
         env_file = ".env"
@@ -612,3 +613,47 @@ async def calendar_create_event(access_token: str, summary: str, start_time: str
 
     event = res.json()
     return {"status": "created", "event_link": event.get("htmlLink")}
+
+# ---------- Discord Agent ----------
+
+@app.post("/discord/notify")
+async def discord_notify(message: str):
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            settings.DISCORD_WEBHOOK_URL,
+            json={"content": message}
+        )
+
+    if res.status_code not in [200, 204]:
+        raise HTTPException(status_code=400, detail=f"Discord error: {res.text}")
+
+    return {"status": "sent", "message": message}
+
+@app.post("/discord/daily-report")
+async def discord_daily_report(github_access_token: str, org_id: str):
+    tasks_res = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).execute()
+    tasks = tasks_res.data
+
+    open_tasks = [t for t in tasks if t.get("status") == "open"]
+    done_tasks = [t for t in tasks if t.get("status") == "issue_created"]
+
+    report = f"""**📊 Daily AI COO Report**
+
+**Open Tasks:** {len(open_tasks)}
+**Issues Created:** {len(done_tasks)}
+
+**Top Priorities:**
+"""
+    for t in open_tasks[:5]:
+        report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')}\n"
+
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            settings.DISCORD_WEBHOOK_URL,
+            json={"content": report}
+        )
+
+    if res.status_code not in [200, 204]:
+        raise HTTPException(status_code=400, detail=f"Discord error: {res.text}")
+
+    return {"status": "sent", "report": report}
