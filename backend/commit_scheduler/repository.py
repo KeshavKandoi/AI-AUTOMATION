@@ -78,3 +78,34 @@ def has_run_for_date(job_id: str, run_date: str) -> bool:
         .in_("status", ["success", "pending"]) \
         .execute()
     return len(result.data) > 0
+
+
+def create_job_files(job_id: str, files: list[dict]) -> list[dict]:
+    if not files:
+        return []
+    rows = [{**f, "job_id": job_id} for f in files]
+    result = supabase_admin.table("commit_job_files").insert(rows).execute()
+    return result.data
+
+
+def get_files_for_job(job_id: str) -> list[dict]:
+    result = supabase_admin.table("commit_job_files").select("*").eq("job_id", job_id).execute()
+    return result.data
+
+
+def get_files_for_date(job_id: str, target_date: str) -> list[dict]:
+    """Files scoped to this exact date, OR files with no target_date (apply every due day)."""
+    result = supabase_admin.table("commit_job_files") \
+        .select("*") \
+        .eq("job_id", job_id) \
+        .execute()
+    all_files = result.data
+    return [
+        f for f in all_files
+        if f.get("target_date") == target_date or f.get("target_date") is None
+    ]
+
+
+def delete_job_file(file_id: str) -> bool:
+    result = supabase_admin.table("commit_job_files").delete().eq("id", file_id).execute()
+    return len(result.data) > 0
