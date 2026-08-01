@@ -283,7 +283,7 @@ def gmail_login(org_id: str):
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
         f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
         f"&response_type=code"
-        f"&scope=https://www.googleapis.com/auth/gmail.readonly"
+        f"&scope=https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"
         f"&access_type=offline&prompt=consent&state={org_id}"
     )
     return RedirectResponse(url)
@@ -555,3 +555,69 @@ def reject_task(task_id: str):
 def get_pending_tasks(org_id: str):
     result = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).eq("status", "open").execute()
     return result.data
+
+# ---------- Gmail Agent (Write Actions) ----------
+
+@app.post("/tasks/{task_id}/approve-and-send-email")
+async def approve_and_send_email(task_id: str, access_token: str, to_email: str):
+    import base64
+    from email.mime.text import MIMEText
+
+    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
+    if not task_res.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task = task_res.data[0]
+
+    if task.get("status") != "approved":
+        raise HTTPException(status_code=403, detail="Task must be approved before sending an email")
+
+    message = MIMEText(task.get("description", ""))
+    message["to"] = to_email
+    message["subject"] = task["title"]
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"raw": raw}
+        )
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=400, detail=f"Gmail send error: {res.json()}")
+
+    supabase_admin.table("tasks").update({"status": "email_sent"}).eq("id", task_id).execute()
+
+    return {"status": "email_sent", "task_id": task_id, "to": to_email}
+
+# ---------- Calendar Agent (Write Action, Approval-Gated) ----------
+
+@app.post("/tasks/{task_id}/approve-and-create-event")
+async def approve_and_create_event(task_id: str, access_token: str, start_time: str, end_time: str):
+    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
+    if not task_res.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task = task_res.data[0]
+
+    if task.get("status") != "approved":
+        raise HTTPException(status_code=403, detail="Task must be approved before creating a calendar event")
+
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "summary": task["title"],
+                "description": task.get("description", ""),
+                "start": {"dateTime": start_time},
+                "end": {"dateTime": end_time},
+            }
+        )
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=400, detail=f"Calendar error: {res.json()}")
+
+    event = res.json()
+    supabase_admin.table("tasks").update({"status": "event_created"}).eq("id", task_id).execute()
+
+    return {"status": "event_created", "event_link": event.get("htmlLink"), "task_id": task_id}
