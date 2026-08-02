@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, MessageSquare, ListTodo, Workflow, Github, Mail,
+  LayoutDashboard, MessageSquare, ListTodo, Workflow, GitBranch, Mail,
   Calendar, GitCommitHorizontal, GitPullRequest, ShieldCheck, ScrollText,
   Plug, Brain, Bell, BarChart3, Settings, User,
 } from 'lucide-react'
@@ -16,7 +16,7 @@ export const navItems: NavItem[] = [
   { label: 'AI COO Chat', path: '/chat', icon: MessageSquare, comingSoon: true },
   { label: 'Tasks', path: '/tasks', icon: ListTodo },
   { label: 'Workflow Automations', path: '/workflows', icon: Workflow },
-  { label: 'GitHub', path: '/integrations/github', icon: Github },
+  { label: 'GitHub', path: '/integrations/github', icon: GitBranch },
   { label: 'Gmail', path: '/integrations/gmail', icon: Mail },
   { label: 'Google Calendar', path: '/integrations/calendar', icon: Calendar },
   { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal },
