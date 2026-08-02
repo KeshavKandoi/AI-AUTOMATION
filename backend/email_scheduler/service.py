@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from email_scheduler import repository
 from email_scheduler.schemas import EmailJobCreate, EmailJobUpdate
-from config import supabase_admin, decrypt_token, get_valid_access_token
+from config import supabase_admin, decrypt_token, get_valid_access_token, logger
 
 
 def _get_gmail_token_for_org(organization_id: str) -> str:
