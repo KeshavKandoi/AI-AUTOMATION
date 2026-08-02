@@ -11,11 +11,11 @@ from email_scheduler import repository as email_repo, service as email_service
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
-def verify_github_signature(payload_body: bytes, signature_header: str) -> bool:
-    if not signature_header:
+def verify_signature_with_secret(payload_body: bytes, signature_header: str, secret: str) -> bool:
+    if not signature_header or not secret:
         return False
     expected = "sha256=" + hmac.new(
-        settings.GITHUB_WEBHOOK_SECRET.encode(),
+        secret.encode(),
         payload_body,
         hashlib.sha256
     ).hexdigest()
