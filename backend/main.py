@@ -328,6 +328,7 @@ async def approve_and_create_issue(task_id: str, access_token: str, repo_full_na
     issue = res.json()
 
     supabase_admin.table("tasks").update({"status": "issue_created"}).eq("id", task_id).execute()
+    log_action(task["organization_id"], "github_issue_created", {"task_id": task_id, "issue_url": issue["html_url"]})
 
     return {"status": "issue_created", "issue_url": issue["html_url"], "task_id": task_id}
 
