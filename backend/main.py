@@ -122,6 +122,7 @@ from org_webhooks import register_github_webhook
 RENDER_BASE_URL = "https://ai-automation-d2s2.onrender.com"
 
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
+from audit import log_action
 
 @app.post("/missed-events/run-now")
 async def trigger_missed_event_recovery():
@@ -602,7 +603,9 @@ def approve_task(task_id: str):
     result = supabase_admin.table("tasks").update({"status": "approved"}).eq("id", task_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
-    return {"status": "approved", "task": result.data[0]}
+    task = result.data[0]
+    log_action(task["organization_id"], "task_approved", {"task_id": task_id, "title": task.get("title")})
+    return {"status": "approved", "task": task}
 
 
 @app.post("/tasks/{task_id}/reject")
@@ -610,7 +613,9 @@ def reject_task(task_id: str):
     result = supabase_admin.table("tasks").update({"status": "rejected"}).eq("id", task_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
-    return {"status": "rejected", "task": result.data[0]}
+    task = result.data[0]
+    log_action(task["organization_id"], "task_rejected", {"task_id": task_id, "title": task.get("title")})
+    return {"status": "rejected", "task": task}
 
 
 @app.get("/tasks/pending-approval")
