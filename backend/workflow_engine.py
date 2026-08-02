@@ -2,7 +2,7 @@ import base64
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta, timezone
 import httpx
-from config import supabase_admin, logger, decrypt_token
+from config import supabase_admin, logger, decrypt_token, get_valid_access_token
 from audit import log_action
 
 
@@ -13,13 +13,12 @@ def _get_org_token(organization_id: str, provider: str):
         .order("created_at", desc=True).execute()
     if not integration_res.data:
         return None
-    integration_ids = [row["id"] for row in integration_res.data]
-    token_res = supabase_admin.table("oauth_tokens") \
-        .select("access_token").in_("integration_id", integration_ids) \
-        .order("created_at", desc=True).execute()
-    if not token_res.data:
+    integration_id = integration_res.data[0]["id"]
+    try:
+        return get_valid_access_token(integration_id)
+    except ValueError as e:
+        logger.error(f"Token unavailable for org {organization_id} provider {provider}: {e}")
         return None
-    return decrypt_token(token_res.data[0]["access_token"])
 
 
 def _get_org_email(organization_id: str):
