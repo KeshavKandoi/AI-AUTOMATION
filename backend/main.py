@@ -10,6 +10,7 @@ import orchestrator
 import scheduler
 from commit_scheduler.routes import router as commit_scheduler_router
 from email_scheduler.routes import router as email_scheduler_router
+from workflow_routes import router as workflow_router
 from calendar_automation.routes import router as lunch_block_router
 
 app = FastAPI(title="AI COO Backend")
@@ -26,6 +27,7 @@ app.include_router(orchestrator.router)
 app.include_router(scheduler.router)
 app.include_router(commit_scheduler_router)
 app.include_router(email_scheduler_router)
+app.include_router(workflow_router)
 
 from webhooks.routes import router as webhooks_router
 app.include_router(webhooks_router)
