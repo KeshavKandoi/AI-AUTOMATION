@@ -100,6 +100,8 @@ async def execute_job(job: dict) -> dict:
             })
 
         message_id = res.json().get("id")
+        from audit import log_action
+        log_action(job["organization_id"], "email_sent", {"job_id": job["id"], "to_email": job.get("to_email"), "message_id": message_id})
 
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "success",
