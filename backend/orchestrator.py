@@ -164,6 +164,8 @@ Prioritize using prior context. Combine related items where sensible."""
     except json.JSONDecodeError:
         tasks = []
 
+    from audit import log_action
+
     created = []
     for t in tasks:
         result = supabase_admin.table("tasks").insert({
@@ -173,7 +175,9 @@ Prioritize using prior context. Combine related items where sensible."""
             "priority": t.get("priority", "medium"),
             "source": f"orchestrator_{t.get('source', 'unknown')}"
         }).execute()
-        created.append(result.data[0])
+        created_task = result.data[0]
+        created.append(created_task)
+        log_action(state["org_id"], "task_created", {"task_id": created_task["id"], "title": created_task.get("title")})
 
     state["tasks"] = created
     return state
