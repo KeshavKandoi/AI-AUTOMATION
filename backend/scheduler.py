@@ -2,7 +2,7 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter
 
-from config import settings, supabase_admin
+from config import settings, supabase_admin, logger
 from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from email_scheduler.scheduler_jobs import run_due_email_jobs
 from calendar_automation.scheduler_jobs import run_daily_lunch_block_check
