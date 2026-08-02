@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, HTTPException, Header
 
 from config import settings, logger, supabase_admin
 from orchestrator import coo_graph
+from workflow_engine import run_workflows
 from commit_scheduler import repository as commit_repo, service as commit_service
 from email_scheduler import repository as email_repo, service as email_service
 
@@ -23,6 +24,18 @@ def verify_signature_with_secret(payload_body: bytes, signature_header: str, sec
 
 
 REACTIVE_EVENTS = {"push", "issues", "pull_request"}
+
+
+def _extract_priority_from_labels(labels: list) -> str:
+    """Looks for a label like 'priority:high' / 'priority: high' (case-insensitive).
+    Defaults to 'medium' if no matching label is present."""
+    for label in labels or []:
+        name = (label.get("name") or "").lower().replace(" ", "")
+        if name.startswith("priority:"):
+            value = name.split(":", 1)[1]
+            if value in ("high", "medium", "low"):
+                return value
+    return "medium"
 
 
 @router.post("/github")
@@ -56,6 +69,30 @@ async def github_webhook(
 
     org_id = org["id"]
 
+    # --- New: single-issue events go through the configurable workflow engine ---
+    if x_github_event == "issues" and payload.get("action") == "opened":
+        issue = payload.get("issue", {})
+        context = {
+            "title": issue.get("title", "Untitled issue"),
+            "description": issue.get("body") or "",
+            "priority": _extract_priority_from_labels(issue.get("labels", [])),
+            "issue_number": issue.get("number"),
+            "issue_url": issue.get("html_url"),
+            "repo": repo_full_name,
+        }
+
+        await run_workflows(org_id, "issue_created", context)
+
+        logger.info(f"Workflow dispatch complete for issue #{context['issue_number']} (priority={context['priority']})")
+
+        return {
+            "status": "triggered",
+            "event": x_github_event,
+            "trigger_type": "issue_created",
+            "priority": context["priority"]
+        }
+
+    # --- Existing behavior: push / pull_request / other issue actions still run the orchestrator ---
     token_res = supabase_admin.table("integrations").select("id").eq("organization_id", org_id).eq("provider", "github").eq("connected", True).order("created_at", desc=True).execute()
     if not token_res.data:
         raise HTTPException(status_code=400, detail="No connected GitHub integration for this org")
