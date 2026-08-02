@@ -687,6 +687,7 @@ async def approve_and_create_event(task_id: str, access_token: str, start_time: 
 
     event = res.json()
     supabase_admin.table("tasks").update({"status": "event_created"}).eq("id", task_id).execute()
+    log_action(task["organization_id"], "calendar_event_created", {"task_id": task_id, "event_link": event.get("htmlLink")})
 
     return {"status": "event_created", "event_link": event.get("htmlLink"), "task_id": task_id}
 
