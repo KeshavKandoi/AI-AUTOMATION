@@ -117,6 +117,26 @@ async def github_callback(code: str, state: str):
     return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
 
 
+from org_webhooks import register_github_webhook
+
+RENDER_BASE_URL = "https://ai-automation-d2s2.onrender.com"
+
+@app.post("/github/connect-repo")
+async def connect_repo(org_id: str, repo_full_name: str, access_token: str):
+    result = await register_github_webhook(
+        access_token=access_token,
+        repo_full_name=repo_full_name,
+        org_id=org_id,
+        base_url=RENDER_BASE_URL
+    )
+    if result is None:
+        raise HTTPException(status_code=400, detail="Failed to register webhook on GitHub")
+
+    supabase_admin.table("organizations").update({"github_repo": repo_full_name}).eq("id", org_id).execute()
+
+    return {"status": "connected", "repo": repo_full_name, "webhook_id": result.get("id")}
+
+
 @app.get("/github/repos")
 async def github_repos(access_token: str):
     async with httpx.AsyncClient() as client:
