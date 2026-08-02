@@ -2,7 +2,7 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter
 
-from config import settings, supabase_admin, logger
+from config import settings, supabase_admin, logger, get_valid_access_token
 from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from email_scheduler.scheduler_jobs import run_due_email_jobs
 from calendar_automation.scheduler_jobs import run_daily_lunch_block_check
@@ -16,12 +16,32 @@ TEST_GITHUB_TOKEN = settings.TEST_GITHUB_ACCESS_TOKEN
 TEST_ORG_ID = settings.TEST_ORG_ID
 
 
+def _get_org_integration_token(organization_id: str, provider: str):
+    integration_res = supabase_admin.table("integrations") \
+        .select("id").eq("organization_id", organization_id) \
+        .eq("provider", provider).eq("connected", True) \
+        .order("created_at", desc=True).execute()
+    if not integration_res.data:
+        logger.info(f"No connected '{provider}' integration for org {organization_id} — skipping in scheduled run")
+        return None
+    integration_id = integration_res.data[0]["id"]
+    try:
+        return get_valid_access_token(integration_id)
+    except ValueError as e:
+        logger.error(f"Could not get valid '{provider}' token for org {organization_id}: {e}")
+        return None
+
+
 async def scheduled_orchestrator_run():
     print("Running scheduled AI COO orchestrator...")
+
+    gmail_token = _get_org_integration_token(TEST_ORG_ID, "gmail")
+    calendar_token = _get_org_integration_token(TEST_ORG_ID, "calendar")
+
     initial_state = {
         "github_token": TEST_GITHUB_TOKEN,
-        "gmail_token": None,
-        "calendar_token": None,
+        "gmail_token": gmail_token,
+        "calendar_token": calendar_token,
         "org_id": TEST_ORG_ID,
         "issues_data": [],
         "emails_data": [],
