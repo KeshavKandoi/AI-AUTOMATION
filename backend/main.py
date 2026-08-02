@@ -121,6 +121,14 @@ from org_webhooks import register_github_webhook
 
 RENDER_BASE_URL = "https://ai-automation-d2s2.onrender.com"
 
+from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
+
+@app.post("/missed-events/run-now")
+async def trigger_missed_event_recovery():
+    await run_missed_event_recovery()
+    return {"status": "triggered"}
+
+
 @app.post("/github/connect-repo")
 async def connect_repo(org_id: str, repo_full_name: str, access_token: str):
     result = await register_github_webhook(
