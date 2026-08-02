@@ -32,11 +32,23 @@ async def scheduled_orchestrator_run():
     print(f"Scheduled run complete: {final_state['report']}")
 
 
+SELF_URL = "https://ai-automation-d2s2.onrender.com/health"
+
+async def keep_alive_ping():
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.get(SELF_URL)
+        logger.info(f"Keep-alive ping -> {res.status_code}")
+    except Exception as e:
+        logger.error(f"Keep-alive ping failed: {e}")
+
+
 def start_scheduler():
     scheduler.add_job(scheduled_orchestrator_run, "interval", hours=1, id="orchestrator_job")
     scheduler.add_job(check_and_commit_job, "cron", hour=23, minute=0, timezone="Asia/Kolkata", id="check_and_commit_job")
     scheduler.add_job(run_due_commit_jobs, "interval", hours=1, id="commit_scheduler_job")
     scheduler.add_job(run_due_email_jobs, "interval", hours=1, id="email_scheduler_job")
+    scheduler.add_job(keep_alive_ping, "interval", minutes=10, id="keep_alive_job")
     scheduler.add_job(run_daily_lunch_block_check, "cron", hour=8, minute=0, timezone="Asia/Kolkata", id="lunch_block_job")
     scheduler.start()
     scheduler.pause_job("orchestrator_job")
