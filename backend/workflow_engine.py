@@ -23,8 +23,8 @@ def _get_org_token(organization_id: str, provider: str):
 
 
 def _get_org_email(organization_id: str):
-    result = supabase_admin.table("user_profiles").select("email").eq("organization_id", organization_id).execute()
-    return result.data[0].get("email") if result.data else None
+    result = supabase_admin.table("organizations").select("notification_email").eq("id", organization_id).execute()
+    return result.data[0].get("notification_email") if result.data else None
 
 
 def _match_conditions(conditions: dict, context: dict) -> bool:
