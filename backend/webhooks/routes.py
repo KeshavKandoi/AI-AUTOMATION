@@ -32,18 +32,38 @@ async def github_webhook(
     x_github_event: str = Header(None),
 ):
     body = await request.body()
+    payload = json.loads(body)
 
-    if not verify_github_signature(body, x_hub_signature_256):
+    repo_full_name = payload.get("repository", {}).get("full_name")
+    if not repo_full_name:
+        raise HTTPException(status_code=400, detail="Missing repository in payload")
+
+    org_res = supabase_admin.table("organizations").select("*").eq("github_repo", repo_full_name).execute()
+    if not org_res.data:
+        logger.error(f"Webhook received for unregistered repo: {repo_full_name}")
+        raise HTTPException(status_code=404, detail="No organization connected to this repo")
+
+    org = org_res.data[0]
+    org_secret = org.get("webhook_secret")
+
+    if not verify_signature_with_secret(body, x_hub_signature_256, org_secret):
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
-    payload = json.loads(body)
-    logger.info(f"GitHub webhook received: event={x_github_event}")
+    logger.info(f"GitHub webhook received: event={x_github_event} repo={repo_full_name} org={org['id']}")
 
     if x_github_event not in REACTIVE_EVENTS:
         return {"status": "ignored", "event": x_github_event}
 
-    org_id = settings.TEST_ORG_ID
-    access_token = settings.TEST_GITHUB_ACCESS_TOKEN
+    org_id = org["id"]
+
+    token_res = supabase_admin.table("integrations").select("id").eq("organization_id", org_id).eq("provider", "github").eq("connected", True).order("created_at", desc=True).execute()
+    if not token_res.data:
+        raise HTTPException(status_code=400, detail="No connected GitHub integration for this org")
+    integration_ids = [row["id"] for row in token_res.data]
+    oauth_res = supabase_admin.table("oauth_tokens").select("access_token").in_("integration_id", integration_ids).order("created_at", desc=True).execute()
+    if not oauth_res.data:
+        raise HTTPException(status_code=400, detail="No GitHub token found for this org")
+    access_token = oauth_res.data[0]["access_token"]
 
     initial_state = {
         "github_token": access_token,
