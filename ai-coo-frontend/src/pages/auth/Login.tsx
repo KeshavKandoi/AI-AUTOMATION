@@ -18,6 +18,7 @@ type LoginForm = z.infer<typeof loginSchema>
 export default function Login() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
+  const mockLogin = useAuthStore((s) => s.mockLogin)
   const [rememberMe, setRememberMe] = useState(true)
   const [serverError, setServerError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -109,6 +110,27 @@ export default function Login() {
 
           <Button type="submit" loading={loading} className="w-full mt-1">
             Sign in
+          </Button>
+
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[var(--color-border)]" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-[var(--color-surface)] px-2 text-[var(--color-text-faint)]">dev only</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={() => {
+              mockLogin()
+              navigate('/dashboard')
+            }}
+          >
+            Continue with dev account
           </Button>
         </form>
 
