@@ -56,8 +56,11 @@ async def node_fetch_issues(state: COOState) -> COOState:
                     issues_data.append({
                         "source": "github",
                         "repo": r["name"],
+                        "repo_full_name": r["full_name"],
+                        "number": issue.get("number"),
                         "title": issue.get("title"),
                         "comments": issue.get("comments"),
+                        "source_ref": f"github:{r['full_name']}#{issue.get('number')}",
                     })
 
     state["issues_data"] = issues_data
@@ -90,9 +93,11 @@ async def node_fetch_emails(state: COOState) -> COOState:
             headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
             emails.append({
                 "source": "gmail",
+                "message_id": m["id"],
                 "from": headers.get("From"),
                 "subject": headers.get("Subject"),
-                "snippet": msg.get("snippet")
+                "snippet": msg.get("snippet"),
+                "source_ref": f"gmail:{m['id']}",
             })
 
     state["emails_data"] = emails
@@ -117,8 +122,10 @@ async def node_fetch_events(state: COOState) -> COOState:
     formatted = [
         {
             "source": "calendar",
+            "event_id": e.get("id"),
             "summary": e.get("summary"),
             "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
+            "source_ref": f"calendar:{e.get('id')}",
         }
         for e in events
     ]
@@ -130,6 +137,25 @@ async def node_create_tasks(state: COOState) -> COOState:
     issues_data = state.get("issues_data", [])
     emails_data = state.get("emails_data", [])
     events_data = state.get("events_data", [])
+
+    if not issues_data and not emails_data and not events_data:
+        state["tasks"] = []
+        return state
+
+    all_refs = [i.get("source_ref") for i in issues_data + emails_data + events_data if i.get("source_ref")]
+    already_tracked = set()
+    if all_refs:
+        existing_open = supabase_admin.table("tasks") \
+            .select("source_ref") \
+            .eq("organization_id", state["org_id"]) \
+            .eq("status", "open") \
+            .in_("source_ref", all_refs) \
+            .execute()
+        already_tracked = {row["source_ref"] for row in existing_open.data if row.get("source_ref")}
+
+    issues_data = [i for i in issues_data if i.get("source_ref") not in already_tracked]
+    emails_data = [i for i in emails_data if i.get("source_ref") not in already_tracked]
+    events_data = [i for i in events_data if i.get("source_ref") not in already_tracked]
 
     if not issues_data and not emails_data and not events_data:
         state["tasks"] = []
@@ -149,6 +175,7 @@ Return ONLY a valid JSON array (no markdown) of up to 5 tasks across ALL sources
 - description (string, 1 sentence)
 - priority ("high", "medium", or "low")
 - source ("github", "gmail", or "calendar")
+- source_ref (string, copy the exact "source_ref" value of the item(s) this task is based on; if combining multiple items, join with a comma)
 
 Prioritize using prior context. Combine related items where sensible."""
 
@@ -173,7 +200,8 @@ Prioritize using prior context. Combine related items where sensible."""
             "title": t.get("title"),
             "description": t.get("description"),
             "priority": t.get("priority", "medium"),
-            "source": f"orchestrator_{t.get('source', 'unknown')}"
+            "source": f"orchestrator_{t.get('source', 'unknown')}",
+            "source_ref": t.get("source_ref")
         }).execute()
         created_task = result.data[0]
         created.append(created_task)
