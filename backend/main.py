@@ -320,8 +320,8 @@ async def github_create_issue(access_token: str, repo_full_name: str, title: str
 
 
 @app.post("/tasks/{task_id}/approve-and-create-issue")
-async def approve_and_create_issue(task_id: str, access_token: str, repo_full_name: str, resolution: str = "resolved"):
-    from closeout import run_closeout
+async def approve_and_create_issue(task_id: str, access_token: str | None = None, repo_full_name: str | None = None, resolution: str = "resolved"):
+    from closeout import run_closeout, _resolve_access_token, parse_source_ref
 
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
     if not task_res.data:
@@ -330,6 +330,15 @@ async def approve_and_create_issue(task_id: str, access_token: str, repo_full_na
 
     if task.get("status") != "approved":
         raise HTTPException(status_code=403, detail="Task must be approved before creating a GitHub issue")
+
+    if not access_token:
+        access_token = _resolve_access_token(task["organization_id"], "github")
+
+    if not repo_full_name:
+        source_type, identifier = parse_source_ref(task.get("source_ref") or "")
+        if source_type != "github" or not identifier or "#" not in identifier:
+            raise HTTPException(status_code=400, detail="repo_full_name required — task has no GitHub source_ref to infer it from")
+        repo_full_name = identifier.rsplit("#", 1)[0]
 
     async with httpx.AsyncClient() as client:
         res = await client.post(
@@ -650,10 +659,10 @@ def get_pending_tasks(org_id: str):
 # ---------- Gmail Agent (Write Actions) ----------
 
 @app.post("/tasks/{task_id}/approve-and-send-email")
-async def approve_and_send_email(task_id: str, access_token: str, to_email: str, archive: bool = False):
+async def approve_and_send_email(task_id: str, access_token: str | None = None, to_email: str | None = None, archive: bool = False):
     import base64
     from email.mime.text import MIMEText
-    from closeout import run_closeout
+    from closeout import run_closeout, _resolve_access_token
 
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
     if not task_res.data:
@@ -662,6 +671,15 @@ async def approve_and_send_email(task_id: str, access_token: str, to_email: str,
 
     if task.get("status") != "approved":
         raise HTTPException(status_code=403, detail="Task must be approved before sending an email")
+
+    if not access_token:
+        access_token = _resolve_access_token(task["organization_id"], "gmail")
+
+    if not to_email:
+        profile_res = supabase_admin.table("user_profiles").select("email").eq("organization_id", task["organization_id"]).execute()
+        if not profile_res.data or not profile_res.data[0].get("email"):
+            raise HTTPException(status_code=400, detail="to_email required — no email on file for this organization")
+        to_email = profile_res.data[0]["email"]
 
     message = MIMEText(task.get("description", ""))
     message["to"] = to_email
@@ -688,8 +706,8 @@ async def approve_and_send_email(task_id: str, access_token: str, to_email: str,
 # ---------- Calendar Agent (Write Action, Approval-Gated) ----------
 
 @app.post("/tasks/{task_id}/approve-and-create-event")
-async def approve_and_create_event(task_id: str, access_token: str, start_time: str, end_time: str):
-    from closeout import run_closeout
+async def approve_and_create_event(task_id: str, start_time: str, end_time: str, access_token: str | None = None):
+    from closeout import run_closeout, _resolve_access_token
 
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
     if not task_res.data:
@@ -698,6 +716,9 @@ async def approve_and_create_event(task_id: str, access_token: str, start_time: 
 
     if task.get("status") != "approved":
         raise HTTPException(status_code=403, detail="Task must be approved before creating a calendar event")
+
+    if not access_token:
+        access_token = _resolve_access_token(task["organization_id"], "calendar")
 
     async with httpx.AsyncClient() as client:
         res = await client.post(
