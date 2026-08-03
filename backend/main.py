@@ -712,3 +712,33 @@ def schedule_commit(org_id: str, target_date: str, folder_path: str,
 async def commits_run_now():
     await scheduler.check_and_commit_job()
     return {"status": "triggered"}
+
+# ---------- Integrations Status (frontend) ----------
+
+@app.get("/integrations")
+def get_integrations_status(org_id: str):
+    result = supabase_admin.table("integrations") \
+        .select("*") \
+        .eq("organization_id", org_id) \
+        .order("created_at", desc=True) \
+        .execute()
+
+    latest_by_provider = {}
+    for row in result.data:
+        provider = row["provider"]
+        if provider not in latest_by_provider:
+            latest_by_provider[provider] = row
+
+    return list(latest_by_provider.values())
+
+# ---------- Audit Logs (frontend) ----------
+
+@app.get("/audit-logs")
+def get_audit_logs(org_id: str, limit: int = 50):
+    result = supabase_admin.table("audit_logs") \
+        .select("*") \
+        .eq("organization_id", org_id) \
+        .order("created_at", desc=True) \
+        .limit(limit) \
+        .execute()
+    return result.data
