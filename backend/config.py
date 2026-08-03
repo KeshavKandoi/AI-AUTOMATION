@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     GENERIC_WEBHOOK_SECRET: str
     ENVIRONMENT: str = "development"
     TOKEN_ENCRYPTION_KEY: str
+    ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     class Config:
         env_file = ".env"
