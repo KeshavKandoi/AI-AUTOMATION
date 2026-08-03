@@ -639,9 +639,10 @@ def get_pending_tasks(org_id: str):
 # ---------- Gmail Agent (Write Actions) ----------
 
 @app.post("/tasks/{task_id}/approve-and-send-email")
-async def approve_and_send_email(task_id: str, access_token: str, to_email: str):
+async def approve_and_send_email(task_id: str, access_token: str, to_email: str, archive: bool = False):
     import base64
     from email.mime.text import MIMEText
+    from closeout import run_closeout
 
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
     if not task_res.data:
@@ -668,12 +669,17 @@ async def approve_and_send_email(task_id: str, access_token: str, to_email: str)
 
     supabase_admin.table("tasks").update({"status": "email_sent"}).eq("id", task_id).execute()
 
+    if task.get("source_ref"):
+        await run_closeout(task, approved=True, access_token=access_token, archive=archive)
+
     return {"status": "email_sent", "task_id": task_id, "to": to_email}
 
 # ---------- Calendar Agent (Write Action, Approval-Gated) ----------
 
 @app.post("/tasks/{task_id}/approve-and-create-event")
 async def approve_and_create_event(task_id: str, access_token: str, start_time: str, end_time: str):
+    from closeout import run_closeout
+
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
     if not task_res.data:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -700,6 +706,9 @@ async def approve_and_create_event(task_id: str, access_token: str, start_time: 
     event = res.json()
     supabase_admin.table("tasks").update({"status": "event_created"}).eq("id", task_id).execute()
     log_action(task["organization_id"], "calendar_event_created", {"task_id": task_id, "event_link": event.get("htmlLink")})
+
+    if task.get("source_ref"):
+        await run_closeout(task, approved=True, access_token=access_token, notes=f"Follow-up event created: {event.get('htmlLink')}")
 
     return {"status": "event_created", "event_link": event.get("htmlLink"), "task_id": task_id}
 
