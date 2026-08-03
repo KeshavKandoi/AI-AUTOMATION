@@ -23,7 +23,7 @@ export const navItems: NavItem[] = [
   { label: 'Pull Requests', path: '/pull-requests', icon: GitPullRequest, comingSoon: true },
   { label: 'Human Approval', path: '/approvals', icon: ShieldCheck },
   { label: 'Audit Logs', path: '/audit-logs', icon: ScrollText, comingSoon: true },
-  { label: 'Integrations', path: '/integrations', icon: Plug, comingSoon: true },
+  { label: 'Integrations', path: '/integrations', icon: Plug },
   { label: 'Memory', path: '/memory', icon: Brain, comingSoon: true },
   { label: 'Notifications', path: '/notifications', icon: Bell, comingSoon: true },
   { label: 'Analytics', path: '/analytics', icon: BarChart3, comingSoon: true },
