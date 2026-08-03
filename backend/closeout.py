@@ -1,5 +1,5 @@
 import httpx
-from config import supabase_admin, logger
+from config import supabase_admin, logger, get_valid_access_token
 from audit import log_action
 
 
@@ -8,6 +8,20 @@ def parse_source_ref(source_ref: str):
         return None, None
     source_type, identifier = source_ref.split(":", 1)
     return source_type, identifier
+
+
+def _resolve_access_token(organization_id: str, provider: str) -> str:
+    integration_res = supabase_admin.table("integrations") \
+        .select("id") \
+        .eq("organization_id", organization_id) \
+        .eq("provider", provider) \
+        .eq("connected", True) \
+        .order("created_at", desc=True) \
+        .execute()
+    if not integration_res.data:
+        raise RuntimeError(f"No connected {provider} integration for org {organization_id}")
+    integration_id = integration_res.data[0]["id"]
+    return get_valid_access_token(integration_id)
 
 
 async def _github_comment(access_token: str, owner_repo: str, issue_number: str, body: str):
@@ -42,7 +56,7 @@ async def close_github_loop(task: dict, access_token: str, approved: bool, resol
     if approved:
         body = f"Task completed: {task.get('title')}\n\n{task.get('description', '')}"
         if pr_url:
-            body += f"\n\nRelated PR: {pr_url}"
+            body += f"\n\nReference: {pr_url}"
         await _github_comment(access_token, owner_repo, issue_number, body)
         if resolution == "resolved":
             await _github_close(access_token, owner_repo, issue_number)
@@ -120,7 +134,7 @@ CLOSEOUT_HANDLERS = {
 }
 
 
-async def run_closeout(task: dict, access_token: str, approved: bool, **kwargs):
+async def run_closeout(task: dict, approved: bool, access_token: str = None, **kwargs):
     source_type, _ = parse_source_ref(task.get("source_ref", ""))
     handler = CLOSEOUT_HANDLERS.get(source_type)
 
@@ -129,7 +143,8 @@ async def run_closeout(task: dict, access_token: str, approved: bool, **kwargs):
         return
 
     try:
-        await handler(task, access_token, approved, **kwargs)
+        token = access_token or _resolve_access_token(task["organization_id"], source_type)
+        await handler(task, token, approved, **kwargs)
         supabase_admin.table("tasks").update({
             "closeout_status": "completed",
             "closeout_error": None
