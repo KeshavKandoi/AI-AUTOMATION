@@ -793,3 +793,41 @@ def get_audit_logs(org_id: str, limit: int = 50):
         .limit(limit) \
         .execute()
     return result.data
+
+# ---------- Integration Disconnect ----------
+
+VALID_PROVIDERS = {"github", "gmail", "calendar"}
+
+
+@app.post("/{provider}/disconnect")
+def disconnect_integration(provider: str, org_id: str):
+    if provider not in VALID_PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+
+    integration_res = supabase_admin.table("integrations") \
+        .select("*") \
+        .eq("organization_id", org_id) \
+        .eq("provider", provider) \
+        .order("created_at", desc=True) \
+        .limit(1) \
+        .execute()
+
+    if not integration_res.data:
+        raise HTTPException(status_code=404, detail=f"No {provider} integration found for this organization")
+
+    integration = integration_res.data[0]
+
+    if not integration.get("connected"):
+        raise HTTPException(status_code=400, detail=f"{provider} integration is already disconnected")
+
+    try:
+        supabase_admin.table("oauth_tokens").delete().eq("integration_id", integration["id"]).execute()
+        supabase_admin.table("integrations").update({"connected": False}).eq("id", integration["id"]).execute()
+    except Exception as e:
+        logger.error(f"Failed to disconnect {provider} for org {org_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to disconnect {provider}: {e}")
+
+    logger.info(f"Disconnected {provider} integration for org {org_id} (integration_id={integration['id']})")
+    log_action(org_id, f"{provider}_disconnected", {"provider": provider, "integration_id": integration["id"]})
+
+    return {"status": "disconnected", "provider": provider}
