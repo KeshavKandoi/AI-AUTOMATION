@@ -11,4 +11,5 @@ export interface Integration {
 export interface IntegrationsService {
   list(orgId: string): Promise<Integration[]>
   loginUrl(provider: IntegrationProvider, orgId: string): string
+  disconnect(provider: IntegrationProvider, orgId: string): Promise<void>
 }
