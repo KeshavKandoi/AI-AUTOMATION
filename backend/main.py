@@ -320,7 +320,9 @@ async def github_create_issue(access_token: str, repo_full_name: str, title: str
 
 
 @app.post("/tasks/{task_id}/approve-and-create-issue")
-async def approve_and_create_issue(task_id: str, access_token: str, repo_full_name: str):
+async def approve_and_create_issue(task_id: str, access_token: str, repo_full_name: str, resolution: str = "resolved"):
+    from closeout import run_closeout
+
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
     if not task_res.data:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -339,8 +341,11 @@ async def approve_and_create_issue(task_id: str, access_token: str, repo_full_na
         raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
     issue = res.json()
 
-    supabase_admin.table("tasks").update({"status": "issue_created"}).eq("id", task_id).execute()
+    supabase_admin.table("tasks").update({"status": "issue_created", "resolution": resolution}).eq("id", task_id).execute()
     log_action(task["organization_id"], "github_issue_created", {"task_id": task_id, "issue_url": issue["html_url"]})
+
+    if task.get("source_ref"):
+        await run_closeout(task, approved=True, access_token=access_token, resolution=resolution, pr_url=issue.get("html_url"))
 
     return {"status": "issue_created", "issue_url": issue["html_url"], "task_id": task_id}
 
@@ -622,12 +627,18 @@ def approve_task(task_id: str):
 
 
 @app.post("/tasks/{task_id}/reject")
-def reject_task(task_id: str):
+async def reject_task(task_id: str):
+    from closeout import run_closeout
+
     result = supabase_admin.table("tasks").update({"status": "rejected"}).eq("id", task_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
     task = result.data[0]
     log_action(task["organization_id"], "task_rejected", {"task_id": task_id, "title": task.get("title")})
+
+    if task.get("source_ref"):
+        await run_closeout(task, approved=False)
+
     return {"status": "rejected", "task": task}
 
 
