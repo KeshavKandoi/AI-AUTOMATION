@@ -10,6 +10,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import Dashboard from '@/pages/dashboard/Dashboard'
 import ComingSoon from '@/pages/ComingSoon'
 import Tasks from '@/pages/tasks/Tasks'
+import HumanApproval from '@/pages/approvals/HumanApproval'
 
 const queryClient = new QueryClient()
 
@@ -35,7 +36,7 @@ function App() {
               <Route path="/integrations/calendar" element={<ComingSoon title="Google Calendar" />} />
               <Route path="/commit-scheduler" element={<ComingSoon title="Commit Scheduler" />} />
               <Route path="/pull-requests" element={<ComingSoon title="Pull Requests" />} />
-              <Route path="/approvals" element={<ComingSoon title="Human Approval" />} />
+              <Route path="/approvals" element={<HumanApproval />} />
               <Route path="/audit-logs" element={<ComingSoon title="Audit Logs" />} />
               <Route path="/integrations" element={<ComingSoon title="Integrations" />} />
               <Route path="/memory" element={<ComingSoon title="Memory" />} />
