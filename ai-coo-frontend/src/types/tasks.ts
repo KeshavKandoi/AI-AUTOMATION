@@ -7,4 +7,8 @@ export interface Task {
   status: string
   source: string
   created_at: string
+  source_ref?: string | null
+  resolution?: string | null
+  closeout_status?: string | null
+  closeout_error?: string | null
 }
