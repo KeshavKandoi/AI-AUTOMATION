@@ -9,4 +9,9 @@ export const realIntegrationsService: IntegrationsService = {
 
   loginUrl: (provider: IntegrationProvider, orgId: string) =>
     `${API_BASE_URL}/${provider}/login?org_id=${encodeURIComponent(orgId)}`,
+
+  disconnect: (provider, orgId) =>
+    apiClient
+      .post(`/${provider}/disconnect`, undefined, { params: { org_id: orgId } })
+      .then(() => undefined),
 }
