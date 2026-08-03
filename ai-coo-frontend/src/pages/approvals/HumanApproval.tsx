@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Github, Mail, Calendar as CalendarIcon, ExternalLink } from 'lucide-react'
+import { Check, X, GitBranch, Mail, Calendar as CalendarIcon, ExternalLink } from 'lucide-react'
 import { tasksApi } from '@/api/tasks'
 import { useAuthStore } from '@/store/authStore'
 import Badge from '@/components/ui/Badge'
@@ -201,7 +201,7 @@ export default function HumanApproval() {
                               resolveGithubMutation.variables === task.id
                             }
                           >
-                            <Github size={14} />
+                            <GitBranch size={14} />
                             Resolve on GitHub
                           </Button>
                         )}
