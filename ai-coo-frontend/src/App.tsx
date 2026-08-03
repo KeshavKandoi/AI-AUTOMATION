@@ -11,6 +11,7 @@ import Dashboard from '@/pages/dashboard/Dashboard'
 import ComingSoon from '@/pages/ComingSoon'
 import Tasks from '@/pages/tasks/Tasks'
 import HumanApproval from '@/pages/approvals/HumanApproval'
+import Integrations from '@/pages/integrations/Integrations'
 
 const queryClient = new QueryClient()
 
@@ -38,7 +39,7 @@ function App() {
               <Route path="/pull-requests" element={<ComingSoon title="Pull Requests" />} />
               <Route path="/approvals" element={<HumanApproval />} />
               <Route path="/audit-logs" element={<ComingSoon title="Audit Logs" />} />
-              <Route path="/integrations" element={<ComingSoon title="Integrations" />} />
+              <Route path="/integrations" element={<Integrations />} />
               <Route path="/memory" element={<ComingSoon title="Memory" />} />
               <Route path="/notifications" element={<ComingSoon title="Notifications" />} />
               <Route path="/analytics" element={<ComingSoon title="Analytics" />} />
