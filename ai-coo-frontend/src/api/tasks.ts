@@ -13,4 +13,19 @@ export const tasksApi = {
 
   reject: (taskId: string) =>
     apiClient.post(`/tasks/${taskId}/reject`),
+
+  resolveGithub: (taskId: string, resolution: 'resolved' | 'commented' = 'resolved') =>
+    apiClient.post(`/tasks/${taskId}/approve-and-create-issue`, undefined, {
+      params: { resolution },
+    }),
+
+  resolveGmail: (taskId: string, archive = false) =>
+    apiClient.post(`/tasks/${taskId}/approve-and-send-email`, undefined, {
+      params: { archive },
+    }),
+
+  resolveCalendar: (taskId: string, startTime: string, endTime: string) =>
+    apiClient.post(`/tasks/${taskId}/approve-and-create-event`, undefined, {
+      params: { start_time: startTime, end_time: endTime },
+    }),
 }
