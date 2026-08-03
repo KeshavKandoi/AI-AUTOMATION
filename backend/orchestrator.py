@@ -142,7 +142,15 @@ async def node_create_tasks(state: COOState) -> COOState:
         state["tasks"] = []
         return state
 
-    all_refs = [i.get("source_ref") for i in issues_data + emails_data + events_data if i.get("source_ref")]
+    all_items = []
+    for i in issues_data:
+        all_items.append({**i, "_type": "github"})
+    for i in emails_data:
+        all_items.append({**i, "_type": "gmail"})
+    for i in events_data:
+        all_items.append({**i, "_type": "calendar"})
+
+    all_refs = [i.get("source_ref") for i in all_items if i.get("source_ref")]
     already_tracked = set()
     if all_refs:
         existing_open = supabase_admin.table("tasks") \
@@ -153,31 +161,38 @@ async def node_create_tasks(state: COOState) -> COOState:
             .execute()
         already_tracked = {row["source_ref"] for row in existing_open.data if row.get("source_ref")}
 
-    issues_data = [i for i in issues_data if i.get("source_ref") not in already_tracked]
-    emails_data = [i for i in emails_data if i.get("source_ref") not in already_tracked]
-    events_data = [i for i in events_data if i.get("source_ref") not in already_tracked]
+    all_items = [i for i in all_items if i.get("source_ref") not in already_tracked]
 
-    if not issues_data and not emails_data and not events_data:
+    if not all_items:
         state["tasks"] = []
         return state
 
     memory_context = get_memory_context(state["org_id"])
 
+    indexed_items = [
+        {
+            "index": idx,
+            "type": item["_type"],
+            **{k: v for k, v in item.items() if k not in ("_type", "source_ref")}
+        }
+        for idx, item in enumerate(all_items)
+    ]
+
     prompt = f"""You are a Planner AI for a busy founder. Here is prior context:
 {memory_context}
 
-GitHub open issues: {issues_data}
-Unread emails: {emails_data}
-Upcoming calendar events: {events_data}
+Here is a numbered list of items needing attention (GitHub issues, unread emails, calendar events):
+{indexed_items}
 
-Return ONLY a valid JSON array (no markdown) of up to 5 tasks across ALL sources above, each with:
+For EACH item in the list above, return exactly ONE task object. Do not skip items unless truly irrelevant, and NEVER combine multiple items into a single task — one task per item only.
+
+Return ONLY a valid JSON array (no markdown), where each object has:
+- index (integer, must exactly match the "index" field of the item this task is based on)
 - title (string, short)
 - description (string, 1 sentence)
 - priority ("high", "medium", or "low")
-- source ("github", "gmail", or "calendar")
-- source_ref (string, copy the exact "source_ref" value of the item(s) this task is based on; if combining multiple items, join with a comma)
 
-Prioritize using prior context. Combine related items where sensible."""
+Use prior context to inform priority."""
 
     response = gemini_client.models.generate_content(
         model="gemini-3.6-flash",
@@ -187,21 +202,29 @@ Prioritize using prior context. Combine related items where sensible."""
     raw_text = response.text.strip().replace("```json", "").replace("```", "").strip()
 
     try:
-        tasks = json.loads(raw_text)
+        ai_tasks = json.loads(raw_text)
     except json.JSONDecodeError:
-        tasks = []
+        ai_tasks = []
 
     from audit import log_action
 
     created = []
-    for t in tasks:
+    for t in ai_tasks:
+        idx = t.get("index")
+        if not isinstance(idx, int) or idx < 0 or idx >= len(all_items):
+            continue
+
+        source_item = all_items[idx]
+        source_ref = source_item.get("source_ref")
+        source_type = source_item.get("_type", "unknown")
+
         result = supabase_admin.table("tasks").insert({
             "organization_id": state["org_id"],
             "title": t.get("title"),
             "description": t.get("description"),
             "priority": t.get("priority", "medium"),
-            "source": f"orchestrator_{t.get('source', 'unknown')}",
-            "source_ref": t.get("source_ref")
+            "source": f"orchestrator_{source_type}",
+            "source_ref": source_ref
         }).execute()
         created_task = result.data[0]
         created.append(created_task)
