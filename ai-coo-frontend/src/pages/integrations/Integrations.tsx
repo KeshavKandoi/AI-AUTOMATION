@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle } from 'lucide-react'
 import { integrationsService, type IntegrationProvider } from '@/services/integrations'
 import { useAuthStore } from '@/store/authStore'
@@ -28,6 +29,8 @@ const ALL_PROVIDERS: IntegrationProvider[] = ['github', 'gmail', 'calendar']
 
 export default function Integrations() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
+  const queryClient = useQueryClient()
+  const [confirmingProvider, setConfirmingProvider] = useState<IntegrationProvider | null>(null)
 
   const { data: integrations, isLoading } = useQuery({
     queryKey: ['integrations', orgId],
@@ -35,11 +38,27 @@ export default function Integrations() {
     enabled: !!orgId,
   })
 
+  const disconnectMutation = useMutation({
+    mutationFn: (provider: IntegrationProvider) => integrationsService.disconnect(provider, orgId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations', orgId] })
+      setConfirmingProvider(null)
+    },
+  })
+
   const connectedByProvider = new Map((integrations ?? []).map((i) => [i.provider, i]))
 
   const handleConnect = (provider: IntegrationProvider) => {
     if (!orgId) return
     window.location.href = integrationsService.loginUrl(provider, orgId)
+  }
+
+  const handleDisconnectClick = (provider: IntegrationProvider) => {
+    if (confirmingProvider === provider) {
+      disconnectMutation.mutate(provider)
+    } else {
+      setConfirmingProvider(provider)
+    }
   }
 
   return (
@@ -58,6 +77,8 @@ export default function Integrations() {
           const meta = PROVIDER_META[provider]
           const integration = connectedByProvider.get(provider)
           const isConnected = integration?.connected ?? false
+          const isConfirming = confirmingProvider === provider
+          const isDisconnecting = disconnectMutation.isPending && disconnectMutation.variables === provider
 
           return (
             <Card key={provider} className="p-5 flex flex-col gap-4">
@@ -85,13 +106,26 @@ export default function Integrations() {
                 <p className="mt-1 text-xs text-[var(--color-text-faint)]">{meta.description}</p>
               </div>
 
-              <Button
-                variant={isConnected ? 'secondary' : 'primary'}
-                onClick={() => handleConnect(provider)}
-                className="mt-auto w-full"
-              >
-                {isConnected ? 'Reconnect' : 'Connect'}
-              </Button>
+              <div className="mt-auto flex gap-2">
+                <Button
+                  variant={isConnected ? 'secondary' : 'primary'}
+                  onClick={() => handleConnect(provider)}
+                  className="flex-1"
+                >
+                  {isConnected ? 'Reconnect' : 'Connect'}
+                </Button>
+                {isConnected && (
+                  <Button
+                    variant={isConfirming ? 'primary' : 'ghost'}
+                    onClick={() => handleDisconnectClick(provider)}
+                    onBlur={() => setConfirmingProvider(null)}
+                    loading={isDisconnecting}
+                    className={isConfirming ? '!bg-[var(--color-alert)] !text-white' : ''}
+                  >
+                    {isConfirming ? 'Confirm?' : 'Disconnect'}
+                  </Button>
+                )}
+              </div>
             </Card>
           )
         })}
