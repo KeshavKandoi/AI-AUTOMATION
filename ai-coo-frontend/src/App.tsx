@@ -9,6 +9,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import Dashboard from '@/pages/dashboard/Dashboard'
 import ComingSoon from '@/pages/ComingSoon'
+import Tasks from '@/pages/tasks/Tasks'
 
 const queryClient = new QueryClient()
 
@@ -27,7 +28,7 @@ function App() {
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/chat" element={<ComingSoon title="AI COO Chat" />} />
-              <Route path="/tasks" element={<ComingSoon title="Tasks" />} />
+              <Route path="/tasks" element={<Tasks />} />
               <Route path="/workflows" element={<ComingSoon title="Workflow Automations" />} />
               <Route path="/integrations/github" element={<ComingSoon title="GitHub" />} />
               <Route path="/integrations/gmail" element={<ComingSoon title="Gmail" />} />
