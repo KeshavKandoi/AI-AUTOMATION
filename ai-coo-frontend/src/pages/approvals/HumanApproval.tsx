@@ -6,7 +6,6 @@ import { tasksApi } from '@/api/tasks'
 import { useAuthStore } from '@/store/authStore'
 import Badge from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import type { Task } from '@/types/tasks'
 
 const priorityTone: Record<string, 'alert' | 'amber' | 'neutral'> = {
   high: 'alert',
