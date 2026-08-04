@@ -28,6 +28,11 @@ export interface CreateTasksFromPrioritiesResult {
   message?: string
 }
 
+export interface DisconnectRepoResult {
+  status: string
+  repo: string
+}
+
 export interface GitHubService {
   getConnectedRepo(orgId: string): Promise<string | null>
   listRepos(orgId: string): Promise<GitHubRepo[]>
@@ -35,5 +40,6 @@ export interface GitHubService {
   getPriorities(orgId: string): Promise<string>
   createIssue(orgId: string, repoFullName: string, title: string, body: string): Promise<CreateIssueResult>
   connectRepo(orgId: string, repoFullName: string): Promise<ConnectRepoResult>
+  disconnectRepo(orgId: string): Promise<DisconnectRepoResult>
   createTasksFromPriorities(orgId: string): Promise<CreateTasksFromPrioritiesResult>
 }
