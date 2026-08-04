@@ -33,6 +33,7 @@ export default function GitHub() {
   const [issueTitle, setIssueTitle] = useState('')
   const [issueBody, setIssueBody] = useState('')
   const [connectRepoInput, setConnectRepoInput] = useState('')
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['github'] })
@@ -91,6 +92,22 @@ export default function GitHub() {
       invalidateAll()
     },
   })
+
+  const disconnectRepoMutation = useMutation({
+    mutationFn: () => githubService.disconnectRepo(orgId!),
+    onSuccess: () => {
+      setConfirmingDisconnect(false)
+      invalidateAll()
+    },
+  })
+
+  const handleDisconnectClick = () => {
+    if (confirmingDisconnect) {
+      disconnectRepoMutation.mutate()
+    } else {
+      setConfirmingDisconnect(true)
+    }
+  }
 
   const createIssueMutation = useMutation({
     mutationFn: () => githubService.createIssue(orgId!, issueRepo, issueTitle, issueBody),
@@ -179,10 +196,26 @@ export default function GitHub() {
           >
             {connectedRepo ? 'Reconnect' : 'Connect'}
           </Button>
+          {connectedRepo && (
+            <Button
+              variant={confirmingDisconnect ? 'primary' : 'ghost'}
+              onClick={handleDisconnectClick}
+              onBlur={() => setConfirmingDisconnect(false)}
+              loading={disconnectRepoMutation.isPending}
+              className={confirmingDisconnect ? '!bg-[var(--color-alert)] !text-white' : ''}
+            >
+              {confirmingDisconnect ? 'Confirm?' : 'Disconnect'}
+            </Button>
+          )}
         </div>
         {connectRepoMutation.isError && (
           <div className="mt-2">
             <ErrorBanner message="Failed to connect repository. It may already be connected, or the repo name is invalid." />
+          </div>
+        )}
+        {disconnectRepoMutation.isError && (
+          <div className="mt-2">
+            <ErrorBanner message="Failed to disconnect repository." />
           </div>
         )}
       </Card>
