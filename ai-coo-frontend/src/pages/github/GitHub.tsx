@@ -23,6 +23,23 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
+// Accepts "owner/repo", "https://github.com/owner/repo", "https://github.com/owner/repo.git",
+// with or without a trailing slash, and normalizes to "owner/repo". Returns null if invalid.
+function normalizeRepoInput(raw: string): string | null {
+  let value = raw.trim()
+  if (!value) return null
+
+  value = value.replace(/^https?:\/\/(www\.)?github\.com\//i, '')
+  value = value.replace(/^github\.com\//i, '')
+  value = value.replace(/\.git$/i, '')
+  value = value.replace(/\/+$/, '')
+
+  const match = value.match(/^([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)\/([A-Za-z0-9._-]+)$/)
+  if (!match) return null
+
+  return `${match[1]}/${match[2]}`
+}
+
 export default function GitHub() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
@@ -33,6 +50,7 @@ export default function GitHub() {
   const [issueTitle, setIssueTitle] = useState('')
   const [issueBody, setIssueBody] = useState('')
   const [connectRepoInput, setConnectRepoInput] = useState('')
+  const [connectValidationError, setConnectValidationError] = useState<string | null>(null)
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
 
   const invalidateAll = () => {
@@ -89,9 +107,22 @@ export default function GitHub() {
     mutationFn: (repoFullName: string) => githubService.connectRepo(orgId!, repoFullName),
     onSuccess: () => {
       setConnectRepoInput('')
+      setConnectValidationError(null)
       invalidateAll()
     },
   })
+
+  const handleConnectClick = () => {
+    const normalized = normalizeRepoInput(connectRepoInput)
+    if (!normalized) {
+      setConnectValidationError(
+        "Enter a repository as owner/repo or a GitHub URL, e.g. KeshavKandoi/my-repo or https://github.com/KeshavKandoi/my-repo"
+      )
+      return
+    }
+    setConnectValidationError(null)
+    connectRepoMutation.mutate(normalized)
+  }
 
   const disconnectRepoMutation = useMutation({
     mutationFn: () => githubService.disconnectRepo(orgId!),
@@ -183,16 +214,19 @@ export default function GitHub() {
         )}
         <div className="flex gap-2 mt-3">
           <Input
-            placeholder="owner/repo"
+            placeholder="owner/repo or https://github.com/owner/repo"
             value={connectRepoInput}
-            onChange={(e) => setConnectRepoInput(e.target.value)}
+            onChange={(e) => {
+              setConnectRepoInput(e.target.value)
+              if (connectValidationError) setConnectValidationError(null)
+            }}
             className="max-w-xs"
           />
           <Button
             variant="secondary"
             disabled={!connectRepoInput.trim()}
             loading={connectRepoMutation.isPending}
-            onClick={() => connectRepoMutation.mutate(connectRepoInput.trim())}
+            onClick={handleConnectClick}
           >
             {connectedRepo ? 'Reconnect' : 'Connect'}
           </Button>
@@ -208,6 +242,11 @@ export default function GitHub() {
             </Button>
           )}
         </div>
+        {connectValidationError && (
+          <div className="mt-2">
+            <ErrorBanner message={connectValidationError} />
+          </div>
+        )}
         {connectRepoMutation.isError && (
           <div className="mt-2">
             <ErrorBanner message="Failed to connect repository. It may already be connected, or the repo name is invalid." />
