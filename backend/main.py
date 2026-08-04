@@ -323,6 +323,28 @@ def get_connected_repo(org_id: str):
     return {"repo": result.data[0].get("github_repo")}
 
 
+@app.post("/github/disconnect-repo")
+def disconnect_repo(org_id: str):
+    org_res = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
+    if not org_res.data:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    current_repo = org_res.data[0].get("github_repo")
+    if not current_repo:
+        raise HTTPException(status_code=400, detail="No repository is currently connected")
+
+    try:
+        supabase_admin.table("organizations").update({"github_repo": None}).eq("id", org_id).execute()
+    except Exception as e:
+        logger.error(f"Failed to disconnect repo for org {org_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to disconnect repository: {e}")
+
+    logger.info(f"Disconnected repo {current_repo} for org {org_id}")
+    log_action(org_id, "github_repo_disconnected", {"repo": current_repo})
+
+    return {"status": "disconnected", "repo": current_repo}
+
+
 @app.post("/github/create-issue")
 async def github_create_issue(org_id: str, repo_full_name: str, title: str, body: str = ""):
     from closeout import _resolve_access_token
