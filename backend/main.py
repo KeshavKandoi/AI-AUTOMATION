@@ -484,7 +484,9 @@ async def gmail_callback(code: str, state: str):
 
 
 @app.get("/gmail/unread")
-async def gmail_unread(access_token: str):
+async def gmail_unread(org_id: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "gmail")
     async with httpx.AsyncClient() as client:
         list_res = await client.get(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages",
@@ -509,7 +511,9 @@ async def gmail_unread(access_token: str):
 
 
 @app.get("/gmail/summary")
-async def gmail_summary(access_token: str):
+async def gmail_summary(org_id: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "gmail")
     async with httpx.AsyncClient() as client:
         list_res = await client.get(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages",
