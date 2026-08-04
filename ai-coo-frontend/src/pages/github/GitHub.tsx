@@ -75,7 +75,7 @@ export default function GitHub() {
   } = useQuery({
     queryKey: ['github', 'summary', orgId],
     queryFn: () => githubService.getSummary(orgId!),
-    enabled: !!orgId,
+    enabled: false,
     retry: false,
   })
 
@@ -88,7 +88,7 @@ export default function GitHub() {
   } = useQuery({
     queryKey: ['github', 'priorities', orgId],
     queryFn: () => githubService.getPriorities(orgId!),
-    enabled: !!orgId,
+    enabled: false,
     retry: false,
   })
 
@@ -284,6 +284,15 @@ export default function GitHub() {
             </div>
           ) : summaryError ? (
             <ErrorBanner message="Couldn't load AI summary. Try refreshing." />
+          ) : summary === undefined ? (
+            <div className="flex flex-col items-start gap-2">
+              <p className="text-xs text-[var(--color-text-faint)]">
+                Uses your AI quota — load on demand.
+              </p>
+              <Button variant="secondary" onClick={() => refetchSummary()}>
+                Load AI summary
+              </Button>
+            </div>
           ) : (
             <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-line leading-relaxed">
               {summary}
@@ -314,6 +323,15 @@ export default function GitHub() {
             </div>
           ) : prioritiesError ? (
             <ErrorBanner message="Couldn't load priorities. Try refreshing." />
+          ) : priorities === undefined ? (
+            <div className="flex flex-col items-start gap-2 mb-4">
+              <p className="text-xs text-[var(--color-text-faint)]">
+                Uses your AI quota — load on demand.
+              </p>
+              <Button variant="secondary" onClick={() => refetchPriorities()}>
+                Load prioritized issues
+              </Button>
+            </div>
           ) : (
             <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-line leading-relaxed mb-4">
               {priorities}
