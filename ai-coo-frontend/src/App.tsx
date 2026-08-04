@@ -12,6 +12,7 @@ import ComingSoon from '@/pages/ComingSoon'
 import Tasks from '@/pages/tasks/Tasks'
 import HumanApproval from '@/pages/approvals/HumanApproval'
 import Integrations from '@/pages/integrations/Integrations'
+import CommitScheduler from '@/pages/commitScheduler/CommitScheduler'
 import GitHub from '@/pages/github/GitHub'
 import Gmail from '@/pages/gmail/Gmail'
 import CalendarPage from '@/pages/calendar/Calendar'
@@ -38,7 +39,7 @@ function App() {
               <Route path="/integrations/github" element={<GitHub />} />
               <Route path="/integrations/gmail" element={<Gmail />} />
               <Route path="/integrations/calendar" element={<CalendarPage />} />
-              <Route path="/commit-scheduler" element={<ComingSoon title="Commit Scheduler" />} />
+              <Route path="/commit-scheduler" element={<CommitScheduler />} />
               <Route path="/pull-requests" element={<ComingSoon title="Pull Requests" />} />
               <Route path="/approvals" element={<HumanApproval />} />
               <Route path="/audit-logs" element={<ComingSoon title="Audit Logs" />} />
