@@ -597,7 +597,9 @@ async def calendar_callback(code: str, state: str):
 
 
 @app.get("/calendar/events")
-async def calendar_events(access_token: str):
+async def calendar_events(org_id: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "calendar")
     async with httpx.AsyncClient() as client:
         res = await client.get(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
@@ -616,7 +618,9 @@ async def calendar_events(access_token: str):
 
 
 @app.get("/calendar/summary")
-async def calendar_summary(access_token: str):
+async def calendar_summary(org_id: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "calendar")
     async with httpx.AsyncClient() as client:
         res = await client.get(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
@@ -649,7 +653,9 @@ Keep it under 150 words."""
 
 
 @app.post("/calendar/create-event")
-async def calendar_create_event(access_token: str, summary: str, start_time: str, end_time: str):
+async def calendar_create_event(org_id: str, summary: str, start_time: str, end_time: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "calendar")
     async with httpx.AsyncClient() as client:
         res = await client.post(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
