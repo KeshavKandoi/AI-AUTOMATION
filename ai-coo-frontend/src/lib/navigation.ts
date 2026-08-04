@@ -18,7 +18,7 @@ export const navItems: NavItem[] = [
   { label: 'Workflow Automations', path: '/workflows', icon: Workflow, comingSoon: true },
   { label: 'GitHub', path: '/integrations/github', icon: GitBranch },
   { label: 'Gmail', path: '/integrations/gmail', icon: Mail },
-  { label: 'Google Calendar', path: '/integrations/calendar', icon: Calendar, comingSoon: true },
+  { label: 'Google Calendar', path: '/integrations/calendar', icon: Calendar },
   { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal, comingSoon: true },
   { label: 'Pull Requests', path: '/pull-requests', icon: GitPullRequest, comingSoon: true },
   { label: 'Human Approval', path: '/approvals', icon: ShieldCheck },
