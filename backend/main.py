@@ -6,6 +6,23 @@ from datetime import datetime, timedelta, timezone
 
 import time
 from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token, get_valid_access_token
+
+def run_gemini(prompt: str):
+    """Wraps a Gemini generate_content call. Raises a clean 503 on transient
+    provider errors (overload, unavailable) instead of letting them surface
+    as unhandled 500s. Logs the real exception for debugging."""
+    from google.genai import errors as genai_errors
+    try:
+        return gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+    except genai_errors.ServerError as e:
+        logger.error(f"Gemini ServerError (transient): {e}")
+        raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again shortly.")
+    except genai_errors.APIError as e:
+        logger.error(f"Gemini APIError: {e}")
+        raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again shortly.")
+    except Exception as e:
+        logger.error(f"Unexpected error calling Gemini: {e}")
+        raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again shortly.")
 import orchestrator
 import scheduler
 from commit_scheduler.routes import router as commit_scheduler_router
@@ -200,7 +217,7 @@ Give a short, clear summary covering:
 - What kind of projects they're working on (languages/themes)
 Keep it under 150 words."""
 
-    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+    response = run_gemini(prompt)
     return {"summary": response.text}
 
 
@@ -246,7 +263,7 @@ Format your response as a numbered list like:
 
 Keep each line under 20 words. If there are no issues, say so clearly."""
 
-    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+    response = run_gemini(prompt)
     return {"priorities": response.text}
 
 
@@ -289,7 +306,7 @@ Return ONLY a valid JSON array (no markdown, no explanation) of up to 5 tasks, e
 
 Example format: [{{"title": "...", "description": "...", "priority": "high"}}]"""
 
-    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+    response = run_gemini(prompt)
 
     import json
     raw_text = response.text.strip().replace("```json", "").replace("```", "").strip()
@@ -506,7 +523,7 @@ Give a short summary covering:
 - Any patterns (spam, newsletters, real messages)
 Keep it under 150 words."""
 
-    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+    response = run_gemini(prompt)
     return {"summary": response.text}
 
 # ---------- Calendar OAuth ----------
@@ -604,7 +621,7 @@ Give a short summary covering:
 - What's coming up soonest
 Keep it under 150 words."""
 
-    response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+    response = run_gemini(prompt)
     return {"summary": response.text}
 
 
