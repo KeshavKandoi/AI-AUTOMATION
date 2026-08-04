@@ -143,7 +143,9 @@ async def trigger_missed_event_recovery():
 
 
 @app.post("/github/connect-repo")
-async def connect_repo(org_id: str, repo_full_name: str, access_token: str):
+async def connect_repo(org_id: str, repo_full_name: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "github")
     result = await register_github_webhook(
         access_token=access_token,
         repo_full_name=repo_full_name,
@@ -159,7 +161,9 @@ async def connect_repo(org_id: str, repo_full_name: str, access_token: str):
 
 
 @app.get("/github/repos")
-async def github_repos(access_token: str):
+async def github_repos(org_id: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "github")
     async with httpx.AsyncClient() as client:
         res = await client.get(
             "https://api.github.com/user/repos",
@@ -169,7 +173,9 @@ async def github_repos(access_token: str):
 
 
 @app.get("/github/summary")
-async def github_summary(access_token: str):
+async def github_summary(org_id: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "github")
     async with httpx.AsyncClient() as client:
         repos_res = await client.get(
             "https://api.github.com/user/repos",
@@ -199,7 +205,9 @@ Keep it under 150 words."""
 
 
 @app.get("/planner/priorities")
-async def planner_priorities(access_token: str):
+async def planner_priorities(org_id: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "github")
     async with httpx.AsyncClient() as client:
         repos_res = await client.get(
             "https://api.github.com/user/repos",
@@ -243,7 +251,9 @@ Keep each line under 20 words. If there are no issues, say so clearly."""
 
 
 @app.get("/tasks/create-from-priorities")
-async def create_tasks_from_priorities(access_token: str, org_id: str):
+async def create_tasks_from_priorities(org_id: str):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "github")
     async with httpx.AsyncClient() as client:
         repos_res = await client.get(
             "https://api.github.com/user/repos",
@@ -305,8 +315,18 @@ def get_tasks(org_id: str):
     return result.data
 
 
+@app.get("/github/connected-repo")
+def get_connected_repo(org_id: str):
+    result = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return {"repo": result.data[0].get("github_repo")}
+
+
 @app.post("/github/create-issue")
-async def github_create_issue(access_token: str, repo_full_name: str, title: str, body: str = ""):
+async def github_create_issue(org_id: str, repo_full_name: str, title: str, body: str = ""):
+    from closeout import _resolve_access_token
+    access_token = _resolve_access_token(org_id, "github")
     async with httpx.AsyncClient() as client:
         res = await client.post(
             f"https://api.github.com/repos/{repo_full_name}/issues",
