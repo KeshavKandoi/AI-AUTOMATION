@@ -19,7 +19,7 @@ export const navItems: NavItem[] = [
   { label: 'GitHub', path: '/integrations/github', icon: GitBranch },
   { label: 'Gmail', path: '/integrations/gmail', icon: Mail },
   { label: 'Google Calendar', path: '/integrations/calendar', icon: Calendar },
-  { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal, comingSoon: true },
+  { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal },
   { label: 'Pull Requests', path: '/pull-requests', icon: GitPullRequest, comingSoon: true },
   { label: 'Human Approval', path: '/approvals', icon: ShieldCheck },
   { label: 'Audit Logs', path: '/audit-logs', icon: ScrollText, comingSoon: true },
