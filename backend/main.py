@@ -23,6 +23,48 @@ def run_gemini(prompt: str):
     except Exception as e:
         logger.error(f"Unexpected error calling Gemini: {e}")
         raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again shortly.")
+
+
+async def fetch_github_repos_and_issues(access_token: str):
+    """Fetches the user's repos and open issues for repos that have any.
+    Wraps outbound GitHub calls so transient network failures (dropped
+    connections, timeouts) return a clean error instead of an unhandled 500."""
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            repos_res = await client.get(
+                "https://api.github.com/user/repos",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+    except httpx.HTTPError as e:
+        logger.error(f"GitHub repos fetch failed: {e}")
+        raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
+
+    repos = repos_res.json()
+    if not isinstance(repos, list):
+        raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
+
+    repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
+    issues_data = []
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            for r in repos_with_issues:
+                issues_res = await client.get(
+                    f"https://api.github.com/repos/{r['full_name']}/issues",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    params={"state": "open"}
+                )
+                issues = issues_res.json()
+                if isinstance(issues, list):
+                    for issue in issues:
+                        issues_data.append({
+                            "repo": r["name"], "title": issue.get("title"),
+                            "created_at": issue.get("created_at"), "comments": issue.get("comments"),
+                        })
+    except httpx.HTTPError as e:
+        logger.error(f"GitHub issues fetch failed: {e}")
+        raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
+
+    return issues_data
 import orchestrator
 import scheduler
 from commit_scheduler.routes import router as commit_scheduler_router
@@ -225,31 +267,7 @@ Keep it under 150 words."""
 async def planner_priorities(org_id: str):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
-    async with httpx.AsyncClient() as client:
-        repos_res = await client.get(
-            "https://api.github.com/user/repos",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-    repos = repos_res.json()
-    if not isinstance(repos, list):
-        raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
-
-    repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
-    issues_data = []
-    async with httpx.AsyncClient() as client:
-        for r in repos_with_issues:
-            issues_res = await client.get(
-                f"https://api.github.com/repos/{r['full_name']}/issues",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params={"state": "open"}
-            )
-            issues = issues_res.json()
-            if isinstance(issues, list):
-                for issue in issues:
-                    issues_data.append({
-                        "repo": r["name"], "title": issue.get("title"),
-                        "created_at": issue.get("created_at"), "comments": issue.get("comments"),
-                    })
+    issues_data = await fetch_github_repos_and_issues(access_token)
 
     prompt = f"""You are a Planner AI for a busy developer/founder.
 Here is their open GitHub issues data: {issues_data}
@@ -271,28 +289,8 @@ Keep each line under 20 words. If there are no issues, say so clearly."""
 async def create_tasks_from_priorities(org_id: str):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
-    async with httpx.AsyncClient() as client:
-        repos_res = await client.get(
-            "https://api.github.com/user/repos",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-    repos = repos_res.json()
-    if not isinstance(repos, list):
-        raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
-
-    repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
-    issues_data = []
-    async with httpx.AsyncClient() as client:
-        for r in repos_with_issues:
-            issues_res = await client.get(
-                f"https://api.github.com/repos/{r['full_name']}/issues",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params={"state": "open"}
-            )
-            issues = issues_res.json()
-            if isinstance(issues, list):
-                for issue in issues:
-                    issues_data.append({"repo": r["name"], "title": issue.get("title"), "comments": issue.get("comments")})
+    issues_data = await fetch_github_repos_and_issues(access_token)
+    issues_data = [{"repo": i["repo"], "title": i["title"], "comments": i.get("comments")} for i in issues_data]
 
     if not issues_data:
         return {"message": "No open issues, no tasks created", "tasks_created": 0}
