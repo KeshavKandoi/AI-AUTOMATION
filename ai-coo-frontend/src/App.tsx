@@ -12,6 +12,7 @@ import ComingSoon from '@/pages/ComingSoon'
 import Tasks from '@/pages/tasks/Tasks'
 import HumanApproval from '@/pages/approvals/HumanApproval'
 import Integrations from '@/pages/integrations/Integrations'
+import GitHub from '@/pages/github/GitHub'
 
 const queryClient = new QueryClient()
 
@@ -32,7 +33,7 @@ function App() {
               <Route path="/chat" element={<ComingSoon title="AI COO Chat" />} />
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/workflows" element={<ComingSoon title="Workflow Automations" />} />
-              <Route path="/integrations/github" element={<ComingSoon title="GitHub" />} />
+              <Route path="/integrations/github" element={<GitHub />} />
               <Route path="/integrations/gmail" element={<ComingSoon title="Gmail" />} />
               <Route path="/integrations/calendar" element={<ComingSoon title="Google Calendar" />} />
               <Route path="/commit-scheduler" element={<ComingSoon title="Commit Scheduler" />} />
