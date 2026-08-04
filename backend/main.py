@@ -65,6 +65,36 @@ async def fetch_github_repos_and_issues(access_token: str):
         raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
 
     return issues_data
+
+
+async def github_get(url: str, access_token: str, params: dict = None):
+    """GET a GitHub API URL with clean handling for network-level failures."""
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            res = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {access_token}"},
+                params=params,
+            )
+        return res
+    except httpx.HTTPError as e:
+        logger.error(f"GitHub GET {url} failed: {e}")
+        raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
+
+
+async def github_post(url: str, access_token: str, json_body: dict = None):
+    """POST to a GitHub API URL with clean handling for network-level failures."""
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            res = await client.post(
+                url,
+                headers={"Authorization": f"Bearer {access_token}"},
+                json=json_body,
+            )
+        return res
+    except httpx.HTTPError as e:
+        logger.error(f"GitHub POST {url} failed: {e}")
+        raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
 import orchestrator
 import scheduler
 from commit_scheduler.routes import router as commit_scheduler_router
@@ -223,11 +253,7 @@ async def connect_repo(org_id: str, repo_full_name: str):
 async def github_repos(org_id: str):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
-    async with httpx.AsyncClient() as client:
-        res = await client.get(
-            "https://api.github.com/user/repos",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
+    res = await github_get("https://api.github.com/user/repos", access_token)
     return res.json()
 
 
@@ -235,11 +261,7 @@ async def github_repos(org_id: str):
 async def github_summary(org_id: str):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
-    async with httpx.AsyncClient() as client:
-        repos_res = await client.get(
-            "https://api.github.com/user/repos",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
+    repos_res = await github_get("https://api.github.com/user/repos", access_token)
     repos = repos_res.json()
     if not isinstance(repos, list):
         raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
@@ -364,12 +386,11 @@ def disconnect_repo(org_id: str):
 async def github_create_issue(org_id: str, repo_full_name: str, title: str, body: str = ""):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            f"https://api.github.com/repos/{repo_full_name}/issues",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={"title": title, "body": body}
-        )
+    res = await github_post(
+        f"https://api.github.com/repos/{repo_full_name}/issues",
+        access_token,
+        json_body={"title": title, "body": body}
+    )
     if res.status_code != 201:
         raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
     issue = res.json()
