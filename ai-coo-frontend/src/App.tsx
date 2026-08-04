@@ -14,6 +14,7 @@ import HumanApproval from '@/pages/approvals/HumanApproval'
 import Integrations from '@/pages/integrations/Integrations'
 import GitHub from '@/pages/github/GitHub'
 import Gmail from '@/pages/gmail/Gmail'
+import CalendarPage from '@/pages/calendar/Calendar'
 
 const queryClient = new QueryClient()
 
@@ -36,7 +37,7 @@ function App() {
               <Route path="/workflows" element={<ComingSoon title="Workflow Automations" />} />
               <Route path="/integrations/github" element={<GitHub />} />
               <Route path="/integrations/gmail" element={<Gmail />} />
-              <Route path="/integrations/calendar" element={<ComingSoon title="Google Calendar" />} />
+              <Route path="/integrations/calendar" element={<CalendarPage />} />
               <Route path="/commit-scheduler" element={<ComingSoon title="Commit Scheduler" />} />
               <Route path="/pull-requests" element={<ComingSoon title="Pull Requests" />} />
               <Route path="/approvals" element={<HumanApproval />} />
