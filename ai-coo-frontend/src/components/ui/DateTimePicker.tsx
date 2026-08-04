@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/Button'
 
 interface DateTimePickerProps {
   label: string
@@ -34,18 +35,10 @@ function buildMonthGrid(viewDate: Date): (Date | null)[] {
   return cells
 }
 
-function generateTimeSlots(baseDate: Date, minDateTime: Date): { date: Date; label: string }[] {
-  const slots: { date: Date; label: string }[] = []
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 30) {
-      const slot = new Date(baseDate)
-      slot.setHours(h, m, 0, 0)
-      if (slot < minDateTime) continue
-      const label = slot.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-      slots.push({ date: slot, label })
-    }
-  }
-  return slots
+function toTimeInputValue(d: Date) {
+  const h = String(d.getHours()).padStart(2, '0')
+  const m = String(d.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
 }
 
 export default function DateTimePicker({ label, value, onChange, minDate }: DateTimePickerProps) {
@@ -58,6 +51,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
     return new Date(base.getFullYear(), base.getMonth(), 1)
   })
   const [pendingDate, setPendingDate] = useState<Date | null>(value ? startOfDay(value) : null)
+  const [pendingTime, setPendingTime] = useState<string>(value ? toTimeInputValue(value) : '09:00')
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -75,14 +69,26 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
     viewMonth.getFullYear() > min.getFullYear() ||
     (viewMonth.getFullYear() === min.getFullYear() && viewMonth.getMonth() > min.getMonth())
 
-  const activeDay = pendingDate ?? (value ? startOfDay(value) : null)
-  const timeSlots = activeDay
-    ? generateTimeSlots(activeDay, isSameDay(activeDay, new Date()) ? min : startOfDay(activeDay))
-    : []
-
   const displayLabel = value
     ? value.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     : 'Select date & time'
+
+  const composedResult = (() => {
+    if (!pendingDate) return null
+    const [h, m] = pendingTime.split(':').map(Number)
+    const result = new Date(pendingDate)
+    result.setHours(h || 0, m || 0, 0, 0)
+    return result
+  })()
+
+  const isTimeInvalid = composedResult ? composedResult < min : false
+
+  const handleApply = () => {
+    if (composedResult && !isTimeInvalid) {
+      onChange(composedResult)
+      setOpen(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-1.5" ref={containerRef}>
@@ -102,8 +108,8 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
       </button>
 
       {open && (
-        <div className="relative z-10">
-          <div className="absolute top-1 left-0 w-[300px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl p-3">
+        <div className="relative z-20">
+          <div className="absolute top-1 left-0 w-[280px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl p-3 max-h-[380px] overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"
@@ -137,7 +143,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
               {cells.map((day, i) => {
                 if (!day) return <div key={i} className="h-8" />
                 const disabled = startOfDay(day) < minDay
-                const isSelected = activeDay && isSameDay(day, activeDay)
+                const isSelected = pendingDate && isSameDay(day, pendingDate)
                 const isToday = isSameDay(day, new Date())
                 return (
                   <button
@@ -159,41 +165,27 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
               })}
             </div>
 
-            {activeDay && (
-              <div>
-                <div className="flex items-center gap-1.5 mb-2 text-[11px] text-[var(--color-text-faint)]">
-                  <Clock size={11} />
-                  Select a time
-                </div>
-                <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1">
-                  {timeSlots.length === 0 ? (
-                    <p className="col-span-3 text-[11px] text-[var(--color-text-faint)] py-2 text-center">
-                      No times available today
-                    </p>
-                  ) : (
-                    timeSlots.map((slot, i) => {
-                      const isSelected = value && slot.date.getTime() === value.getTime()
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => {
-                            onChange(slot.date)
-                            setOpen(false)
-                          }}
-                          className={cn(
-                            'rounded-lg px-2 py-1.5 text-[11px] transition-colors',
-                            isSelected
-                              ? 'bg-[var(--color-signal)] text-[var(--color-void)] font-medium'
-                              : 'bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] hover:brightness-110'
-                          )}
-                        >
-                          {slot.label}
-                        </button>
-                      )
-                    })
-                  )}
-                </div>
+            {pendingDate && (
+              <div className="border-t border-[var(--color-border)] pt-3">
+                <label className="text-[11px] text-[var(--color-text-faint)] mb-1.5 block">Time</label>
+                <input
+                  type="time"
+                  value={pendingTime}
+                  onChange={(e) => setPendingTime(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]"
+                />
+                {isTimeInvalid && (
+                  <p className="text-[10px] text-[var(--color-alert)] mt-1.5">
+                    Must be in the future.
+                  </p>
+                )}
+                <Button
+                  className="w-full mt-2"
+                  disabled={isTimeInvalid}
+                  onClick={handleApply}
+                >
+                  Set
+                </Button>
               </div>
             )}
           </div>
