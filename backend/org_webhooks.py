@@ -37,9 +37,27 @@ async def register_github_webhook(access_token: str, repo_full_name: str, org_id
             }
         )
 
-    if res.status_code not in (200, 201):
+    target_url = f"{base_url}/webhooks/github"
+
+    if res.status_code in (200, 201):
+        logger.info(f"Auto-registered GitHub webhook for {repo_full_name} (org {org_id})")
+        return res.json()
+
+    already_exists = res.status_code == 422 and "already exists" in res.text.lower()
+    if not already_exists:
         logger.error(f"Failed to auto-register webhook for {repo_full_name}: {res.text}")
         return None
 
-    logger.info(f"Auto-registered GitHub webhook for {repo_full_name} (org {org_id})")
-    return res.json()
+    async with httpx.AsyncClient() as client2:
+        list_res = await client2.get(
+            f"https://api.github.com/repos/{repo_full_name}/hooks",
+            headers={"Authorization": f"Bearer {access_token}", "Accept": "application/vnd.github+json"},
+        )
+    if list_res.status_code == 200:
+        for hook in list_res.json():
+            if hook.get("config", {}).get("url") == target_url:
+                logger.info(f"Webhook already registered for {repo_full_name} (org {org_id}) - reusing existing hook {hook.get('id')}")
+                return hook
+
+    logger.info(f"Webhook already registered for {repo_full_name} (org {org_id}) - treating as connected")
+    return {"id": None, "already_existed": True}
