@@ -3,6 +3,7 @@ import type {
   ConnectRepoResult,
   CreateIssueResult,
   CreateTasksFromPrioritiesResult,
+  DisconnectRepoResult,
   GitHubRepo,
   GitHubService,
 } from './types'
@@ -38,6 +39,11 @@ export const realGitHubService: GitHubService = {
       .post<ConnectRepoResult>('/github/connect-repo', undefined, {
         params: { org_id: orgId, repo_full_name: repoFullName },
       })
+      .then((r) => r.data),
+
+  disconnectRepo: (orgId) =>
+    apiClient
+      .post<DisconnectRepoResult>('/github/disconnect-repo', undefined, { params: { org_id: orgId } })
       .then((r) => r.data),
 
   createTasksFromPriorities: (orgId) =>
