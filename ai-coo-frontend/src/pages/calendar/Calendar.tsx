@@ -1,18 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Calendar as CalendarIcon, Sparkles, Plus, AlertCircle, Clock,
-  UtensilsCrossed, Play, CheckCircle2,
-} from 'lucide-react'
-import { calendarService, type LunchBlockSettings } from '@/services/calendar'
+import { Calendar as CalendarIcon, Sparkles, Plus, AlertCircle, CheckCircle2, Type } from 'lucide-react'
+import { calendarService } from '@/services/calendar'
 import { useAuthStore } from '@/store/authStore'
 import Card from '@/components/ui/Card'
 import Skeleton from '@/components/ui/Skeleton'
 import EmptyState from '@/components/ui/EmptyState'
 import Modal from '@/components/ui/Modal'
-import Badge from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import DateTimePicker from '@/components/ui/DateTimePicker'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -34,14 +31,6 @@ function formatEventTime(iso: string | null) {
   }
 }
 
-const DEFAULT_LUNCH_SETTINGS = {
-  enabled: true,
-  start_time: '13:00:00',
-  end_time: '14:00:00',
-  title: 'Lunch',
-  weekdays_only: true,
-}
-
 export default function CalendarPage() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
@@ -49,10 +38,9 @@ export default function CalendarPage() {
   const [summaryRequested, setSummaryRequested] = useState(false)
   const [eventModalOpen, setEventModalOpen] = useState(false)
   const [eventTitle, setEventTitle] = useState('')
-  const [eventStart, setEventStart] = useState('')
-  const [eventEnd, setEventEnd] = useState('')
-
-  const [lunchForm, setLunchForm] = useState<Omit<LunchBlockSettings, 'organization_id'> | null>(null)
+  const [eventStart, setEventStart] = useState<Date | null>(null)
+  const [eventEnd, setEventEnd] = useState<Date | null>(null)
+  const [justCreated, setJustCreated] = useState(false)
 
   const { data: events, isLoading: eventsLoading, isError: eventsError } = useQuery({
     queryKey: ['calendar', 'events', orgId],
@@ -73,58 +61,19 @@ export default function CalendarPage() {
     retry: false,
   })
 
-  const {
-    data: lunchSettings,
-    isLoading: lunchLoading,
-  } = useQuery({
-    queryKey: ['calendar', 'lunch-settings', orgId],
-    queryFn: () => calendarService.getLunchBlockSettings(orgId!),
-    enabled: !!orgId,
-    retry: false,
-  })
-
-  useEffect(() => {
-    if (lunchSettings && !lunchForm) {
-      setLunchForm({
-        enabled: lunchSettings.enabled,
-        start_time: lunchSettings.start_time,
-        end_time: lunchSettings.end_time,
-        title: lunchSettings.title,
-        weekdays_only: lunchSettings.weekdays_only,
-      })
-    }
-  }, [lunchSettings, lunchForm])
-
   const createEventMutation = useMutation({
     mutationFn: () =>
-      calendarService.createEvent(
-        orgId!,
-        eventTitle,
-        new Date(eventStart).toISOString(),
-        new Date(eventEnd).toISOString()
-      ),
+      calendarService.createEvent(orgId!, eventTitle, eventStart!.toISOString(), eventEnd!.toISOString()),
     onSuccess: () => {
-      setEventModalOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['calendar', 'events', orgId] })
+      setJustCreated(true)
       setEventTitle('')
-      setEventStart('')
-      setEventEnd('')
-      queryClient.invalidateQueries({ queryKey: ['calendar', 'events', orgId] })
-    },
-  })
-
-  const saveLunchSettingsMutation = useMutation({
-    mutationFn: (settings: Omit<LunchBlockSettings, 'organization_id'>) =>
-      calendarService.upsertLunchBlockSettings({ organization_id: orgId!, ...settings }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['calendar', 'lunch-settings', orgId] })
-    },
-  })
-
-  const runLunchNowMutation = useMutation({
-    mutationFn: () => calendarService.runLunchBlockNow(orgId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['calendar', 'lunch-settings', orgId] })
-      queryClient.invalidateQueries({ queryKey: ['calendar', 'events', orgId] })
+      setEventStart(null)
+      setEventEnd(null)
+      setTimeout(() => {
+        setEventModalOpen(false)
+        setJustCreated(false)
+      }, 1200)
     },
   })
 
@@ -133,7 +82,16 @@ export default function CalendarPage() {
     fetchSummary()
   }
 
-  const activeLunchForm = lunchForm ?? DEFAULT_LUNCH_SETTINGS
+  const closeModal = () => {
+    setEventModalOpen(false)
+    setEventTitle('')
+    setEventStart(null)
+    setEventEnd(null)
+    createEventMutation.reset()
+  }
+
+  const canSubmit =
+    eventTitle.trim().length > 0 && !!eventStart && !!eventEnd && eventEnd > eventStart
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto flex flex-col gap-6">
@@ -143,7 +101,7 @@ export default function CalendarPage() {
             Google Calendar
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Upcoming events and automated scheduling
+            Your upcoming events at a glance
           </p>
         </div>
         <Button onClick={() => setEventModalOpen(true)}>
@@ -153,7 +111,6 @@ export default function CalendarPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Upcoming events */}
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <CalendarIcon size={16} className="text-[var(--color-signal)]" />
@@ -186,7 +143,6 @@ export default function CalendarPage() {
           )}
         </Card>
 
-        {/* AI Summary */}
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles size={16} className="text-[var(--color-amber)]" />
@@ -223,164 +179,56 @@ export default function CalendarPage() {
         </Card>
       </div>
 
-      {/* Lunch Block Automation */}
-      <Card className="p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <UtensilsCrossed size={16} className="text-[var(--color-signal)]" />
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Lunch block automation</h2>
-        </div>
-
-        {lunchLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
+      <Modal open={eventModalOpen} onClose={closeModal} title="New event" className="max-w-md">
+        {justCreated ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <div className="h-12 w-12 rounded-full bg-[var(--color-signal-dim)] flex items-center justify-center">
+              <CheckCircle2 size={22} className="text-[var(--color-signal)]" />
+            </div>
+            <p className="text-sm text-[var(--color-text-primary)] font-medium">Event created</p>
           </div>
         ) : (
-          <>
-            <p className="text-xs text-[var(--color-text-faint)] mb-4">
-              Automatically blocks your calendar for lunch each day if no event already exists.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-[var(--color-text-muted)] flex items-center gap-1.5">
+                <Type size={13} />
+                Title
+              </label>
               <Input
-                label="Event title"
-                value={activeLunchForm.title}
-                onChange={(e) => setLunchForm({ ...activeLunchForm, title: e.target.value })}
-              />
-              <div className="flex items-end gap-2">
-                <label className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] pb-2.5">
-                  <input
-                    type="checkbox"
-                    checked={activeLunchForm.enabled}
-                    onChange={(e) => setLunchForm({ ...activeLunchForm, enabled: e.target.checked })}
-                    className="rounded border-[var(--color-border)]"
-                  />
-                  Enabled
-                </label>
-                <label className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] pb-2.5">
-                  <input
-                    type="checkbox"
-                    checked={activeLunchForm.weekdays_only}
-                    onChange={(e) => setLunchForm({ ...activeLunchForm, weekdays_only: e.target.checked })}
-                    className="rounded border-[var(--color-border)]"
-                  />
-                  Weekdays only
-                </label>
-              </div>
-              <Input
-                label="Start time"
-                type="time"
-                value={activeLunchForm.start_time.slice(0, 5)}
-                onChange={(e) => setLunchForm({ ...activeLunchForm, start_time: `${e.target.value}:00` })}
-              />
-              <Input
-                label="End time"
-                type="time"
-                value={activeLunchForm.end_time.slice(0, 5)}
-                onChange={(e) => setLunchForm({ ...activeLunchForm, end_time: `${e.target.value}:00` })}
+                placeholder="e.g. Team sync"
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                autoFocus
               />
             </div>
 
-            <div className="flex gap-2 mb-4">
-              <Button
-                variant="secondary"
-                loading={saveLunchSettingsMutation.isPending}
-                onClick={() => saveLunchSettingsMutation.mutate(activeLunchForm)}
-              >
-                Save settings
-              </Button>
-              <Button
-                variant="ghost"
-                loading={runLunchNowMutation.isPending}
-                onClick={() => runLunchNowMutation.mutate()}
-              >
-                <Play size={13} />
-                Run now
-              </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <DateTimePicker label="Starts" value={eventStart} onChange={setEventStart} />
+              <DateTimePicker
+                label="Ends"
+                value={eventEnd}
+                onChange={setEventEnd}
+                minDate={eventStart ?? undefined}
+              />
             </div>
 
-            {saveLunchSettingsMutation.isSuccess && (
-              <p className="text-xs text-[var(--color-signal)] flex items-center gap-1 mb-2">
-                <CheckCircle2 size={12} />
-                Settings saved.
-              </p>
+            {eventStart && eventEnd && eventEnd <= eventStart && (
+              <ErrorBanner message="End time must be after the start time." />
             )}
-            {saveLunchSettingsMutation.isError && (
-              <div className="mb-2">
-                <ErrorBanner message="Failed to save settings." />
-              </div>
-            )}
-            {runLunchNowMutation.isSuccess && (
-              <p className="text-xs text-[var(--color-signal)] flex items-center gap-1 mb-2">
-                <CheckCircle2 size={12} />
-                Run status: {runLunchNowMutation.data.status}
-              </p>
-            )}
-            {runLunchNowMutation.isError && (
-              <div className="mb-2">
-                <ErrorBanner message="Failed to trigger run." />
-              </div>
+            {createEventMutation.isError && (
+              <ErrorBanner message="Failed to create event. Please try again." />
             )}
 
-            {lunchSettings && lunchSettings.runs.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs text-[var(--color-text-faint)] mb-2">Recent runs</p>
-                <div className="divide-y divide-[var(--color-border)]">
-                  {lunchSettings.runs.slice(0, 5).map((run) => (
-                    <div key={run.id} className="flex items-center justify-between py-2">
-                      <span className="text-xs text-[var(--color-text-muted)]">{run.run_date}</span>
-                      <Badge tone={run.status === 'created' || run.status === 'already_exists' ? 'signal' : run.status === 'failed' ? 'alert' : 'neutral'}>
-                        {run.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {!lunchSettings && (
-              <p className="text-xs text-[var(--color-text-faint)] flex items-center gap-1">
-                <Clock size={12} />
-                No settings saved yet — configure and save above to get started.
-              </p>
-            )}
-          </>
+            <Button
+              className="w-full"
+              disabled={!canSubmit}
+              loading={createEventMutation.isPending}
+              onClick={() => createEventMutation.mutate()}
+            >
+              Create event
+            </Button>
+          </div>
         )}
-      </Card>
-
-      {/* Create event modal */}
-      <Modal open={eventModalOpen} onClose={() => setEventModalOpen(false)} title="New calendar event">
-        <div className="flex flex-col gap-4">
-          <Input
-            label="Title"
-            placeholder="Event title"
-            value={eventTitle}
-            onChange={(e) => setEventTitle(e.target.value)}
-          />
-          <Input
-            label="Start"
-            type="datetime-local"
-            value={eventStart}
-            onChange={(e) => setEventStart(e.target.value)}
-          />
-          <Input
-            label="End"
-            type="datetime-local"
-            value={eventEnd}
-            onChange={(e) => setEventEnd(e.target.value)}
-          />
-          {createEventMutation.isError && (
-            <ErrorBanner message="Failed to create event. Check the details and try again." />
-          )}
-          <Button
-            className="w-full"
-            disabled={!eventTitle.trim() || !eventStart || !eventEnd}
-            loading={createEventMutation.isPending}
-            onClick={() => createEventMutation.mutate()}
-          >
-            Create event
-          </Button>
-        </div>
       </Modal>
     </div>
   )
