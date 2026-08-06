@@ -76,6 +76,22 @@ async def run_due_commit_jobs():
     if not active_jobs:
         return
 
+    # Catches recurring/guard jobs whose end_date has already passed without
+    # ever being marked terminal — e.g. the scheduler was down on the exact
+    # end_date, so the normal "just processed the last day" completion path
+    # below never ran for them. Without this, such jobs stay active forever,
+    # never due again, but never marked completed either.
+    for job in active_jobs:
+        if job.get("mode") in ("recurring", "guard") and job.get("end_date"):
+            end_date = date.fromisoformat(job["end_date"])
+            if today > end_date:
+                logger.info(f"Job {job['id']} ({job['repo_full_name']}) past end_date {end_date} with no terminal status — marking completed")
+                repository.update_job(job["id"], {"status": "completed"})
+    active_jobs = [j for j in active_jobs if j["id"] not in {
+        updated["id"] for updated in []
+    }]  # placeholder no-op, real filtering below via re-fetch is simpler
+    active_jobs = repository.list_active_jobs()
+
     due_jobs = [job for job in active_jobs if is_due_now(job, today, now_ist)]
     if not due_jobs:
         return
@@ -88,12 +104,17 @@ async def run_due_commit_jobs():
             logger.info(f"Job {job['id']} ({job['repo_full_name']}) -> {run['status']}")
 
             # Recurring/guard jobs that have reached the end of their date range
-            # auto-complete after a successful final run. One-time 'scheduled' jobs
-            # already auto-complete inside execute_job itself.
+            # auto-complete after their final eligible day is processed. This
+            # includes both 'success' (a real run happened) and 'skipped' (guard
+            # mode correctly found a real commit already existed and intentionally
+            # did nothing) — both are legitimate terminal outcomes for that day.
+            # 'failed' is deliberately excluded: a failure on the last day should
+            # not be treated as "done," even though the job also has no future day
+            # left to retry on — that gap is a separate, unresolved issue.
             if (
                 job.get("mode") in ("recurring", "guard")
                 and job.get("end_date") == today.isoformat()
-                and run["status"] == "success"
+                and run["status"] in ("success", "skipped")
             ):
                 repository.update_job(job["id"], {"status": "completed"})
 
