@@ -1,6 +1,14 @@
+import { useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2, Clock, Play, XCircle } from 'lucide-react'
-import { workflowService, ALL_TRIGGER_TYPES, type RunStatus, type WorkflowRun } from '@/services/workflows'
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, Play, XCircle } from 'lucide-react'
+import {
+  workflowService,
+  ALL_TRIGGER_TYPES,
+  conditionsToRuleList,
+  isConditionGroup,
+  type RunStatus,
+  type WorkflowRun,
+} from '@/services/workflows'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import Skeleton from '@/components/ui/Skeleton'
@@ -36,32 +44,65 @@ function triggerLabel(trigger: string) {
 }
 
 function RunLogEntry({ run }: { run: WorkflowRun }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasContext = run.trigger_context && Object.keys(run.trigger_context).length > 0
+
   return (
     <div className="px-3 py-3 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
           {runStatusBadge(run.status)}
           <span>{new Date(run.executed_at).toLocaleString()}</span>
+          {run.duration_ms != null && (
+            <span className="text-[var(--color-text-faint)]">· {run.duration_ms}ms</span>
+          )}
         </div>
+        {hasContext && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex items-center gap-1 text-xs text-[var(--color-signal)] hover:underline"
+          >
+            {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            Trigger context
+          </button>
+        )}
       </div>
+
+      {expanded && hasContext && (
+        <pre className="text-[11px] leading-relaxed text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md p-2 overflow-x-auto">
+          {JSON.stringify(run.trigger_context, null, 2)}
+        </pre>
+      )}
+
       {run.error_message && (
         <p className="text-xs text-[var(--color-alert)]">{run.error_message}</p>
       )}
+
       {run.actions_executed.length > 0 && (
         <div className="flex flex-col gap-1">
           {run.actions_executed.map((a, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs">
+            <div key={i} className="flex items-start gap-2 text-xs">
               {a.error ? (
-                <XCircle size={12} className="text-[var(--color-alert)] shrink-0" />
+                <XCircle size={12} className="text-[var(--color-alert)] shrink-0 mt-0.5" />
               ) : (
-                <CheckCircle2 size={12} className="text-[var(--color-signal)] shrink-0" />
+                <CheckCircle2 size={12} className="text-[var(--color-signal)] shrink-0 mt-0.5" />
               )}
-              <span className="text-[var(--color-text-primary)] font-mono">{a.action}</span>
-              {a.error && <span className="text-[var(--color-alert)] truncate">{a.error}</span>}
+              <div className="min-w-0">
+                <span className="text-[var(--color-text-primary)] font-mono">{a.action}</span>
+                {a.error ? (
+                  <span className="text-[var(--color-alert)] ml-2">{a.error}</span>
+                ) : a.result && Object.keys(a.result).length > 0 ? (
+                  <span className="text-[var(--color-text-faint)] ml-2 font-mono break-all">
+                    {JSON.stringify(a.result)}
+                  </span>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
       )}
+
       {run.status === 'skipped_conditions' && (
         <p className="text-xs text-[var(--color-text-faint)]">
           Conditions didn't match the test context, so no actions ran.
@@ -94,6 +135,9 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
       queryClient.invalidateQueries({ queryKey: ['workflows', 'list'] })
     },
   })
+
+  const conditionRules = workflow ? conditionsToRuleList(workflow.conditions) : []
+  const conditionLogic = workflow && isConditionGroup(workflow.conditions) ? workflow.conditions.logic : 'AND'
 
   return (
     <Modal open={open} onClose={onClose} title={workflow ? workflow.name : 'Workflow details'}>
@@ -130,6 +174,7 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
                 }
               >
                 Run {runNowMutation.data.status.replace('_', ' ')}
+                {runNowMutation.data.duration_ms != null ? ` in ${runNowMutation.data.duration_ms}ms` : ''}
                 {runNowMutation.data.error_message ? ` — ${runNowMutation.data.error_message}` : ''}
               </div>
             )}
@@ -137,13 +182,17 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
 
             <div>
               <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Conditions</h3>
-              {Object.keys(workflow.conditions ?? {}).length === 0 ? (
+              {conditionRules.length === 0 ? (
                 <p className="text-xs text-[var(--color-text-faint)]">Runs on every matching event.</p>
               ) : (
                 <div className="flex flex-col gap-1">
-                  {Object.entries(workflow.conditions).map(([k, v]) => (
-                    <p key={k} className="text-xs text-[var(--color-text-muted)] font-mono">
-                      {k} = {v}
+                  {conditionRules.length > 1 && (
+                    <p className="text-xs text-[var(--color-text-faint)] mb-1">Match {conditionLogic} of:</p>
+                  )}
+                  {conditionRules.map((rule, i) => (
+                    <p key={i} className="text-xs text-[var(--color-text-muted)] font-mono">
+                      {rule.field} {rule.op === 'in' ? 'in' : '='}{' '}
+                      {Array.isArray(rule.value) ? rule.value.join(', ') : rule.value}
                     </p>
                   ))}
                 </div>
