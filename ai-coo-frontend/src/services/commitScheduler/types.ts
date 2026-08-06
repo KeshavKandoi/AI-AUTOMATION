@@ -1,7 +1,7 @@
 export type Frequency = 'daily' | 'every_2_days' | 'weekdays' | 'custom'
 export type JobStatus = 'active' | 'paused' | 'completed' | 'cancelled'
 export type RunStatus = 'pending' | 'success' | 'failed' | 'skipped'
-export type JobMode = 'scheduled' | 'guard'
+export type JobMode = 'scheduled' | 'recurring' | 'guard'
 
 export interface CommitJobFile {
   id?: string
@@ -22,10 +22,11 @@ export interface CommitJob {
   file_name: string | null
   file_content: string | null
   commit_message: string
-  start_date: string
-  end_date: string
+  start_date: string | null
+  end_date: string | null
   frequency: Frequency
   custom_dates: string[] | null
+  execution_at: string | null
   mode: JobMode
   guard_cutoff_time: string
   use_pr: boolean
@@ -69,10 +70,11 @@ export interface CreateJobPayload {
   file_name?: string
   file_content?: string
   commit_message: string
-  start_date: string
-  end_date: string
+  start_date?: string
+  end_date?: string
   frequency?: Frequency
   custom_dates?: string[]
+  execution_at?: string
   mode?: JobMode
   guard_cutoff_time?: string
   use_pr?: boolean
@@ -89,6 +91,7 @@ export interface UpdateJobPayload {
   end_date?: string
   frequency?: Frequency
   custom_dates?: string[]
+  execution_at?: string
   status?: JobStatus
 }
 
