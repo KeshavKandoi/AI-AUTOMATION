@@ -220,6 +220,17 @@ async def execute_job(job: dict) -> dict:
 
         files_to_commit = await _resolve_files_for_run(job, run_date)
         if not files_to_commit:
+            log_event(
+                organization_id=job["organization_id"],
+                module="commit_scheduler",
+                action="commit_job_skipped",
+                summary=f"No files staged for {job.get('repo_full_name')} on {run_date}",
+                status="warning",
+                resource_type="commit_job",
+                resource_id=job["id"],
+                metadata={"repo_full_name": job.get("repo_full_name"), "run_date": run_date},
+                source="scheduler",
+            )
             return repository.create_run({
                 "job_id": job["id"], "run_date": run_date, "status": "skipped",
                 "error_message": "No files staged for this date"
@@ -261,6 +272,18 @@ async def execute_job(job: dict) -> dict:
             })
 
     except Exception as e:
+        log_event(
+            organization_id=job["organization_id"],
+            module="commit_scheduler",
+            action="commit_job_failed",
+            summary=f"Scheduled commit failed for {job.get('repo_full_name')}",
+            status="failed",
+            resource_type="commit_job",
+            resource_id=job["id"],
+            metadata={"repo_full_name": job.get("repo_full_name"), "run_date": run_date},
+            error_message=str(e),
+            source="scheduler",
+        )
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "failed",
             "error_message": str(e)
