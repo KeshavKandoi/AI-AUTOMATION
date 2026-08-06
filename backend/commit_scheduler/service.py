@@ -116,8 +116,8 @@ def get_job_with_runs(job_id: str, organization_id: str) -> dict:
 
 async def _has_real_commit_today(access_token: str, repo_full_name: str) -> bool:
     """Used by guard mode: checks if any commit already landed on the repo today,
-    using the user'\''s local (IST) calendar day, converted correctly to UTC for
-    comparison against GitHub'\''s UTC commit timestamps."""
+    using the user's local (IST) calendar day, converted correctly to UTC for
+    comparison against GitHub's UTC commit timestamps."""
     from zoneinfo import ZoneInfo
     ist = ZoneInfo("Asia/Kolkata")
     now_ist = datetime.now(ist)
@@ -152,7 +152,9 @@ async def _resolve_files_for_run(job: dict, run_date: str) -> list[dict]:
 
 
 async def execute_job(job: dict) -> dict:
-    """Performs the actual Git commit(s) for a due job. Returns the run record."""
+    """Performs the actual Git commit(s) for a due job. Returns the run record.
+    For one-time 'scheduled' jobs, marks the job 'completed' after a successful run
+    so it never fires again — applies whether triggered by the scheduler or Run Now."""
     run_date = date.today().isoformat()
 
     if repository.has_run_for_date(job["id"], run_date):
@@ -161,12 +163,15 @@ async def execute_job(job: dict) -> dict:
             "error_message": "Already ran for this date"
         })
 
+    run: dict
+
     try:
         access_token = _get_github_token_for_org(job["organization_id"])
         provider = git_ops.get_provider(job["provider"])
 
         if job.get("mode") == "guard":
             if await _has_real_commit_today(access_token, job["repo_full_name"]):
+                # Guard mode "do nothing" path — not a completion event, this can recur.
                 return repository.create_run({
                     "job_id": job["id"], "run_date": run_date, "status": "skipped",
                     "error_message": "Real commit already found today — guard mode skipped"
@@ -201,20 +206,25 @@ async def execute_job(job: dict) -> dict:
                 access_token, job["repo_full_name"], target_branch, job["branch"],
                 title=job["commit_message"], body=f"Automated commit for {run_date}"
             )
-            return repository.create_run({
+            run = repository.create_run({
                 "job_id": job["id"], "run_date": run_date, "status": "success",
                 "commit_sha": last_result["sha"] if last_result else None,
                 "commit_url": pr.get("html_url")
             })
-
-        return repository.create_run({
-            "job_id": job["id"], "run_date": run_date, "status": "success",
-            "commit_sha": last_result["sha"] if last_result else None,
-            "commit_url": last_result["commit_url"] if last_result else None
-        })
+        else:
+            run = repository.create_run({
+                "job_id": job["id"], "run_date": run_date, "status": "success",
+                "commit_sha": last_result["sha"] if last_result else None,
+                "commit_url": last_result["commit_url"] if last_result else None
+            })
 
     except Exception as e:
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "failed",
             "error_message": str(e)
         })
+
+    if job.get("mode") == "scheduled" and run["status"] == "success":
+        repository.update_job(job["id"], {"status": "completed"})
+
+    return run
