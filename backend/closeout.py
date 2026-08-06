@@ -1,6 +1,6 @@
 import httpx
 from config import supabase_admin, logger, get_valid_access_token
-from audit import log_action
+from audit_logs.service import log_event
 
 
 def parse_source_ref(source_ref: str):
@@ -149,15 +149,32 @@ async def run_closeout(task: dict, approved: bool, access_token: str = None, **k
             "closeout_status": "completed",
             "closeout_error": None
         }).eq("id", task["id"]).execute()
-        log_action(task["organization_id"], "closeout_completed", {
-            "task_id": task["id"], "source_ref": task.get("source_ref"), "approved": approved
-        })
+        log_event(
+            organization_id=task["organization_id"],
+            module="tasks",
+            action="closeout_completed",
+            summary=f"Closeout completed for task: {task.get('title', 'Untitled')}",
+            status="success",
+            resource_type="task",
+            resource_id=task["id"],
+            metadata={"source_ref": task.get("source_ref"), "approved": approved},
+            source="backend",
+        )
     except Exception as e:
         logger.error(f"Closeout failed for task {task.get('id')}: {e}")
         supabase_admin.table("tasks").update({
             "closeout_status": "failed",
             "closeout_error": str(e)
         }).eq("id", task["id"]).execute()
-        log_action(task["organization_id"], "closeout_failed", {
-            "task_id": task["id"], "source_ref": task.get("source_ref"), "error": str(e)
-        })
+        log_event(
+            organization_id=task["organization_id"],
+            module="tasks",
+            action="closeout_failed",
+            summary=f"Closeout failed for task: {task.get('title', 'Untitled')}",
+            status="failed",
+            resource_type="task",
+            resource_id=task["id"],
+            metadata={"source_ref": task.get("source_ref")},
+            error_message=str(e),
+            source="backend",
+        )
