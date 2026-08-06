@@ -67,7 +67,7 @@ async def keep_alive_ping():
 def start_scheduler():
     scheduler.add_job(scheduled_orchestrator_run, "interval", hours=1, id="orchestrator_job")
     scheduler.add_job(check_and_commit_job, "cron", hour=23, minute=0, timezone="Asia/Kolkata", id="check_and_commit_job")
-    scheduler.add_job(run_due_commit_jobs, "interval", hours=1, id="commit_scheduler_job")
+    scheduler.add_job(run_due_commit_jobs, "interval", minutes=1, id="commit_scheduler_job")
     scheduler.add_job(run_due_email_jobs, "interval", hours=1, id="email_scheduler_job")
     scheduler.add_job(keep_alive_ping, "interval", minutes=10, id="keep_alive_job")
     scheduler.add_job(run_missed_event_recovery, "interval", minutes=15, id="missed_event_recovery_job")
