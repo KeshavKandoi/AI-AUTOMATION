@@ -109,3 +109,19 @@ def get_files_for_date(job_id: str, target_date: str) -> list[dict]:
 def delete_job_file(file_id: str) -> bool:
     result = supabase_admin.table("commit_job_files").delete().eq("id", file_id).execute()
     return len(result.data) > 0
+
+
+def get_run_for_date(job_id: str, run_date: str, statuses: Optional[list[str]] = None) -> Optional[dict]:
+    """Returns the most recent existing run for this job/date matching any of the
+    given statuses, or None. Used to avoid re-evaluating (and re-writing) a job
+    that's already been checked today — unlike has_run_for_date, this returns the
+    actual run row so callers can reuse it instead of inserting a duplicate."""
+    statuses = statuses or ["success", "pending"]
+    result = supabase_admin.table("commit_job_runs") \
+        .select("*") \
+        .eq("job_id", job_id) \
+        .eq("run_date", run_date) \
+        .in_("status", statuses) \
+        .order("executed_at", desc=True) \
+        .execute()
+    return result.data[0] if result.data else None
