@@ -142,9 +142,11 @@ async def _resolve_files_for_run(job: dict, run_date: str) -> list[dict]:
     files = repository.get_files_for_date(job["id"], run_date)
     if files:
         return files
-    if job.get("folder_path") and job.get("file_name"):
+    # folder_path is optional — a job with no folder configured targets the
+    # repo root, not "no file configured." Only file_name is required.
+    if job.get("file_name"):
         return [{
-            "folder_path": job["folder_path"],
+            "folder_path": job.get("folder_path") or "",
             "file_name": job["file_name"],
             "content": job.get("file_content")
         }]
@@ -195,7 +197,8 @@ async def execute_job(job: dict) -> dict:
 
         last_result = None
         for f in files_to_commit:
-            path = f"{f['folder_path']}/{f['file_name']}"
+            # folder_path may be empty (repo root) — avoid a leading slash in that case.
+            path = f"{f['folder_path']}/{f['file_name']}" if f.get('folder_path') else f['file_name']
             existing = await provider.get_file(access_token, job["repo_full_name"], path, target_branch)
             sha = existing["sha"] if existing else None
             content = f.get("content") or f"Auto-commit — {run_date}"
