@@ -3,12 +3,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
   Calendar,
+  CalendarClock,
   CheckSquare,
   ChevronDown,
   FileText,
   FileWarning,
   GitCommit,
   GitPullRequest,
+  Infinity as InfinityIcon,
   Info,
   Mail,
   MessageSquare,
@@ -16,18 +18,21 @@ import {
   Sparkles,
   Trash2,
   X,
+  Zap,
 } from 'lucide-react'
 import {
   workflowService,
   ALL_TRIGGER_TYPES,
   ACTION_OPTIONS,
   TRIGGER_FIELDS,
+  LIFETIME_MODE_OPTIONS,
   isConditionGroup,
   conditionsToRuleList,
   type ActionName,
   type ConditionOp,
   type ConditionLogic,
   type Conditions,
+  type LifetimeMode,
   type TriggerType,
   type Workflow,
   type WorkflowStatus,
@@ -83,6 +88,51 @@ const ACTION_ICON: Record<ActionName, typeof Mail> = {
   notify_discord: MessageSquare,
   create_calendar_event: Calendar,
   save_audit_log: FileText,
+}
+
+// --- Lifetime presentation --------------------------------------------
+
+const LIFETIME_ICON: Record<LifetimeMode, typeof InfinityIcon> = {
+  continuous: InfinityIcon,
+  run_once: Zap,
+  until_date: CalendarClock,
+}
+
+function toDatetimeLocalValue(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function minDatetimeLocalValue(): string {
+  return toDatetimeLocalValue(new Date(Date.now() + 60 * 1000).toISOString())
+}
+
+function datetimeLocalToISO(value: string): string | null {
+  if (!value) return null
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+function isFutureLocal(value: string): boolean {
+  if (!value) return false
+  const d = new Date(value)
+  return !isNaN(d.getTime()) && d.getTime() > Date.now()
+}
+
+function lifetimeClause(mode: LifetimeMode, expiresAtLocal: string): string {
+  if (mode === 'run_once') {
+    return ' This workflow will run once and then mark itself Completed.'
+  }
+  if (mode === 'until_date' && expiresAtLocal) {
+    const d = new Date(expiresAtLocal)
+    if (!isNaN(d.getTime())) {
+      return ` This workflow will stop running after ${d.toLocaleString()} and mark itself Expired.`
+    }
+  }
+  return ''
 }
 
 // --- Field UI config ---------------------------------------------------
@@ -349,6 +399,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
   const [selectedActions, setSelectedActions] = useState<ActionName[]>([])
   const [status, setStatus] = useState<WorkflowStatus>('active')
   const [advancedMode, setAdvancedMode] = useState(false)
+  const [lifetimeMode, setLifetimeMode] = useState<LifetimeMode>('continuous')
+  const [expiresAtLocal, setExpiresAtLocal] = useState('')
 
   useEffect(() => {
     if (workflow) {
@@ -359,6 +411,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
       setSelectedActions(workflow.actions)
       setStatus(workflow.status)
       setAdvancedMode(shouldStartAdvanced(workflow.conditions))
+      setLifetimeMode(workflow.lifetime_mode)
+      setExpiresAtLocal(toDatetimeLocalValue(workflow.expires_at))
     } else {
       setName('')
       setTriggerType('issue_created')
@@ -367,6 +421,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
       setSelectedActions([])
       setStatus('active')
       setAdvancedMode(false)
+      setLifetimeMode('continuous')
+      setExpiresAtLocal('')
     }
   }, [workflow, open])
 
@@ -377,6 +433,11 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
 
   const toggleAction = (action: ActionName) => {
     setSelectedActions((prev) => (prev.includes(action) ? prev.filter((a) => a !== action) : [...prev, action]))
+  }
+
+  const handleLifetimeChange = (mode: LifetimeMode) => {
+    setLifetimeMode(mode)
+    if (mode !== 'until_date') setExpiresAtLocal('')
   }
 
   const handleTriggerChange = (next: TriggerType) => {
@@ -420,6 +481,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
         trigger_type: triggerType,
         conditions: rowsToConditions(conditionRows, conditionLogic),
         actions: selectedActions,
+        lifetime_mode: lifetimeMode,
+        expires_at: lifetimeMode === 'until_date' ? datetimeLocalToISO(expiresAtLocal) : null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows', 'list'] })
@@ -434,6 +497,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
         conditions: rowsToConditions(conditionRows, conditionLogic),
         actions: selectedActions,
         status,
+        lifetime_mode: lifetimeMode,
+        expires_at: lifetimeMode === 'until_date' ? datetimeLocalToISO(expiresAtLocal) : null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows', 'list'] })
@@ -443,11 +508,17 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
 
   const mutation = isEdit ? updateMutation : createMutation
 
-  const canSubmit = useMemo(() => name.trim().length > 0 && selectedActions.length > 0, [name, selectedActions])
+  const canSubmit = useMemo(
+    () =>
+      name.trim().length > 0 &&
+      selectedActions.length > 0 &&
+      (lifetimeMode !== 'until_date' || isFutureLocal(expiresAtLocal)),
+    [name, selectedActions, lifetimeMode, expiresAtLocal]
+  )
 
   const summary = useMemo(
-    () => buildSummary(triggerType, conditionRows, conditionLogic, selectedActions),
-    [triggerType, conditionRows, conditionLogic, selectedActions]
+    () => buildSummary(triggerType, conditionRows, conditionLogic, selectedActions) + lifetimeClause(lifetimeMode, expiresAtLocal),
+    [triggerType, conditionRows, conditionLogic, selectedActions, lifetimeMode, expiresAtLocal]
   )
 
   return (
@@ -672,6 +743,53 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           </div>
           {selectedActions.length === 0 && (
             <p className="text-xs text-[var(--color-text-faint)]">Pick at least one action.</p>
+          )}
+        </div>
+
+        {/* Workflow lifetime */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-1.5">
+            <label className={labelClass()}>Workflow lifetime</label>
+            <HelpHint text="Choose whether this workflow keeps running, runs once and stops, or stops automatically after a date and time." />
+          </div>
+          <div className="flex flex-col gap-2">
+            {LIFETIME_MODE_OPTIONS.map((opt) => {
+              const Icon = LIFETIME_ICON[opt.value]
+              const selected = lifetimeMode === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleLifetimeChange(opt.value)}
+                  className={
+                    (selected
+                      ? 'border-[var(--color-signal)] bg-[var(--color-signal-dim)]'
+                      : 'border-[var(--color-border)] hover:border-[var(--color-signal)]') +
+                    ' flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors'
+                  }
+                >
+                  <Icon size={16} className={(selected ? 'text-[var(--color-signal)]' : 'text-[var(--color-text-muted)]') + ' mt-0.5 shrink-0'} />
+                  <div>
+                    <p className="text-sm font-medium text-[var(--color-text-primary)]">{opt.label}</p>
+                    <p className="text-xs text-[var(--color-text-faint)]">{opt.description}</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          {lifetimeMode === 'until_date' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--color-text-muted)]">Stop running after</label>
+              <Input
+                type="datetime-local"
+                min={minDatetimeLocalValue()}
+                value={expiresAtLocal}
+                onChange={(e) => setExpiresAtLocal(e.target.value)}
+              />
+              {expiresAtLocal && !isFutureLocal(expiresAtLocal) && (
+                <p className="text-xs text-[var(--color-alert)]">Pick a date and time in the future.</p>
+              )}
+            </div>
           )}
         </div>
 
