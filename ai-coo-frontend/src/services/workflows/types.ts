@@ -1,6 +1,7 @@
 export type TriggerType = 'issue_created' | 'push' | 'pull_request_opened'
 export type ActionName = 'create_task' | 'send_email' | 'notify_discord' | 'create_calendar_event' | 'save_audit_log'
-export type WorkflowStatus = 'active' | 'paused'
+export type WorkflowStatus = 'active' | 'paused' | 'completed' | 'expired'
+export type LifetimeMode = 'continuous' | 'run_once' | 'until_date'
 export type RunStatus = 'success' | 'partial_failure' | 'skipped_conditions'
 export type ConditionOp = 'eq' | 'in'
 export type ConditionLogic = 'AND' | 'OR'
@@ -29,6 +30,8 @@ export interface Workflow {
   actions: ActionName[]
   status: WorkflowStatus
   created_at: string
+  lifetime_mode: LifetimeMode
+  expires_at: string | null
 }
 
 export interface WorkflowActionResult {
@@ -58,6 +61,8 @@ export interface CreateWorkflowPayload {
   trigger_type: TriggerType
   conditions: Conditions
   actions: ActionName[]
+  lifetime_mode?: LifetimeMode
+  expires_at?: string | null
 }
 
 export interface UpdateWorkflowPayload {
@@ -65,6 +70,8 @@ export interface UpdateWorkflowPayload {
   conditions?: Conditions
   actions?: ActionName[]
   status?: WorkflowStatus
+  lifetime_mode?: LifetimeMode
+  expires_at?: string | null
 }
 
 export interface WorkflowService {
@@ -74,6 +81,20 @@ export interface WorkflowService {
   updateWorkflow(workflowId: string, orgId: string, payload: UpdateWorkflowPayload): Promise<Workflow>
   deleteWorkflow(workflowId: string, orgId: string): Promise<void>
   runNow(workflowId: string, orgId: string, contextOverride?: Record<string, unknown>): Promise<WorkflowRun>
+}
+
+export const LIFETIME_MODE_OPTIONS: { value: LifetimeMode; label: string; description: string }[] = [
+  { value: 'continuous', label: 'Run continuously', description: 'Keeps running every time the trigger matches, until you pause or delete it' },
+  { value: 'run_once', label: 'Run once', description: 'Automatically marks itself Completed right after it runs successfully — never runs again' },
+  { value: 'until_date', label: 'Run until a specific date and time', description: 'Automatically marks itself Expired once that time passes, and stops running' },
+]
+
+export function describeLifetime(workflow: Pick<Workflow, 'lifetime_mode' | 'expires_at'>): string {
+  if (workflow.lifetime_mode === 'run_once') return 'Runs once, then completes automatically'
+  if (workflow.lifetime_mode === 'until_date' && workflow.expires_at) {
+    return `Runs until ${new Date(workflow.expires_at).toLocaleString()}`
+  }
+  return 'Runs continuously'
 }
 
 export const ALL_TRIGGER_TYPES: { value: TriggerType; label: string; description: string }[] = [
