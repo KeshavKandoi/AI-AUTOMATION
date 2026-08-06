@@ -47,7 +47,7 @@ function triggerLabel(trigger: Workflow['trigger_type']) {
 function conditionsSummary(conditions: Record<string, string>) {
   const entries = Object.entries(conditions ?? {})
   if (entries.length === 0) return 'Runs on every event'
-  return entries.map(([k, v]) => `${k} = ${v}`).join(' \u00b7 ')
+  return entries.map(([k, v]) => `${k} = ${v}`).join(' · ')
 }
 
 function runStatusTone(status: RunStatus): 'signal' | 'alert' | 'amber' {
@@ -190,7 +190,7 @@ export default function Workflows() {
                     {conditionsSummary(workflow.conditions)}
                   </p>
                   <p className="text-xs text-[var(--color-text-faint)] mt-1">
-                    {workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''} \u00b7{' '}
+                    {workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''} ·{' '}
                     {workflow.actions.join(', ')}
                   </p>
                   <div className="mt-2">
@@ -206,7 +206,7 @@ export default function Workflows() {
                           : 'text-xs text-[var(--color-amber)] mt-1'
                       }
                     >
-                      Run {runNowFeedback.status.replace('_', ' ')} \u2014 see details for logs.
+                      Run {runNowFeedback.status.replace('_', ' ')} — see details for logs.
                     </p>
                   )}
                 </div>
