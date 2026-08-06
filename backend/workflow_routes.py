@@ -1,14 +1,18 @@
 from fastapi import APIRouter, HTTPException
+from datetime import datetime, timezone
 from config import supabase_admin
 from workflow_schemas import WorkflowCreate, WorkflowUpdate
-from workflow_engine import execute_workflow, sample_context_for_trigger
+from workflow_engine import execute_workflow, sample_context_for_trigger, _is_past_expiry
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
 @router.post("")
 def create_workflow(payload: WorkflowCreate):
-    result = supabase_admin.table("workflows").insert(payload.model_dump()).execute()
+    data = payload.model_dump()
+    if data.get("expires_at"):
+        data["expires_at"] = data["expires_at"].isoformat()
+    result = supabase_admin.table("workflows").insert(data).execute()
     return {"status": "created", "workflow": result.data[0]}
 
 
@@ -36,10 +40,30 @@ def update_workflow(workflow_id: str, org_id: str, payload: WorkflowUpdate):
     existing = supabase_admin.table("workflows").select("*").eq("id", workflow_id).execute()
     if not existing.data or existing.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Workflow not found")
+    current = existing.data[0]
 
     updates = payload.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields provided to update")
+
+    # Validate the *merged* lifetime configuration, since a PATCH may only
+    # touch one of lifetime_mode / expires_at while the other stays as-is.
+    merged_mode = updates.get("lifetime_mode", current.get("lifetime_mode", "continuous"))
+    merged_expires_raw = updates.get("expires_at", current.get("expires_at"))
+    if merged_mode == "until_date":
+        if not merged_expires_raw:
+            raise HTTPException(status_code=400, detail="expires_at is required when lifetime_mode is 'until_date'")
+        merged_expires = merged_expires_raw if isinstance(merged_expires_raw, datetime) else datetime.fromisoformat(str(merged_expires_raw).replace("Z", "+00:00"))
+        if merged_expires.tzinfo is None:
+            merged_expires = merged_expires.replace(tzinfo=timezone.utc)
+        if merged_expires <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="expires_at must be in the future")
+    elif "lifetime_mode" in updates:
+        # Switching away from until_date clears any stale expiry date.
+        updates["expires_at"] = None
+
+    if "expires_at" in updates and updates["expires_at"] is not None:
+        updates["expires_at"] = updates["expires_at"].isoformat()
 
     result = supabase_admin.table("workflows").update(updates).eq("id", workflow_id).execute()
     return {"status": "updated", "workflow": result.data[0]}
@@ -61,6 +85,14 @@ async def run_workflow_now(workflow_id: str, org_id: str, context_override: dict
     if not existing.data or existing.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Workflow not found")
     workflow = existing.data[0]
+
+    if workflow["status"] in ("completed", "expired"):
+        raise HTTPException(status_code=409, detail=f"Workflow is {workflow['status']} and can no longer run")
+
+    if _is_past_expiry(workflow):
+        supabase_admin.table("workflows").update({"status": "expired"}).eq("id", workflow_id).execute()
+        raise HTTPException(status_code=409, detail="Workflow has expired and can no longer run")
+
     context = sample_context_for_trigger(workflow["trigger_type"])
     if context_override:
         context.update(context_override)
