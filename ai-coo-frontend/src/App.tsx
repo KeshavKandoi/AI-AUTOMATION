@@ -16,6 +16,7 @@ import CommitScheduler from '@/pages/commitScheduler/CommitScheduler'
 import GitHub from '@/pages/github/GitHub'
 import Gmail from '@/pages/gmail/Gmail'
 import CalendarPage from '@/pages/calendar/Calendar'
+import Workflows from '@/pages/workflows/Workflows'
 
 const queryClient = new QueryClient()
 
@@ -35,7 +36,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/chat" element={<ComingSoon title="AI COO Chat" />} />
               <Route path="/tasks" element={<Tasks />} />
-              <Route path="/workflows" element={<ComingSoon title="Workflow Automations" />} />
+              <Route path="/workflows" element={<Workflows />} />
               <Route path="/integrations/github" element={<GitHub />} />
               <Route path="/integrations/gmail" element={<Gmail />} />
               <Route path="/integrations/calendar" element={<CalendarPage />} />
