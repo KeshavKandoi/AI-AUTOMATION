@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, Play, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, Pause, Play, XCircle } from 'lucide-react'
 import {
   workflowService,
   ALL_TRIGGER_TYPES,
   conditionsToRuleList,
   isConditionGroup,
+  describeLifetime,
   type RunStatus,
+  type WorkflowStatus,
   type WorkflowRun,
 } from '@/services/workflows'
 import Modal from '@/components/ui/Modal'
@@ -41,6 +43,22 @@ function runStatusBadge(status: RunStatus) {
 
 function triggerLabel(trigger: string) {
   return ALL_TRIGGER_TYPES.find((t) => t.value === trigger)?.label ?? trigger
+}
+
+function workflowStatusBadge(status: WorkflowStatus) {
+  const map: Record<WorkflowStatus, { tone: 'signal' | 'amber' | 'neutral'; icon: typeof CheckCircle2 }> = {
+    active: { tone: 'signal', icon: CheckCircle2 },
+    paused: { tone: 'amber', icon: Pause },
+    completed: { tone: 'neutral', icon: CheckCircle2 },
+    expired: { tone: 'neutral', icon: Clock },
+  }
+  const { tone, icon: Icon } = map[status]
+  return (
+    <Badge tone={tone}>
+      <Icon size={11} className="mr-1 inline" />
+      {status}
+    </Badge>
+  )
 }
 
 function RunLogEntry({ run }: { run: WorkflowRun }) {
@@ -152,16 +170,28 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
         ) : (
           <>
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-sm text-[var(--color-text-muted)]">
+              <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] flex-wrap">
+                {workflowStatusBadge(workflow.status)}
                 <span className="text-[var(--color-text-primary)]">{triggerLabel(workflow.trigger_type)}</span>
                 {' · '}
                 {workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''}
               </div>
-              <Button variant="secondary" loading={runNowMutation.isPending} onClick={() => runNowMutation.mutate()}>
+              <Button
+                variant="secondary"
+                loading={runNowMutation.isPending}
+                disabled={workflow.status === 'completed' || workflow.status === 'expired'}
+                onClick={() => runNowMutation.mutate()}
+              >
                 <Play size={13} />
                 Run now
               </Button>
             </div>
+            <p className="text-xs text-[var(--color-text-faint)] -mt-4">{describeLifetime(workflow)}</p>
+            {(workflow.status === 'completed' || workflow.status === 'expired') && (
+              <p className="text-xs text-[var(--color-text-faint)]">
+                This workflow is {workflow.status} and won't run again{workflow.status === 'expired' ? '' : ' automatically'}.
+              </p>
+            )}
 
             {runNowMutation.isSuccess && (
               <div
