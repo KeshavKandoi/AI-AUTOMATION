@@ -27,6 +27,31 @@ def _get_org_email(organization_id: str):
 
 
 def _match_conditions(conditions: dict, context: dict) -> bool:
+    if not conditions:
+        return True
+
+    # New format: {"logic": "AND"|"OR", "rules": [{"field", "op", "value"}]}
+    if "rules" in conditions and "logic" in conditions:
+        rules = conditions.get("rules") or []
+        if not rules:
+            return True
+        logic = conditions.get("logic", "AND")
+        results = []
+        for rule in rules:
+            field = rule.get("field")
+            op = rule.get("op", "eq")
+            expected = rule.get("value")
+            actual = context.get(field)
+            if op == "in":
+                candidates = expected if isinstance(expected, list) else [expected]
+                results.append(actual in candidates)
+            else:
+                results.append(actual == expected)
+        return all(results) if logic == "AND" else any(results)
+
+    # Legacy flat-dict format: {"field": value, ...} — implicit AND. Preserved so
+    # workflows created before AND/OR support (e.g. "High priority issue fan-out")
+    # keep working unchanged.
     for key, expected in conditions.items():
         actual = context.get(key)
         if isinstance(expected, list):
@@ -136,6 +161,32 @@ def sample_context_for_trigger(trigger_type: str) -> dict:
             "issue_number": 0,
             "issue_url": "",
             "repo": "manual-test",
+            "labels": [],
+            "assignee": "",
+            "author": "manual-test-user",
+        }
+    if trigger_type == "push":
+        return {
+            "repo": "manual-test",
+            "branch": "main",
+            "author": "manual-test-user",
+            "commit_message": "Sample commit (manual test run)",
+            "commit_sha": "0000000",
+            "files_changed": [],
+            "commit_count": 1,
+            "timestamp": "",
+        }
+    if trigger_type == "pull_request_opened":
+        return {
+            "repo": "manual-test",
+            "title": "Sample PR (manual test run)",
+            "author": "manual-test-user",
+            "source_branch": "feature/test",
+            "target_branch": "main",
+            "draft": False,
+            "labels": [],
+            "pr_number": 0,
+            "pr_url": "",
         }
     return {}
 
@@ -146,17 +197,21 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
     - record_skipped=False (webhook path): no row written on non-match, returns None.
     - record_skipped=True (manual Run Now): writes a 'skipped_conditions' row on non-match.
     """
+    import time
     organization_id = workflow["organization_id"]
+    started = time.monotonic()
 
     if not _match_conditions(workflow.get("conditions", {}), context):
         if not record_skipped:
             return None
+        duration_ms = int((time.monotonic() - started) * 1000)
         run = supabase_admin.table("workflow_runs").insert({
             "workflow_id": workflow["id"],
             "trigger_context": context,
             "actions_executed": [],
             "status": "skipped_conditions",
-            "error_message": None
+            "error_message": None,
+            "duration_ms": duration_ms,
         }).execute()
         return run.data[0]
 
@@ -177,14 +232,16 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
             run_status = "partial_failure"
             error_message = str(e)
 
+    duration_ms = int((time.monotonic() - started) * 1000)
     run = supabase_admin.table("workflow_runs").insert({
         "workflow_id": workflow["id"],
         "trigger_context": context,
         "actions_executed": executed,
         "status": run_status,
-        "error_message": error_message
+        "error_message": error_message,
+        "duration_ms": duration_ms,
     }).execute()
-    logger.info(f"Workflow '{workflow.get('name')}' ({workflow['id']}) executed: {executed}")
+    logger.info(f"Workflow '{workflow.get('name')}' ({workflow['id']}) executed in {duration_ms}ms: {executed}")
     return run.data[0]
 
 
