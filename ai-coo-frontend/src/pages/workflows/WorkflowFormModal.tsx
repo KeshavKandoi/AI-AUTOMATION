@@ -164,12 +164,12 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           </select>
           {!isLiveTrigger(triggerType) && (
             <p className="text-xs text-[var(--color-amber)]">
-              This trigger isn't wired up to fire workflows yet \u2014 choose "Issue created" for now.
+              This trigger isn't wired up to fire workflows yet — choose "Issue created" for now.
             </p>
           )}
           {isEdit && (
             <p className="text-xs text-[var(--color-text-faint)]">
-              Trigger can't be changed after creation \u2014 delete and recreate the workflow if this needs to change.
+              Trigger can't be changed after creation — delete and recreate the workflow if this needs to change.
             </p>
           )}
         </div>
@@ -187,7 +187,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
             </button>
           </div>
           {conditionRows.length === 0 ? (
-            <p className="text-xs text-[var(--color-text-faint)]">No conditions \u2014 this workflow runs on every matching event.</p>
+            <p className="text-xs text-[var(--color-text-faint)]">No conditions — this workflow runs on every matching event.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {conditionRows.map((row, i) => (
