@@ -101,6 +101,7 @@ from commit_scheduler.routes import router as commit_scheduler_router
 from email_scheduler.routes import router as email_scheduler_router
 from workflow_routes import router as workflow_router
 from calendar_automation.routes import router as lunch_block_router
+from audit_logs.routes import router as audit_logs_router
 
 app = FastAPI(title="AI COO Backend")
 
@@ -131,6 +132,7 @@ app.include_router(workflow_router)
 from webhooks.routes import router as webhooks_router
 app.include_router(webhooks_router)
 app.include_router(lunch_block_router)
+app.include_router(audit_logs_router)
 
 
 @app.on_event("startup")
@@ -223,7 +225,7 @@ from org_webhooks import register_github_webhook
 RENDER_BASE_URL = "https://ai-automation-d2s2.onrender.com"
 
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
-from audit import log_action
+from audit_logs.service import log_event
 
 @app.post("/missed-events/run-now")
 async def trigger_missed_event_recovery():
@@ -377,7 +379,17 @@ def disconnect_repo(org_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to disconnect repository: {e}")
 
     logger.info(f"Disconnected repo {current_repo} for org {org_id}")
-    log_action(org_id, "github_repo_disconnected", {"repo": current_repo})
+    log_event(
+        organization_id=org_id,
+        module="github",
+        action="github_repo_disconnected",
+        summary=f"GitHub repo disconnected: {current_repo}",
+        status="warning",
+        resource_type="integration",
+        resource_id=current_repo,
+        metadata={"repo": current_repo},
+        source="backend",
+    )
 
     return {"status": "disconnected", "repo": current_repo}
 
@@ -429,7 +441,17 @@ async def approve_and_create_issue(task_id: str, access_token: str | None = None
     issue = res.json()
 
     supabase_admin.table("tasks").update({"status": "issue_created", "resolution": resolution}).eq("id", task_id).execute()
-    log_action(task["organization_id"], "github_issue_created", {"task_id": task_id, "issue_url": issue["html_url"]})
+    log_event(
+        organization_id=task["organization_id"],
+        module="github",
+        action="github_issue_created",
+        summary=f"GitHub issue created for task: {task.get('title', 'Untitled')}",
+        status="success",
+        resource_type="task",
+        resource_id=task_id,
+        metadata={"issue_url": issue["html_url"]},
+        source="backend",
+    )
 
     if task.get("source_ref"):
         await run_closeout(task, approved=True, access_token=access_token, resolution=resolution, pr_url=issue.get("html_url"))
@@ -719,7 +741,17 @@ def approve_task(task_id: str):
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
     task = result.data[0]
-    log_action(task["organization_id"], "task_approved", {"task_id": task_id, "title": task.get("title")})
+    log_event(
+        organization_id=task["organization_id"],
+        module="tasks",
+        action="task_approved",
+        summary=f"Task approved: {task.get('title', 'Untitled')}",
+        status="success",
+        resource_type="task",
+        resource_id=task_id,
+        metadata={"title": task.get("title")},
+        source="backend",
+    )
     return {"status": "approved", "task": task}
 
 
@@ -731,7 +763,17 @@ async def reject_task(task_id: str):
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
     task = result.data[0]
-    log_action(task["organization_id"], "task_rejected", {"task_id": task_id, "title": task.get("title")})
+    log_event(
+        organization_id=task["organization_id"],
+        module="tasks",
+        action="task_rejected",
+        summary=f"Task rejected: {task.get('title', 'Untitled')}",
+        status="warning",
+        resource_type="task",
+        resource_id=task_id,
+        metadata={"title": task.get("title")},
+        source="backend",
+    )
 
     if task.get("source_ref"):
         await run_closeout(task, approved=False)
@@ -825,7 +867,17 @@ async def approve_and_create_event(task_id: str, start_time: str, end_time: str,
 
     event = res.json()
     supabase_admin.table("tasks").update({"status": "event_created"}).eq("id", task_id).execute()
-    log_action(task["organization_id"], "calendar_event_created", {"task_id": task_id, "event_link": event.get("htmlLink")})
+    log_event(
+        organization_id=task["organization_id"],
+        module="calendar",
+        action="calendar_event_created",
+        summary=f"Calendar event created for task: {task.get('title', 'Untitled')}",
+        status="success",
+        resource_type="task",
+        resource_id=task_id,
+        metadata={"event_link": event.get("htmlLink")},
+        source="backend",
+    )
 
     if task.get("source_ref"):
         await run_closeout(task, approved=True, access_token=access_token, notes=f"Follow-up event created: {event.get('htmlLink')}")
@@ -870,17 +922,7 @@ def get_integrations_status(org_id: str):
 
     return list(latest_by_provider.values())
 
-# ---------- Audit Logs (frontend) ----------
-
-@app.get("/audit-logs")
-def get_audit_logs(org_id: str, limit: int = 50):
-    result = supabase_admin.table("audit_logs") \
-        .select("*") \
-        .eq("organization_id", org_id) \
-        .order("created_at", desc=True) \
-        .limit(limit) \
-        .execute()
-    return result.data
+# ---------- Audit Logs moved to audit_logs/routes.py ----------
 
 # ---------- Integration Disconnect ----------
 
@@ -916,6 +958,16 @@ def disconnect_integration(provider: str, org_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to disconnect {provider}: {e}")
 
     logger.info(f"Disconnected {provider} integration for org {org_id} (integration_id={integration['id']})")
-    log_action(org_id, f"{provider}_disconnected", {"provider": provider, "integration_id": integration["id"]})
+    log_event(
+        organization_id=org_id,
+        module="integrations",
+        action=f"{provider}_disconnected",
+        summary=f"{provider.capitalize()} integration disconnected",
+        status="warning",
+        resource_type="integration",
+        resource_id=integration["id"],
+        metadata={"provider": provider},
+        source="backend",
+    )
 
     return {"status": "disconnected", "provider": provider}
