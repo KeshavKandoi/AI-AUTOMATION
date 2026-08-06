@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, Clock, Pause, Play, Plus, Trash2, Workflow a
 import {
   workflowService,
   ALL_TRIGGER_TYPES,
+  summarizeConditions,
   type RunStatus,
   type Workflow,
   type WorkflowStatus,
@@ -44,12 +45,6 @@ function triggerLabel(trigger: Workflow['trigger_type']) {
   return ALL_TRIGGER_TYPES.find((t) => t.value === trigger)?.label ?? trigger
 }
 
-function conditionsSummary(conditions: Record<string, string>) {
-  const entries = Object.entries(conditions ?? {})
-  if (entries.length === 0) return 'Runs on every event'
-  return entries.map(([k, v]) => `${k} = ${v}`).join(' · ')
-}
-
 function runStatusTone(status: RunStatus): 'signal' | 'alert' | 'amber' {
   if (status === 'success') return 'signal'
   if (status === 'partial_failure') return 'alert'
@@ -73,6 +68,9 @@ function LastRunIndicator({ workflowId, orgId }: { workflowId: string; orgId: st
     <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
       <Badge tone={runStatusTone(lastRun.status)}>{lastRun.status.replace('_', ' ')}</Badge>
       {new Date(lastRun.executed_at).toLocaleString()}
+      {lastRun.duration_ms != null && (
+        <span className="text-[var(--color-text-faint)]">· {lastRun.duration_ms}ms</span>
+      )}
     </span>
   )
 }
@@ -187,7 +185,7 @@ export default function Workflows() {
                     {statusBadge(workflow.status)}
                   </div>
                   <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    {conditionsSummary(workflow.conditions)}
+                    {summarizeConditions(workflow.conditions)}
                   </p>
                   <p className="text-xs text-[var(--color-text-faint)] mt-1">
                     {workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''} ·{' '}
