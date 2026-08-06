@@ -79,6 +79,9 @@ async def github_webhook(
             "issue_number": issue.get("number"),
             "issue_url": issue.get("html_url"),
             "repo": repo_full_name,
+            "labels": [l.get("name") for l in issue.get("labels", [])],
+            "assignee": (issue.get("assignee") or {}).get("login", ""),
+            "author": (issue.get("user") or {}).get("login", ""),
         }
 
         await run_workflows(org_id, "issue_created", context)
@@ -91,6 +94,47 @@ async def github_webhook(
             "trigger_type": "issue_created",
             "priority": context["priority"]
         }
+
+    # --- New: push events also go through the configurable workflow engine,
+    # in addition to (not instead of) the existing orchestrator run below,
+    # so existing push-triggered orchestrator behavior is unchanged. ---
+    if x_github_event == "push":
+        head_commit = payload.get("head_commit") or {}
+        push_context = {
+            "repo": repo_full_name,
+            "branch": (payload.get("ref") or "").replace("refs/heads/", ""),
+            "author": (head_commit.get("author") or {}).get("name", "unknown"),
+            "commit_message": head_commit.get("message", ""),
+            "commit_sha": payload.get("after"),
+            "files_changed": list(dict.fromkeys(
+                (head_commit.get("added") or [])
+                + (head_commit.get("removed") or [])
+                + (head_commit.get("modified") or [])
+            )),
+            "commit_count": len(payload.get("commits") or []),
+            "timestamp": head_commit.get("timestamp", ""),
+        }
+        await run_workflows(org_id, "push", push_context)
+        logger.info(f"Workflow dispatch complete for push to {push_context['branch']} ({push_context['commit_sha']})")
+
+    # --- New: pull_request "opened" actions also go through the configurable
+    # workflow engine, in addition to the existing orchestrator run below for
+    # all pull_request actions (unchanged). ---
+    if x_github_event == "pull_request" and payload.get("action") == "opened":
+        pr = payload.get("pull_request", {})
+        pr_context = {
+            "repo": repo_full_name,
+            "title": pr.get("title", "Untitled PR"),
+            "author": (pr.get("user") or {}).get("login", "unknown"),
+            "source_branch": (pr.get("head") or {}).get("ref", ""),
+            "target_branch": (pr.get("base") or {}).get("ref", ""),
+            "draft": pr.get("draft", False),
+            "labels": [l.get("name") for l in pr.get("labels", [])],
+            "pr_number": pr.get("number"),
+            "pr_url": pr.get("html_url"),
+        }
+        await run_workflows(org_id, "pull_request_opened", pr_context)
+        logger.info(f"Workflow dispatch complete for PR #{pr_context['pr_number']} opened")
 
     # --- Existing behavior: push / pull_request / other issue actions still run the orchestrator ---
     token_res = supabase_admin.table("integrations").select("id").eq("organization_id", org_id).eq("provider", "github").eq("connected", True).order("created_at", desc=True).execute()
