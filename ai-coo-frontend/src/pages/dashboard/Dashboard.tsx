@@ -4,10 +4,11 @@ import { ListTodo, AlertCircle, Workflow, Activity, Plug } from 'lucide-react'
 import { tasksApi } from '@/api/tasks'
 import { schedulerApi } from '@/api/scheduler'
 import { integrationsApi } from '@/api/integrations'
-import { auditApi } from '@/api/audit'
+import { auditLogsService, type AuditLogEntry } from '@/services/audit-logs'
+import { getModuleIcon, getStatusTone, formatActionLabel } from '@/lib/auditLogDisplay'
 import { useAuthStore } from '@/store/authStore'
 import StatCard from '@/components/ui/StatCard'
-import { formatActivity } from '@/lib/formatActivity'
+
 import { formatDistanceToNow } from 'date-fns'
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -37,11 +38,12 @@ export default function Dashboard() {
     enabled: !!orgId,
   })
 
-  const { data: activity, isLoading: activityLoading } = useQuery({
-    queryKey: ['audit-logs', orgId],
-    queryFn: () => auditApi.list(orgId!, 8).then((r) => r.data),
+  const { data: activityData, isLoading: activityLoading } = useQuery({
+    queryKey: ['audit-logs', 'dashboard', orgId],
+    queryFn: () => auditLogsService.list(orgId!, 8, 0),
     enabled: !!orgId,
   })
+  const activity = activityData?.items
 
   const highPriority = tasks?.filter((t) => t.priority === 'high').length ?? 0
   const openTasks = tasks?.filter((t) => t.status === 'open').length ?? 0
@@ -157,20 +159,26 @@ export default function Dashboard() {
           </div>
         ) : activity && activity.length > 0 ? (
           <div className="flex flex-col divide-y divide-[var(--color-border)]">
-            {activity.map((log, idx) => (
-              <motion.div
-                key={log.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: idx * 0.03 }}
-                className="py-2.5 flex items-center justify-between gap-3"
-              >
-                <span className="text-sm text-[var(--color-text-muted)]">{formatActivity(log)}</span>
-                <span className="text-xs text-[var(--color-text-faint)] font-mono shrink-0">
-                  {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
-                </span>
-              </motion.div>
-            ))}
+            {activity.map((log: AuditLogEntry, idx: number) => {
+              const Icon = getModuleIcon(log.module)
+              return (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: idx * 0.03 }}
+                  className="py-2.5 flex items-center justify-between gap-3"
+                >
+                  <span className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] min-w-0">
+                    <Icon size={13} className="shrink-0 text-[var(--color-text-faint)]" />
+                    <span className="truncate">{log.summary ?? formatActionLabel(log.action)}</span>
+                  </span>
+                  <span className="text-xs text-[var(--color-text-faint)] font-mono shrink-0">
+                    {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                  </span>
+                </motion.div>
+              )
+            })}
           </div>
         ) : (
           <p className="text-sm text-[var(--color-text-faint)]">No activity yet.</p>
