@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from config import supabase_admin
 from workflow_schemas import WorkflowCreate, WorkflowUpdate
+from workflow_engine import execute_workflow, sample_context_for_trigger
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -52,3 +53,16 @@ def delete_workflow(workflow_id: str, org_id: str):
 
     supabase_admin.table("workflows").delete().eq("id", workflow_id).execute()
     return {"status": "deleted", "workflow_id": workflow_id}
+
+
+@router.post("/{workflow_id}/run-now")
+async def run_workflow_now(workflow_id: str, org_id: str, context_override: dict | None = None):
+    existing = supabase_admin.table("workflows").select("*").eq("id", workflow_id).execute()
+    if not existing.data or existing.data[0]["organization_id"] != org_id:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    workflow = existing.data[0]
+    context = sample_context_for_trigger(workflow["trigger_type"])
+    if context_override:
+        context.update(context_override)
+    run = await execute_workflow(workflow, context, record_skipped=True)
+    return {"status": "triggered", "run": run}
