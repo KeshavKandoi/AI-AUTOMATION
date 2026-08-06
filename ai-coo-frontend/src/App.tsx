@@ -17,6 +17,7 @@ import GitHub from '@/pages/github/GitHub'
 import Gmail from '@/pages/gmail/Gmail'
 import CalendarPage from '@/pages/calendar/Calendar'
 import Workflows from '@/pages/workflows/Workflows'
+import AuditLogs from '@/pages/auditLogs/AuditLogs'
 
 const queryClient = new QueryClient()
 
@@ -43,7 +44,7 @@ function App() {
               <Route path="/commit-scheduler" element={<CommitScheduler />} />
               <Route path="/pull-requests" element={<ComingSoon title="Pull Requests" />} />
               <Route path="/approvals" element={<HumanApproval />} />
-              <Route path="/audit-logs" element={<ComingSoon title="Audit Logs" />} />
+              <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/integrations" element={<Integrations />} />
               <Route path="/memory" element={<ComingSoon title="Memory" />} />
               <Route path="/notifications" element={<ComingSoon title="Notifications" />} />
