@@ -22,7 +22,7 @@ export const navItems: NavItem[] = [
   { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal },
   { label: 'Pull Requests', path: '/pull-requests', icon: GitPullRequest, comingSoon: true },
   { label: 'Human Approval', path: '/approvals', icon: ShieldCheck },
-  { label: 'Audit Logs', path: '/audit-logs', icon: ScrollText, comingSoon: true },
+  { label: 'Audit Logs', path: '/audit-logs', icon: ScrollText },
   { label: 'Integrations', path: '/integrations', icon: Plug },
   { label: 'Memory', path: '/memory', icon: Brain, comingSoon: true },
   { label: 'Notifications', path: '/notifications', icon: Bell, comingSoon: true },
