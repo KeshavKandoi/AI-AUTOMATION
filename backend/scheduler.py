@@ -7,6 +7,7 @@ from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from email_scheduler.scheduler_jobs import run_due_email_jobs
 from calendar_automation.scheduler_jobs import run_daily_lunch_block_check
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
+from workflow_engine import sweep_expired_workflows
 from orchestrator import coo_graph
 
 router = APIRouter()
@@ -71,6 +72,7 @@ def start_scheduler():
     scheduler.add_job(run_due_email_jobs, "interval", hours=1, id="email_scheduler_job")
     scheduler.add_job(keep_alive_ping, "interval", minutes=10, id="keep_alive_job")
     scheduler.add_job(run_missed_event_recovery, "interval", minutes=15, id="missed_event_recovery_job")
+    scheduler.add_job(sweep_expired_workflows, "interval", minutes=1, id="workflow_expiry_sweep_job")
     scheduler.add_job(run_daily_lunch_block_check, "cron", hour=8, minute=0, timezone="Asia/Kolkata", id="lunch_block_job")
     scheduler.start()
     scheduler.pause_job("orchestrator_job")
