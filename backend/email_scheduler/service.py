@@ -94,14 +94,37 @@ async def execute_job(job: dict) -> dict:
             )
 
         if res.status_code != 200:
+            from audit_logs.service import log_event as _log_event_fail
+            _log_event_fail(
+                organization_id=job["organization_id"],
+                module="gmail",
+                action="email_send_failed",
+                summary=f"Scheduled email failed to send to {job.get('to_email', 'unknown')}",
+                status="failed",
+                resource_type="email_job",
+                resource_id=job["id"],
+                metadata={"to_email": job.get("to_email")},
+                error_message=f"Gmail API error {res.status_code}: {res.text}",
+                source="scheduler",
+            )
             return repository.create_run({
                 "job_id": job["id"], "run_date": run_date, "status": "failed",
                 "error_message": f"Gmail API error {res.status_code}: {res.text}"
             })
 
         message_id = res.json().get("id")
-        from audit import log_action
-        log_action(job["organization_id"], "email_sent", {"job_id": job["id"], "to_email": job.get("to_email"), "message_id": message_id})
+        from audit_logs.service import log_event
+        log_event(
+            organization_id=job["organization_id"],
+            module="gmail",
+            action="email_sent",
+            summary=f"Scheduled email sent to {job.get('to_email', 'unknown')}",
+            status="success",
+            resource_type="email_job",
+            resource_id=job["id"],
+            metadata={"to_email": job.get("to_email"), "message_id": message_id},
+            source="scheduler",
+        )
 
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "success",
