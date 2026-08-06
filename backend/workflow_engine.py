@@ -127,43 +127,73 @@ ACTION_REGISTRY = {
 }
 
 
+def sample_context_for_trigger(trigger_type: str) -> dict:
+    if trigger_type == "issue_created":
+        return {
+            "title": "Sample issue (manual test run)",
+            "description": "This is a manually triggered test run.",
+            "priority": "medium",
+            "issue_number": 0,
+            "issue_url": "",
+            "repo": "manual-test",
+        }
+    return {}
+
+
+async def execute_workflow(workflow: dict, context: dict, record_skipped: bool = False):
+    """
+    Runs condition match + all actions for a single workflow, records the run.
+    - record_skipped=False (webhook path): no row written on non-match, returns None.
+    - record_skipped=True (manual Run Now): writes a 'skipped_conditions' row on non-match.
+    """
+    organization_id = workflow["organization_id"]
+
+    if not _match_conditions(workflow.get("conditions", {}), context):
+        if not record_skipped:
+            return None
+        run = supabase_admin.table("workflow_runs").insert({
+            "workflow_id": workflow["id"],
+            "trigger_context": context,
+            "actions_executed": [],
+            "status": "skipped_conditions",
+            "error_message": None
+        }).execute()
+        return run.data[0]
+
+    executed = []
+    run_status = "success"
+    error_message = None
+    for action_name in workflow.get("actions", []):
+        handler = ACTION_REGISTRY.get(action_name)
+        if not handler:
+            logger.error(f"Unknown workflow action '{action_name}' in workflow {workflow['id']}")
+            continue
+        try:
+            action_result = await handler(organization_id, context)
+            executed.append({"action": action_name, "result": action_result})
+        except Exception as e:
+            logger.error(f"Workflow action '{action_name}' failed for workflow {workflow['id']}: {e}")
+            executed.append({"action": action_name, "error": str(e)})
+            run_status = "partial_failure"
+            error_message = str(e)
+
+    run = supabase_admin.table("workflow_runs").insert({
+        "workflow_id": workflow["id"],
+        "trigger_context": context,
+        "actions_executed": executed,
+        "status": run_status,
+        "error_message": error_message
+    }).execute()
+    logger.info(f"Workflow '{workflow.get('name')}' ({workflow['id']}) executed: {executed}")
+    return run.data[0]
+
+
 async def run_workflows(organization_id: str, trigger_type: str, context: dict):
     result = supabase_admin.table("workflows") \
         .select("*").eq("organization_id", organization_id) \
         .eq("trigger_type", trigger_type).eq("status", "active").execute()
-
     workflows = result.data
     if not workflows:
         return
-
     for workflow in workflows:
-        if not _match_conditions(workflow.get("conditions", {}), context):
-            continue
-
-        executed = []
-        run_status = "success"
-        error_message = None
-
-        for action_name in workflow.get("actions", []):
-            handler = ACTION_REGISTRY.get(action_name)
-            if not handler:
-                logger.error(f"Unknown workflow action '{action_name}' in workflow {workflow['id']}")
-                continue
-            try:
-                action_result = await handler(organization_id, context)
-                executed.append({"action": action_name, "result": action_result})
-            except Exception as e:
-                logger.error(f"Workflow action '{action_name}' failed for workflow {workflow['id']}: {e}")
-                executed.append({"action": action_name, "error": str(e)})
-                run_status = "partial_failure"
-                error_message = str(e)
-
-        supabase_admin.table("workflow_runs").insert({
-            "workflow_id": workflow["id"],
-            "trigger_context": context,
-            "actions_executed": executed,
-            "status": run_status,
-            "error_message": error_message
-        }).execute()
-
-        logger.info(f"Workflow '{workflow.get('name')}' ({workflow['id']}) executed: {executed}")
+        await execute_workflow(workflow, context, record_skipped=False)
