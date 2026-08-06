@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, Clock, ExternalLink, Play, Trash2, XCircle } from 'lucide-react'
-import { commitSchedulerService, type CommitJobFile, type RunStatus } from '@/services/commitScheduler'
+import { commitSchedulerService, type CommitJobFile, type CommitJobWithRuns, type RunStatus } from '@/services/commitScheduler'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import Skeleton from '@/components/ui/Skeleton'
@@ -32,6 +32,18 @@ function runStatusBadge(status: RunStatus) {
       {status}
     </Badge>
   )
+}
+
+function modeSummary(job: CommitJobWithRuns) {
+  if (job.mode === 'scheduled') {
+    return job.execution_at
+      ? `one-time · runs ${new Date(job.execution_at).toLocaleString()}`
+      : 'one-time'
+  }
+  if (job.mode === 'guard') {
+    return `guard · ${job.frequency} · cutoff ${job.guard_cutoff_time?.slice(0, 5)}`
+  }
+  return `recurring · ${job.frequency}`
 }
 
 interface JobDetailDrawerProps {
@@ -107,7 +119,7 @@ export default function JobDetailDrawer({ open, orgId, jobId, onClose }: JobDeta
           <>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="text-sm text-[var(--color-text-muted)]">
-                <span className="text-[var(--color-text-primary)]">{job.branch}</span> · {job.frequency} · {job.mode}
+                <span className="text-[var(--color-text-primary)]">{job.branch}</span> · {modeSummary(job)}
                 {job.use_pr && ' · via PR'}
               </div>
               <Button
