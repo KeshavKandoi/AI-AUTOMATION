@@ -4,10 +4,14 @@ import { AlertCircle, Plus, Trash2 } from 'lucide-react'
 import {
   workflowService,
   ALL_TRIGGER_TYPES,
-  LIVE_TRIGGER_TYPES,
   ACTION_OPTIONS,
-  ISSUE_CREATED_FIELDS,
+  TRIGGER_FIELDS,
+  isConditionGroup,
+  conditionsToRuleList,
   type ActionName,
+  type ConditionOp,
+  type ConditionLogic,
+  type Conditions,
   type TriggerType,
   type Workflow,
   type WorkflowStatus,
@@ -33,23 +37,38 @@ function labelClass() {
   return 'text-sm font-medium text-[var(--color-text-muted)]'
 }
 
-interface ConditionRow {
+interface ConditionRowUI {
   field: string
+  op: ConditionOp
   value: string
 }
 
-function conditionsToRows(conditions: Record<string, string>): ConditionRow[] {
-  return Object.entries(conditions ?? {}).map(([field, value]) => ({ field, value }))
+function conditionsToRows(conditions: Conditions): ConditionRowUI[] {
+  return conditionsToRuleList(conditions).map((r) => ({
+    field: r.field,
+    op: r.op,
+    value: Array.isArray(r.value) ? r.value.join(', ') : r.value,
+  }))
 }
 
-function rowsToConditions(rows: ConditionRow[]): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const row of rows) {
-    if (row.field.trim() && row.value.trim()) {
-      out[row.field.trim()] = row.value.trim()
-    }
-  }
-  return out
+function initialLogic(conditions: Conditions | null | undefined): ConditionLogic {
+  if (conditions && isConditionGroup(conditions)) return conditions.logic
+  return 'AND'
+}
+
+function rowsToConditions(rows: ConditionRowUI[], logic: ConditionLogic): Conditions {
+  const rules = rows
+    .filter((r) => r.field.trim() && r.value.trim())
+    .map((r) => ({
+      field: r.field.trim(),
+      op: r.op,
+      value:
+        r.op === 'in'
+          ? r.value.split(',').map((v) => v.trim()).filter(Boolean)
+          : r.value.trim(),
+    }))
+  if (rules.length === 0) return {}
+  return { logic, rules }
 }
 
 interface WorkflowFormModalProps {
@@ -66,7 +85,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
 
   const [name, setName] = useState('')
   const [triggerType, setTriggerType] = useState<TriggerType>('issue_created')
-  const [conditionRows, setConditionRows] = useState<ConditionRow[]>([])
+  const [conditionRows, setConditionRows] = useState<ConditionRowUI[]>([])
+  const [conditionLogic, setConditionLogic] = useState<ConditionLogic>('AND')
   const [selectedActions, setSelectedActions] = useState<ActionName[]>([])
   const [status, setStatus] = useState<WorkflowStatus>('active')
 
@@ -75,18 +95,20 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
       setName(workflow.name)
       setTriggerType(workflow.trigger_type)
       setConditionRows(conditionsToRows(workflow.conditions))
+      setConditionLogic(initialLogic(workflow.conditions))
       setSelectedActions(workflow.actions)
       setStatus(workflow.status)
     } else {
       setName('')
       setTriggerType('issue_created')
       setConditionRows([])
+      setConditionLogic('AND')
       setSelectedActions([])
       setStatus('active')
     }
   }, [workflow, open])
 
-  const isLiveTrigger = (t: TriggerType) => LIVE_TRIGGER_TYPES.includes(t)
+  const fieldsForTrigger = TRIGGER_FIELDS[triggerType]
 
   const toggleAction = (action: ActionName) => {
     setSelectedActions((prev) =>
@@ -94,11 +116,18 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
     )
   }
 
-  const addConditionRow = () => {
-    setConditionRows((prev) => [...prev, { field: ISSUE_CREATED_FIELDS[0], value: '' }])
+  const handleTriggerChange = (next: TriggerType) => {
+    setTriggerType(next)
+    // Condition fields are trigger-specific — stale rows from a different
+    // trigger's field set would silently never match, so clear them.
+    setConditionRows([])
   }
 
-  const updateConditionRow = (index: number, patch: Partial<ConditionRow>) => {
+  const addConditionRow = () => {
+    setConditionRows((prev) => [...prev, { field: fieldsForTrigger[0]?.field ?? '', op: 'eq', value: '' }])
+  }
+
+  const updateConditionRow = (index: number, patch: Partial<ConditionRowUI>) => {
     setConditionRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
   }
 
@@ -112,7 +141,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
         organization_id: orgId,
         name,
         trigger_type: triggerType,
-        conditions: rowsToConditions(conditionRows),
+        conditions: rowsToConditions(conditionRows, conditionLogic),
         actions: selectedActions,
       }),
     onSuccess: () => {
@@ -125,7 +154,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
     mutationFn: () =>
       workflowService.updateWorkflow(workflow!.id, orgId, {
         name,
-        conditions: rowsToConditions(conditionRows),
+        conditions: rowsToConditions(conditionRows, conditionLogic),
         actions: selectedActions,
         status,
       }),
@@ -138,8 +167,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
   const mutation = isEdit ? updateMutation : createMutation
 
   const canSubmit = useMemo(
-    () => name.trim().length > 0 && selectedActions.length > 0 && (isEdit || isLiveTrigger(triggerType)),
-    [name, selectedActions, triggerType, isEdit]
+    () => name.trim().length > 0 && selectedActions.length > 0,
+    [name, selectedActions]
   )
 
   return (
@@ -151,22 +180,19 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           <label className={labelClass()}>Trigger</label>
           <select
             value={triggerType}
-            onChange={(e) => setTriggerType(e.target.value as TriggerType)}
+            onChange={(e) => handleTriggerChange(e.target.value as TriggerType)}
             disabled={isEdit}
             className={selectClass()}
           >
             {ALL_TRIGGER_TYPES.map((t) => (
-              <option key={t.value} value={t.value} disabled={!isLiveTrigger(t.value)}>
+              <option key={t.value} value={t.value}>
                 {t.label}
-                {!isLiveTrigger(t.value) ? ' (coming soon)' : ''}
               </option>
             ))}
           </select>
-          {!isLiveTrigger(triggerType) && (
-            <p className="text-xs text-[var(--color-amber)]">
-              This trigger isn't wired up to fire workflows yet — choose "Issue created" for now.
-            </p>
-          )}
+          <p className="text-xs text-[var(--color-text-faint)]">
+            {ALL_TRIGGER_TYPES.find((t) => t.value === triggerType)?.description}
+          </p>
           {isEdit && (
             <p className="text-xs text-[var(--color-text-faint)]">
               Trigger can't be changed after creation — delete and recreate the workflow if this needs to change.
@@ -186,37 +212,74 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
               Add condition
             </button>
           </div>
+
           {conditionRows.length === 0 ? (
             <p className="text-xs text-[var(--color-text-faint)]">No conditions — this workflow runs on every matching event.</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {conditionRows.map((row, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <select
-                    value={row.field}
-                    onChange={(e) => updateConditionRow(i, { field: e.target.value })}
-                    className={selectClass()}
-                  >
-                    {ISSUE_CREATED_FIELDS.map((f) => (
-                      <option key={f} value={f}>{f}</option>
+              {conditionRows.length > 1 && (
+                <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                  <span>Match</span>
+                  <div className="flex rounded-md border border-[var(--color-border)] overflow-hidden">
+                    {(['AND', 'OR'] as ConditionLogic[]).map((logic) => (
+                      <button
+                        key={logic}
+                        type="button"
+                        onClick={() => setConditionLogic(logic)}
+                        className={
+                          conditionLogic === logic
+                            ? 'px-2.5 py-1 bg-[var(--color-signal)] text-white'
+                            : 'px-2.5 py-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]'
+                        }
+                      >
+                        {logic}
+                      </button>
                     ))}
-                  </select>
-                  <span className="text-xs text-[var(--color-text-faint)] shrink-0">=</span>
-                  <Input
-                    placeholder="value"
-                    value={row.value}
-                    onChange={(e) => updateConditionRow(i, { value: e.target.value })}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeConditionRow(i)}
-                    className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)] transition-colors p-2 shrink-0"
-                    title="Remove condition"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  </div>
+                  <span>of the rules below</span>
                 </div>
-              ))}
+              )}
+
+              {conditionRows.map((row, i) => {
+                const fieldMeta = fieldsForTrigger.find((f) => f.field === row.field)
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <select
+                      value={row.field}
+                      onChange={(e) => updateConditionRow(i, { field: e.target.value })}
+                      className={selectClass()}
+                    >
+                      {fieldsForTrigger.map((f) => (
+                        <option key={f.field} value={f.field}>{f.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={row.op}
+                      onChange={(e) => updateConditionRow(i, { op: e.target.value as ConditionOp })}
+                      className={`${selectClass()} max-w-[90px] shrink-0`}
+                    >
+                      <option value="eq">is</option>
+                      <option value="in">in</option>
+                    </select>
+                    <Input
+                      placeholder={row.op === 'in' ? `${fieldMeta?.example ?? 'value'}, ...` : fieldMeta?.example ?? 'value'}
+                      value={row.value}
+                      onChange={(e) => updateConditionRow(i, { value: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeConditionRow(i)}
+                      className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)] transition-colors p-2 shrink-0"
+                      title="Remove condition"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )
+              })}
+              {conditionRows.some((r) => r.op === 'in') && (
+                <p className="text-xs text-[var(--color-text-faint)]">Separate multiple values with commas for "in" conditions.</p>
+              )}
             </div>
           )}
         </div>
