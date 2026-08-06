@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from commit_scheduler import repository, git_ops
 from commit_scheduler.schemas import CommitJobCreate, CommitJobUpdate
 from config import supabase_admin, decrypt_token
+from audit_logs.service import log_event
 
 
 def _get_github_token_for_org(organization_id: str) -> str:
@@ -78,6 +79,18 @@ async def create_scheduled_job(payload: CommitJobCreate) -> dict:
         repository.create_job_files(job["id"], files_data)
         job["files"] = repository.get_files_for_job(job["id"])
 
+    log_event(
+        organization_id=payload.organization_id,
+        module="commit_scheduler",
+        action="commit_job_created",
+        summary=f"Scheduled commit job created for {payload.repo_full_name}@{payload.branch}",
+        status="success",
+        resource_type="commit_job",
+        resource_id=job["id"],
+        metadata={"repo_full_name": payload.repo_full_name, "branch": payload.branch, "mode": payload.mode},
+        source="backend",
+    )
+
     return job
 
 
@@ -104,8 +117,19 @@ def update_job(job_id: str, organization_id: str, payload: CommitJobUpdate) -> d
 
 
 def delete_job(job_id: str, organization_id: str) -> None:
-    get_job_or_404(job_id, organization_id)
+    job = get_job_or_404(job_id, organization_id)
     repository.delete_job(job_id)
+    log_event(
+        organization_id=organization_id,
+        module="commit_scheduler",
+        action="commit_job_deleted",
+        summary=f"Scheduled commit job deleted: {job.get('repo_full_name', 'unknown')}@{job.get('branch', '')}",
+        status="warning",
+        resource_type="commit_job",
+        resource_id=job_id,
+        metadata={"repo_full_name": job.get("repo_full_name"), "branch": job.get("branch")},
+        source="backend",
+    )
 
 
 def get_job_with_runs(job_id: str, organization_id: str) -> dict:
@@ -178,6 +202,17 @@ async def execute_job(job: dict) -> dict:
         if job.get("mode") == "guard":
             if await _has_real_commit_today(access_token, job["repo_full_name"]):
                 # Guard mode "do nothing" path — not a completion event, this can recur.
+                log_event(
+                    organization_id=job["organization_id"],
+                    module="commit_scheduler",
+                    action="commit_job_skipped",
+                    summary=f"Guard skipped — real commit already found today for {job.get('repo_full_name')}",
+                    status="warning",
+                    resource_type="commit_job",
+                    resource_id=job["id"],
+                    metadata={"repo_full_name": job.get("repo_full_name"), "run_date": run_date, "mode": "guard"},
+                    source="scheduler",
+                )
                 return repository.create_run({
                     "job_id": job["id"], "run_date": run_date, "status": "skipped",
                     "error_message": "Real commit already found today — guard mode skipped"
@@ -233,5 +268,18 @@ async def execute_job(job: dict) -> dict:
 
     if job.get("mode") == "scheduled" and run["status"] == "success":
         repository.update_job(job["id"], {"status": "completed"})
+
+    if run.get("status") == "success":
+        log_event(
+            organization_id=job["organization_id"],
+            module="commit_scheduler",
+            action="commit_job_succeeded",
+            summary=f"Scheduled commit succeeded for {job.get('repo_full_name')}",
+            status="success",
+            resource_type="commit_job",
+            resource_id=job["id"],
+            metadata={"repo_full_name": job.get("repo_full_name"), "run_date": run_date, "commit_url": run.get("commit_url")},
+            source="scheduler",
+        )
 
     return run
