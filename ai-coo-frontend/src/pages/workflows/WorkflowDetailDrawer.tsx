@@ -110,7 +110,7 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="text-sm text-[var(--color-text-muted)]">
                 <span className="text-[var(--color-text-primary)]">{triggerLabel(workflow.trigger_type)}</span>
-                {' \u00b7 '}
+                {' · '}
                 {workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''}
               </div>
               <Button variant="secondary" loading={runNowMutation.isPending} onClick={() => runNowMutation.mutate()}>
@@ -130,7 +130,7 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
                 }
               >
                 Run {runNowMutation.data.status.replace('_', ' ')}
-                {runNowMutation.data.error_message ? ` \u2014 ${runNowMutation.data.error_message}` : ''}
+                {runNowMutation.data.error_message ? ` — ${runNowMutation.data.error_message}` : ''}
               </div>
             )}
             {runNowMutation.isError && <ErrorBanner message="Failed to trigger this run. Try again." />}
