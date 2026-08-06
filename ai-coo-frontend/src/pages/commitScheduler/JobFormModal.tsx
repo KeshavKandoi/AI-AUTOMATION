@@ -23,6 +23,18 @@ function labelClass() {
   return 'text-sm font-medium text-[var(--color-text-muted)]'
 }
 
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function toLocalDateTimeValue(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function toLocalDateValue(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 interface JobFormModalProps {
   open: boolean
   orgId: string
@@ -45,10 +57,17 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
   const [endDate, setEndDate] = useState('')
   const [frequency, setFrequency] = useState<Frequency>('daily')
   const [customDates, setCustomDates] = useState('')
+  const [executionAt, setExecutionAt] = useState('')
   const [mode, setMode] = useState<JobMode>('scheduled')
   const [guardCutoff, setGuardCutoff] = useState('23:30:00')
   const [usePr, setUsePr] = useState(false)
   const [status, setStatus] = useState(job?.status ?? 'active')
+
+  const minExecutionAt = useMemo(
+    () => toLocalDateTimeValue(new Date(Date.now() + 60_000)),
+    [open]
+  )
+  const todayStr = useMemo(() => toLocalDateValue(new Date()), [open])
 
   useEffect(() => {
     if (job) {
@@ -58,10 +77,11 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
       setFileName(job.file_name ?? '')
       setFileContent(job.file_content ?? '')
       setCommitMessage(job.commit_message)
-      setStartDate(job.start_date)
-      setEndDate(job.end_date)
+      setStartDate(job.start_date ?? '')
+      setEndDate(job.end_date ?? '')
       setFrequency(job.frequency)
       setCustomDates((job.custom_dates ?? []).join(', '))
+      setExecutionAt(job.execution_at ? toLocalDateTimeValue(new Date(job.execution_at)) : '')
       setMode(job.mode)
       setGuardCutoff(job.guard_cutoff_time)
       setUsePr(job.use_pr)
@@ -77,6 +97,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
       setEndDate('')
       setFrequency('daily')
       setCustomDates('')
+      setExecutionAt('')
       setMode('scheduled')
       setGuardCutoff('23:30:00')
       setUsePr(false)
@@ -115,13 +136,17 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
         file_name: fileName || undefined,
         file_content: fileContent || undefined,
         commit_message: commitMessage,
-        start_date: startDate,
-        end_date: endDate,
-        frequency,
-        custom_dates: frequency === 'custom' ? parsedCustomDates : undefined,
         mode,
-        guard_cutoff_time: mode === 'guard' ? guardCutoff : undefined,
         use_pr: usePr,
+        ...(mode === 'scheduled'
+          ? { execution_at: new Date(executionAt).toISOString() }
+          : {
+              start_date: startDate,
+              end_date: endDate,
+              frequency,
+              custom_dates: frequency === 'custom' ? parsedCustomDates : undefined,
+              ...(mode === 'guard' ? { guard_cutoff_time: guardCutoff } : {}),
+            }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['commit-scheduler', 'jobs'] })
@@ -137,10 +162,14 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
         file_name: fileName || undefined,
         file_content: fileContent || undefined,
         commit_message: commitMessage,
-        start_date: startDate,
-        end_date: endDate,
-        frequency,
-        custom_dates: frequency === 'custom' ? parsedCustomDates : undefined,
+        ...(mode === 'scheduled'
+          ? { execution_at: executionAt ? new Date(executionAt).toISOString() : undefined }
+          : {
+              start_date: startDate,
+              end_date: endDate,
+              frequency,
+              custom_dates: frequency === 'custom' ? parsedCustomDates : undefined,
+            }),
         status,
       }),
     onSuccess: () => {
@@ -153,9 +182,9 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
   const canSubmit =
     (isEdit || (repoFullName.trim() && branch.trim())) &&
     commitMessage.trim() &&
-    startDate &&
-    endDate &&
-    (frequency !== 'custom' || parsedCustomDates.length > 0)
+    (mode === 'scheduled'
+      ? !!executionAt
+      : !!(startDate && endDate) && (frequency !== 'custom' || parsedCustomDates.length > 0))
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Edit scheduled commit' : 'New scheduled commit'}>
@@ -214,42 +243,85 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
 
         <Input label="Commit message" placeholder="Auto-commit" value={commitMessage} onChange={(e) => setCommitMessage(e.target.value)} />
 
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Start date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <Input label="End date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-        </div>
-
         <div className="flex flex-col gap-1.5">
-          <label className={labelClass()}>Frequency</label>
-          <select value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)} className={selectClass()}>
-            <option value="daily">Daily</option>
-            <option value="every_2_days">Every 2 days</option>
-            <option value="weekdays">Weekdays only</option>
-            <option value="custom">Custom dates</option>
+          <label className={labelClass()}>Mode</label>
+          <select value={mode} onChange={(e) => setMode(e.target.value as JobMode)} disabled={isEdit} className={selectClass()}>
+            <option value="scheduled">Scheduled — runs once at an exact date & time</option>
+            <option value="recurring">Recurring — runs on a repeating schedule</option>
+            <option value="guard">Guard — safety net, commits only if you haven't already</option>
           </select>
         </div>
 
-        {frequency === 'custom' && (
-          <Input
-            label="Custom dates (comma-separated, YYYY-MM-DD)"
-            placeholder="2026-08-10, 2026-08-14"
-            value={customDates}
-            onChange={(e) => setCustomDates(e.target.value)}
-          />
-        )}
-
-        <div className="grid grid-cols-2 gap-3">
+        {mode === 'scheduled' ? (
           <div className="flex flex-col gap-1.5">
-            <label className={labelClass()}>Mode</label>
-            <select value={mode} onChange={(e) => setMode(e.target.value as JobMode)} disabled={isEdit} className={selectClass()}>
-              <option value="scheduled">Scheduled</option>
-              <option value="guard">Guard (skip if a real commit already landed today)</option>
-            </select>
+            <label className={labelClass()}>Execution date & time</label>
+            <input
+              type="datetime-local"
+              value={executionAt}
+              min={minExecutionAt}
+              onChange={(e) => setExecutionAt(e.target.value)}
+              className={selectClass()}
+            />
+            <p className="text-xs text-[var(--color-text-faint)]">
+              This job runs once, automatically, at this exact date and time — then marks itself complete.
+            </p>
           </div>
-          {mode === 'guard' && (
-            <Input label="Guard cutoff time" type="time" step={1} value={guardCutoff} onChange={(e) => setGuardCutoff(e.target.value)} disabled={isEdit} />
-          )}
-        </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Start date"
+                type="date"
+                value={startDate}
+                min={todayStr}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              <Input
+                label="End date"
+                type="date"
+                value={endDate}
+                min={startDate || todayStr}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className={labelClass()}>Frequency</label>
+              <select value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)} className={selectClass()}>
+                <option value="daily">Daily</option>
+                <option value="every_2_days">Every 2 days</option>
+                <option value="weekdays">Weekdays only</option>
+                <option value="custom">Custom dates</option>
+              </select>
+            </div>
+
+            {frequency === 'custom' && (
+              <Input
+                label="Custom dates (comma-separated, YYYY-MM-DD)"
+                placeholder="2026-08-10, 2026-08-14"
+                value={customDates}
+                onChange={(e) => setCustomDates(e.target.value)}
+              />
+            )}
+
+            {mode === 'guard' && (
+              <>
+                <Input
+                  label="Guard cutoff time"
+                  type="time"
+                  step={1}
+                  value={guardCutoff}
+                  onChange={(e) => setGuardCutoff(e.target.value)}
+                  disabled={isEdit}
+                />
+                <p className="text-xs text-[var(--color-text-faint)] -mt-2">
+                  On each due day: if a real commit already landed before {guardCutoff.slice(0, 5)}, nothing happens.
+                  Otherwise AI COO commits automatically right at the cutoff.
+                </p>
+              </>
+            )}
+          </>
+        )}
 
         <label className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
           <input type="checkbox" checked={usePr} disabled={isEdit} onChange={(e) => setUsePr(e.target.checked)} className="accent-[var(--color-signal)]" />
