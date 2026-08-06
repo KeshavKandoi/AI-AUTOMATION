@@ -28,9 +28,11 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 function statusBadge(status: WorkflowStatus) {
-  const map: Record<WorkflowStatus, { tone: 'signal' | 'amber'; icon: typeof CheckCircle2 }> = {
+  const map: Record<WorkflowStatus, { tone: 'signal' | 'amber' | 'neutral'; icon: typeof CheckCircle2 }> = {
     active: { tone: 'signal', icon: CheckCircle2 },
     paused: { tone: 'amber', icon: Pause },
+    completed: { tone: 'neutral', icon: CheckCircle2 },
+    expired: { tone: 'neutral', icon: Clock },
   }
   const { tone, icon: Icon } = map[status]
   return (
@@ -121,7 +123,7 @@ export default function Workflows() {
 
   const sortedWorkflows = useMemo(() => {
     if (!workflows) return []
-    const order: Record<WorkflowStatus, number> = { active: 0, paused: 1 }
+    const order: Record<WorkflowStatus, number> = { active: 0, paused: 1, completed: 2, expired: 3 }
     return [...workflows].sort((a, b) => order[a.status] - order[b.status])
   }, [workflows])
 
