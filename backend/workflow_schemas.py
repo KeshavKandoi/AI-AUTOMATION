@@ -1,7 +1,7 @@
 from typing import Optional, Literal
 from pydantic import BaseModel, field_validator
 
-TriggerType = Literal["issue_created", "pr_opened", "push"]
+TriggerType = Literal["issue_created", "push", "pull_request_opened"]
 ActionName = Literal["create_task", "send_email", "notify_discord", "create_calendar_event", "save_audit_log"]
 
 class WorkflowCreate(BaseModel):
