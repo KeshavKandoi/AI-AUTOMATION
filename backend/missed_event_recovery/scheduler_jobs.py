@@ -1,5 +1,5 @@
 from config import supabase_admin, logger
-from audit import log_action
+from audit_logs.service import log_event
 from orchestrator import coo_graph
 from missed_event_recovery.service import (
     _get_org_github_token, find_missed_issue_events,
@@ -29,7 +29,17 @@ async def run_missed_event_recovery():
             continue
 
         logger.info(f"Recovered {len(missed)} missed GitHub event(s) for org {org_id} ({repo})")
-        log_action(org_id, "missed_event_recovered", {"repo": repo, "count": len(missed)})
+        log_event(
+            organization_id=org_id,
+            module="github",
+            action="missed_event_recovered",
+            summary=f"Recovered {len(missed)} missed GitHub event(s) for {repo}",
+            status="success",
+            resource_type="repo",
+            resource_id=repo,
+            metadata={"repo": repo, "count": len(missed)},
+            source="scheduler",
+        )
 
         initial_state = {
             "github_token": access_token, "gmail_token": "", "calendar_token": "",
