@@ -63,6 +63,37 @@ def _match_conditions(conditions: dict, context: dict) -> bool:
     return True
 
 
+def _is_past_expiry(workflow: dict) -> bool:
+    """True if a 'until_date' workflow's expires_at has already passed.
+    A lazy, per-call check as a backstop between scheduler sweeps, so an
+    expired workflow can't slip through and fire between the minute-by-minute
+    sweep and an incoming trigger event."""
+    if workflow.get("lifetime_mode") != "until_date":
+        return False
+    expires_at = workflow.get("expires_at")
+    if not expires_at:
+        return False
+    expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00")) if isinstance(expires_at, str) else expires_at
+    if expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) >= expiry
+
+
+async def sweep_expired_workflows():
+    """Marks any active 'until_date' workflow whose time has passed as expired.
+    Runs on a schedule so expiry fires even without an incoming trigger event."""
+    result = supabase_admin.table("workflows") \
+        .select("*").eq("status", "active").eq("lifetime_mode", "until_date").execute()
+    expired_count = 0
+    for workflow in result.data:
+        if _is_past_expiry(workflow):
+            supabase_admin.table("workflows").update({"status": "expired"}).eq("id", workflow["id"]).execute()
+            expired_count += 1
+    if expired_count:
+        logger.info(f"Swept {expired_count} expired workflow(s)")
+    return expired_count
+
+
 async def _action_create_task(organization_id: str, context: dict) -> dict:
     result = supabase_admin.table("tasks").insert({
         "organization_id": organization_id,
@@ -242,6 +273,13 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
         "duration_ms": duration_ms,
     }).execute()
     logger.info(f"Workflow '{workflow.get('name')}' ({workflow['id']}) executed in {duration_ms}ms: {executed}")
+
+    # A run_once workflow retires after its first clean success. A partial
+    # failure does NOT retire it — it stays active so it can fire again on
+    # the next matching event or a manual Run Now.
+    if run_status == "success" and workflow.get("lifetime_mode") == "run_once":
+        supabase_admin.table("workflows").update({"status": "completed"}).eq("id", workflow["id"]).execute()
+
     return run.data[0]
 
 
@@ -253,4 +291,7 @@ async def run_workflows(organization_id: str, trigger_type: str, context: dict):
     if not workflows:
         return
     for workflow in workflows:
+        if _is_past_expiry(workflow):
+            supabase_admin.table("workflows").update({"status": "expired"}).eq("id", workflow["id"]).execute()
+            continue
         await execute_workflow(workflow, context, record_skipped=False)
