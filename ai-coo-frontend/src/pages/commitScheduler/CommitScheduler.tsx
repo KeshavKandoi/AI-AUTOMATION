@@ -46,6 +46,13 @@ function frequencyLabel(freq: string) {
   return map[freq] ?? freq
 }
 
+function scheduleSummary(job: CommitJob) {
+  if (job.mode === 'scheduled') {
+    return job.execution_at ? `One-time · runs ${new Date(job.execution_at).toLocaleString()}` : 'One-time'
+  }
+  return `${frequencyLabel(job.frequency)} · ${job.start_date} → ${job.end_date}`
+}
+
 export default function CommitScheduler() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
@@ -145,11 +152,12 @@ export default function CommitScheduler() {
                     </button>
                     <span className="text-xs text-[var(--color-text-faint)]">→ {job.branch}</span>
                     {statusBadge(job.status)}
+                    {job.mode === 'scheduled' && <Badge tone="neutral">one-time</Badge>}
                     {job.mode === 'guard' && <Badge tone="neutral">guard</Badge>}
                     {job.use_pr && <Badge tone="neutral">via PR</Badge>}
                   </div>
                   <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    {frequencyLabel(job.frequency)} · {job.start_date} → {job.end_date}
+                    {scheduleSummary(job)}
                   </p>
                   {job.folder_path && job.file_name && (
                     <p className="text-xs text-[var(--color-text-faint)] mt-1 font-mono">
