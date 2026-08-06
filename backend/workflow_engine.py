@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta, timezone
 import httpx
 from config import supabase_admin, logger, decrypt_token, get_valid_access_token
-from audit import log_action
+from audit_logs.service import log_event
 
 
 def _get_org_token(organization_id: str, provider: str):
@@ -170,7 +170,15 @@ async def _action_create_calendar_event(organization_id: str, context: dict) -> 
 
 
 async def _action_save_audit_log(organization_id: str, context: dict) -> dict:
-    log_action(organization_id, "workflow_audit", context)
+    log_event(
+        organization_id=organization_id,
+        module="workflows",
+        action="workflow_audit",
+        summary=f"Workflow audit action: {context.get('title', 'Untitled')}".strip(),
+        status="info",
+        metadata=context,
+        source="backend",
+    )
     return {"status": "logged"}
 
 
@@ -244,6 +252,18 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
             "error_message": None,
             "duration_ms": duration_ms,
         }).execute()
+        log_event(
+            organization_id=organization_id,
+            module="workflows",
+            action="workflow_run_skipped",
+            summary=f"Workflow '{workflow.get('name', 'Untitled')}' skipped — conditions not met",
+            status="warning",
+            resource_type="workflow",
+            resource_id=workflow["id"],
+            metadata={"trigger_type": workflow.get("trigger_type")},
+            duration_ms=duration_ms,
+            source="backend",
+        )
         return run.data[0]
 
     executed = []
@@ -273,6 +293,23 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
         "duration_ms": duration_ms,
     }).execute()
     logger.info(f"Workflow '{workflow.get('name')}' ({workflow['id']}) executed in {duration_ms}ms: {executed}")
+    log_event(
+        organization_id=organization_id,
+        module="workflows",
+        action="workflow_execution_failed" if run_status == "partial_failure" else "workflow_executed",
+        summary=(
+            f"Workflow '{workflow.get('name', 'Untitled')}' failed"
+            if run_status == "partial_failure"
+            else f"Workflow '{workflow.get('name', 'Untitled')}' executed successfully"
+        ),
+        status="failed" if run_status == "partial_failure" else "success",
+        resource_type="workflow",
+        resource_id=workflow["id"],
+        metadata={"trigger_type": workflow.get("trigger_type"), "actions_executed": executed},
+        error_message=error_message,
+        duration_ms=duration_ms,
+        source="backend",
+    )
 
     # A run_once workflow retires after its first clean success. A partial
     # failure does NOT retire it — it stays active so it can fire again on
