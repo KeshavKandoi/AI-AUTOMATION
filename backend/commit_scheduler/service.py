@@ -157,11 +157,15 @@ async def execute_job(job: dict) -> dict:
     so it never fires again — applies whether triggered by the scheduler or Run Now."""
     run_date = date.today().isoformat()
 
-    if repository.has_run_for_date(job["id"], run_date):
-        return repository.create_run({
-            "job_id": job["id"], "run_date": run_date, "status": "skipped",
-            "error_message": "Already ran for this date"
-        })
+    # Guard mode evaluates once per due day: once any run exists today (success,
+    # pending, OR skipped), reuse it instead of re-checking GitHub and writing a
+    # fresh duplicate row every scheduler tick. Scheduled/recurring keep the old
+    # behavior (only success/pending block a re-run) since a "no files staged"
+    # skip on those modes may legitimately need to retry within the same day.
+    check_statuses = ["success", "pending", "skipped"] if job.get("mode") == "guard" else ["success", "pending"]
+    existing_run = repository.get_run_for_date(job["id"], run_date, check_statuses)
+    if existing_run:
+        return existing_run
 
     run: dict
 
