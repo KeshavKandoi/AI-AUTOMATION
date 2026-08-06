@@ -206,7 +206,7 @@ Use prior context to inform priority."""
     except json.JSONDecodeError:
         ai_tasks = []
 
-    from audit import log_action
+    from audit_logs.service import log_event
 
     created = []
     for t in ai_tasks:
@@ -228,7 +228,17 @@ Use prior context to inform priority."""
         }).execute()
         created_task = result.data[0]
         created.append(created_task)
-        log_action(state["org_id"], "task_created", {"task_id": created_task["id"], "title": created_task.get("title")})
+        log_event(
+            organization_id=state["org_id"],
+            module="tasks",
+            action="task_created",
+            summary=f"Task created: {created_task.get('title', 'Untitled')}",
+            status="success",
+            resource_type="task",
+            resource_id=created_task["id"],
+            metadata={"title": created_task.get("title"), "source": created_task.get("source"), "priority": created_task.get("priority")},
+            source="backend",
+        )
 
     state["tasks"] = created
     return state
