@@ -6,18 +6,17 @@ import type {
   ForgotPasswordPayload,
   ResetPasswordPayload,
   User,
-  AuthTokens,
 } from '@/types/auth'
 
 export const authApi = {
   login: (payload: LoginPayload) =>
-    apiClient.post<{ user: User; tokens: AuthTokens }>('/auth/login', payload),
+    apiClient.post<{ user: User; access_token: string }>('/auth/login', payload),
 
   signup: (payload: SignupPayload) =>
     apiClient.post<{ message: string; email: string }>('/auth/signup', payload),
 
   verifyOtp: (payload: VerifyOtpPayload) =>
-    apiClient.post<{ user: User; tokens: AuthTokens }>('/auth/verify-otp', payload),
+    apiClient.post<{ user: User; access_token: string }>('/auth/verify-otp', payload),
 
   resendOtp: (email: string) =>
     apiClient.post<{ message: string }>('/auth/resend-otp', { email }),
