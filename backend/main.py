@@ -160,6 +160,34 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.post("/debug/login-trace")
+def debug_login_trace(email: str, password: str):
+    """TEMPORARY — traces the exact login() path to see what user_id is returned."""
+    from config import supabase_admin
+    result = {}
+    try:
+        auth_result = supabase_admin.auth.sign_in_with_password({"email": email, "password": password})
+        result["sign_in"] = "SUCCESS"
+        result["returned_user_id"] = auth_result.user.id if auth_result.user else None
+        result["returned_email"] = auth_result.user.email if auth_result.user else None
+        result["has_session"] = auth_result.session is not None
+    except Exception as e:
+        result["sign_in"] = "FAILED"
+        result["error"] = str(e)
+        return result
+
+    try:
+        from auth import repository
+        profile = repository.get_user_profile(result["returned_user_id"])
+        result["profile_lookup"] = "FOUND" if profile else "NOT FOUND"
+        result["profile"] = profile
+    except Exception as e:
+        result["profile_lookup"] = "ERROR"
+        result["profile_error"] = str(e)
+
+    return result
+
+
 @app.get("/debug/profile-key-check")
 def debug_profile_key_check():
     """TEMPORARY — remove after diagnosing PostgREST table access with the new key."""
