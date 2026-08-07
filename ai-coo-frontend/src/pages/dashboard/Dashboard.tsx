@@ -6,6 +6,9 @@ import { schedulerApi } from '@/api/scheduler'
 import { integrationsApi } from '@/api/integrations'
 import { auditLogsService, type AuditLogEntry } from '@/services/audit-logs'
 import { getModuleIcon, formatActionLabel } from '@/lib/auditLogDisplay'
+import { memoryService, type MemoryEntry } from '@/services/memory'
+import { getCategoryIcon } from '@/lib/memoryDisplay'
+import { Brain, Pin, Star } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import StatCard from '@/components/ui/StatCard'
 
@@ -44,6 +47,12 @@ export default function Dashboard() {
     enabled: !!orgId,
   })
   const activity = activityData?.items
+
+  const { data: recentMemories, isLoading: memoriesLoading } = useQuery({
+    queryKey: ['memory', 'recent', orgId],
+    queryFn: () => memoryService.getRecent(orgId!, 5),
+    enabled: !!orgId,
+  })
 
   const highPriority = tasks?.filter((t) => t.priority === 'high').length ?? 0
   const openTasks = tasks?.filter((t) => t.status === 'open').length ?? 0
@@ -144,6 +153,38 @@ export default function Dashboard() {
             <p className="text-sm text-[var(--color-text-faint)]">No integrations connected.</p>
           )}
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Recent memories</h2>
+          <Brain size={14} className="text-[var(--color-text-faint)]" />
+        </div>
+        {memoriesLoading ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-9 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+            ))}
+          </div>
+        ) : recentMemories && recentMemories.length > 0 ? (
+          <div className="flex flex-col divide-y divide-[var(--color-border)]">
+            {recentMemories.map((m: MemoryEntry) => {
+              const Icon = getCategoryIcon(m.category)
+              return (
+                <div key={m.id} className="py-2.5 flex items-center gap-3">
+                  <Icon size={13} className="shrink-0 text-[var(--color-text-faint)]" />
+                  <span className="text-sm text-[var(--color-text-muted)] truncate flex-1 min-w-0">
+                    {m.title ?? 'Untitled'}
+                  </span>
+                  {m.pinned && <Pin size={11} className="text-[var(--color-signal)] shrink-0" fill="currentColor" />}
+                  {m.favorited && <Star size={11} className="text-[var(--color-amber)] shrink-0" fill="currentColor" />}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--color-text-faint)]">No memories yet.</p>
+        )}
       </div>
 
       <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
