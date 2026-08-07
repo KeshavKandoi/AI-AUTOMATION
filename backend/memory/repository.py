@@ -82,12 +82,12 @@ def soft_delete_memory(memory_id: str, updates: dict) -> Optional[dict]:
 
 
 def distinct_categories(organization_id: str) -> list[str]:
-    result = supabase_admin.table("memory").select("category").eq("organization_id", organization_id).neq("status", "deleted").execute()
+    result = supabase_admin.table("memory").select("category").eq("organization_id", organization_id).or_("status.is.null,status.neq.deleted").execute()
     return sorted({row["category"] for row in result.data if row.get("category")})
 
 
 def distinct_tags(organization_id: str) -> list[str]:
-    result = supabase_admin.table("memory").select("tags").eq("organization_id", organization_id).neq("status", "deleted").execute()
+    result = supabase_admin.table("memory").select("tags").eq("organization_id", organization_id).or_("status.is.null,status.neq.deleted").execute()
     all_tags: set[str] = set()
     for row in result.data:
         if row.get("tags"):
