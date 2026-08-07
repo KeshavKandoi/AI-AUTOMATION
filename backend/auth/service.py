@@ -74,7 +74,12 @@ def _build_user_out(user_id: str, email: str) -> dict:
 
 
 def signup(full_name: str, email: str, password: str, organization_name: str) -> str:
-    existing = supabase_admin.auth.admin.list_users()
+    try:
+        existing = supabase_admin.auth.admin.list_users()
+    except Exception as e:
+        logger.exception(f"Signup: list_users failed for {email}")
+        raise HTTPException(status_code=502, detail="Authentication service is temporarily unavailable. Please try again shortly.")
+
     match = next((u for u in existing if u.email == email), None)
 
     if match and match.email_confirmed_at:
@@ -93,13 +98,25 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
             "user_metadata": {"full_name": full_name},
         })
     except Exception as e:
-        logger.error(f"Signup create_user failed for {email}: {e}")
-        raise HTTPException(status_code=400, detail="Could not create account. Please try again.")
+        logger.exception(f"Signup: create_user failed for {email}")
+        raise HTTPException(status_code=400, detail="Could not create your account. Please check your details and try again.")
 
     user_id = created.user.id
-    org = repository.create_organization(organization_name)
-    repository.create_user_profile(user_id, org["id"], email)
-    _issue_otp(email, "signup")
+
+    # From here on, a failure leaves an orphaned Supabase Auth user with no
+    # org/profile — roll it back so signup can be cleanly retried.
+    try:
+        org = repository.create_organization(organization_name)
+        repository.create_user_profile(user_id, org["id"], email)
+        _issue_otp(email, "signup")
+    except Exception as e:
+        logger.exception(f"Signup: post-user-creation step failed for {email} (user_id={user_id}) — rolling back")
+        try:
+            supabase_admin.auth.admin.delete_user(user_id)
+        except Exception:
+            logger.exception(f"Signup rollback: failed to delete orphaned auth user {user_id} for {email} — MANUAL CLEANUP NEEDED")
+        raise HTTPException(status_code=500, detail="Could not complete signup. Please try again.")
+
     return email
 
 
@@ -138,7 +155,7 @@ def login(email: str, password: str):
     try:
         result = supabase_admin.auth.sign_in_with_password({"email": email, "password": password})
     except Exception as e:
-        logger.info(f"Login failed for {email}: {e}")
+        logger.exception(f"Login failed for {email}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not result.session:
@@ -173,7 +190,7 @@ def refresh_session(refresh_token: str):
     try:
         result = supabase_admin.auth.refresh_session(refresh_token)
     except Exception as e:
-        logger.info(f"Refresh failed: {e}")
+        logger.exception("Refresh failed")
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     if not result.session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
