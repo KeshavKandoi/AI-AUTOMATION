@@ -5,9 +5,10 @@ import type { User } from '@/types/auth'
 interface AuthState {
   user: User | null
   accessToken: string | null
-  refreshToken: string | null
   isAuthenticated: boolean
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void
+  isDevAccount: boolean
+  setAuth: (user: User, accessToken: string) => void
+  setAccessToken: (accessToken: string) => void
   logout: () => void
   mockLogin: () => void
 }
@@ -17,13 +18,18 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
-      setAuth: (user, accessToken, refreshToken) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+      isDevAccount: false,
+      // Real auth: access token lives only in memory (not persisted) — the
+      // refresh token is an httpOnly cookie the server sets, invisible to JS.
+      // Session is re-established on page load via POST /auth/refresh.
+      setAuth: (user, accessToken) =>
+        set({ user, accessToken, isAuthenticated: true, isDevAccount: false }),
+      setAccessToken: (accessToken) => set({ accessToken }),
       logout: () =>
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
-      // DEV ONLY — remove once real /auth/* endpoints exist on the backend
+        set({ user: null, accessToken: null, isAuthenticated: false, isDevAccount: false }),
+      // DEV ONLY — bypasses the real auth flow entirely for local testing.
+      // Untouched by the cookie-based refresh flow below.
       mockLogin: () =>
         set({
           user: {
@@ -35,10 +41,16 @@ export const useAuthStore = create<AuthState>()(
             created_at: new Date().toISOString(),
           },
           accessToken: 'dev-mock-token',
-          refreshToken: 'dev-mock-refresh',
           isAuthenticated: true,
+          isDevAccount: true,
         }),
     }),
-    { name: 'ai-coo-auth' }
+    {
+      name: 'ai-coo-auth',
+      // Only persist `user` + isDevAccount across reloads, for a fast UI
+      // paint before the silent refresh resolves. accessToken is NEVER
+      // persisted — it's re-fetched fresh via the refresh cookie on load.
+      partialize: (state) => ({ user: state.user, isDevAccount: state.isDevAccount }),
+    }
   )
 )
