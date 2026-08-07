@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
 import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  LayoutList,
   ListFilter,
   ScrollText,
   Search,
@@ -246,7 +244,7 @@ export default function AuditLogs() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {items.map((log: AuditLogEntry, idx: number) => {
+              {items.map((log: AuditLogEntry) => {
                 const Icon = getModuleIcon(log.module)
                 return (
                   <TableRow
