@@ -58,6 +58,7 @@ def _verify_otp(email: str, otp: str, purpose: str) -> bool:
 
 def _build_user_out(user_id: str, email: str) -> dict:
     profile = repository.get_user_profile(user_id)
+    logger.info(f"[AUTH-DEBUG] _build_user_out: user_id={user_id} email={email} profile_found={profile is not None} profile={profile}")
     if not profile:
         raise HTTPException(status_code=404, detail="User profile not found")
     org = repository.get_org_by_id(profile["organization_id"])
