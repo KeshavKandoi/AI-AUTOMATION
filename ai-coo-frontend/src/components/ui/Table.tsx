@@ -20,8 +20,23 @@ export function TableBody({ children }: { children: React.ReactNode }) {
   return <tbody className="divide-y divide-[var(--color-border)]">{children}</tbody>
 }
 
-export function TableRow({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <tr className={cn('hover:bg-[var(--color-surface-hover)] transition-colors', className)}>{children}</tr>
+export function TableRow({
+  children,
+  className,
+  onClick,
+}: {
+  children: React.ReactNode
+  className?: string
+  onClick?: () => void
+}) {
+  return (
+    <tr
+      className={cn('hover:bg-[var(--color-surface-hover)] transition-colors', className)}
+      onClick={onClick}
+    >
+      {children}
+    </tr>
+  )
 }
 
 export function TableHeaderCell({ children, className }: { children: React.ReactNode; className?: string }) {
