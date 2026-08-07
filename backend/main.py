@@ -102,6 +102,7 @@ from email_scheduler.routes import router as email_scheduler_router
 from workflow_routes import router as workflow_router
 from calendar_automation.routes import router as lunch_block_router
 from audit_logs.routes import router as audit_logs_router
+from auth.routes import router as auth_router
 
 app = FastAPI(title="AI COO Backend")
 
@@ -133,6 +134,7 @@ from webhooks.routes import router as webhooks_router
 app.include_router(webhooks_router)
 app.include_router(lunch_block_router)
 app.include_router(audit_logs_router)
+app.include_router(auth_router)
 
 
 @app.on_event("startup")
