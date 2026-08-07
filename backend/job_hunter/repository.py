@@ -252,3 +252,50 @@ def list_orgs_with_preferences() -> list[str]:
     result = supabase_admin.table("job_hunter_preferences") \
         .select("organization_id").eq("onboarding_completed", True).execute()
     return [row["organization_id"] for row in result.data]
+
+
+# ---------------------------------------------------------------------------
+# Company registry (Greenhouse / Lever / Ashby — per-company ATS APIs)
+# ---------------------------------------------------------------------------
+
+def list_enabled_companies(provider: str) -> list[dict]:
+    result = supabase_admin.table("job_provider_companies") \
+        .select("*").eq("provider", provider).eq("enabled", True).execute()
+    return result.data
+
+
+def mark_company_sync_status(company_id: str, status: str) -> None:
+    from datetime import datetime, timezone
+    supabase_admin.table("job_provider_companies").update({
+        "last_status": status,
+        "last_synced_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", company_id).execute()
+
+
+# ---------------------------------------------------------------------------
+# Provider status (per-org, per-platform — Active/Disabled/Not Configured/Error)
+# ---------------------------------------------------------------------------
+
+def upsert_provider_status(organization_id: str, platform: str, status: str, jobs_found: int = 0, error: Optional[str] = None) -> dict:
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    row = {
+        "organization_id": organization_id,
+        "platform": platform,
+        "status": status,
+        "last_run_at": now,
+        "jobs_found_last_run": jobs_found,
+        "updated_at": now,
+        "last_error": error,
+    }
+    if status == "active":
+        row["last_success_at"] = now
+    result = supabase_admin.table("job_hunter_provider_status") \
+        .upsert(row, on_conflict="organization_id,platform").execute()
+    return result.data[0]
+
+
+def get_provider_statuses(organization_id: str) -> list[dict]:
+    result = supabase_admin.table("job_hunter_provider_status") \
+        .select("*").eq("organization_id", organization_id).execute()
+    return result.data
