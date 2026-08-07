@@ -34,7 +34,7 @@ export default function Login() {
     setLoading(true)
     try {
       const res = await authApi.login(data)
-      setAuth(res.data.user, res.data.tokens.access_token, res.data.tokens.refresh_token)
+      setAuth(res.data.user, res.data.access_token)
       navigate('/dashboard')
     } catch (err: any) {
       setServerError(
