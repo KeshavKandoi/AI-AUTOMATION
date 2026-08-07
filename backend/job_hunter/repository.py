@@ -1,0 +1,254 @@
+"""
+All Supabase access for the job_hunter module lives here.
+service.py should never call supabase_admin directly — only through this file.
+"""
+from typing import Optional
+from config import supabase_admin
+
+
+# ---------------------------------------------------------------------------
+# Preferences
+# ---------------------------------------------------------------------------
+
+def get_preferences(organization_id: str) -> Optional[dict]:
+    result = supabase_admin.table("job_hunter_preferences") \
+        .select("*").eq("organization_id", organization_id).execute()
+    return result.data[0] if result.data else None
+
+
+def upsert_preferences(organization_id: str, row: dict) -> dict:
+    row = {**row, "organization_id": organization_id}
+    result = supabase_admin.table("job_hunter_preferences") \
+        .upsert(row, on_conflict="organization_id").execute()
+    return result.data[0]
+
+
+# ---------------------------------------------------------------------------
+# Jobs
+# ---------------------------------------------------------------------------
+
+def get_job_by_dedup_key(organization_id: str, dedup_key: str) -> Optional[dict]:
+    result = supabase_admin.table("job_hunter_jobs") \
+        .select("*") \
+        .eq("organization_id", organization_id) \
+        .eq("dedup_key", dedup_key) \
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def create_job(row: dict) -> dict:
+    result = supabase_admin.table("job_hunter_jobs").insert(row).execute()
+    return result.data[0]
+
+
+def update_job(job_id: str, updates: dict) -> dict:
+    result = supabase_admin.table("job_hunter_jobs").update(updates).eq("id", job_id).execute()
+    return result.data[0]
+
+
+def get_job(job_id: str, organization_id: str) -> Optional[dict]:
+    result = supabase_admin.table("job_hunter_jobs") \
+        .select("*") \
+        .eq("id", job_id).eq("organization_id", organization_id) \
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def list_jobs(
+    organization_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    employment_type: Optional[str] = None,
+    work_mode: Optional[str] = None,
+    search: Optional[str] = None,
+) -> tuple[list[dict], int]:
+    query = supabase_admin.table("job_hunter_jobs").select("*", count="exact") \
+        .eq("organization_id", organization_id)
+
+    if employment_type:
+        query = query.eq("employment_type", employment_type)
+    if work_mode:
+        query = query.eq("work_mode", work_mode)
+    if search:
+        query = query.or_(f"job_title.ilike.%{search}%,company_name.ilike.%{search}%")
+
+    query = query.order("last_seen_at", desc=True).range(offset, offset + limit - 1)
+    result = query.execute()
+    return result.data, (result.count or 0)
+
+
+def add_job_source(row: dict) -> Optional[dict]:
+    """Insert a (job, platform, platform_url) row. Silently no-ops on the
+    unique constraint if this exact source was already recorded for this
+    job — same platform re-discovering the same posting on a later sweep
+    shouldn't create a duplicate badge."""
+    existing = supabase_admin.table("job_hunter_job_sources") \
+        .select("id") \
+        .eq("job_id", row["job_id"]) \
+        .eq("platform", row["platform"]) \
+        .eq("platform_url", row["platform_url"]) \
+        .execute()
+    if existing.data:
+        return None
+    result = supabase_admin.table("job_hunter_job_sources").insert(row).execute()
+    return result.data[0] if result.data else None
+
+
+def get_job_sources(job_id: str) -> list[dict]:
+    result = supabase_admin.table("job_hunter_job_sources") \
+        .select("*").eq("job_id", job_id).order("discovered_at").execute()
+    return result.data
+
+
+def get_sources_for_jobs(job_ids: list[str]) -> dict[str, list[dict]]:
+    """Batch-fetch sources for many jobs at once (dashboard list view),
+    grouped by job_id, instead of N+1 querying per job card."""
+    if not job_ids:
+        return {}
+    result = supabase_admin.table("job_hunter_job_sources") \
+        .select("*").in_("job_id", job_ids).execute()
+    grouped: dict[str, list[dict]] = {jid: [] for jid in job_ids}
+    for row in result.data:
+        grouped.setdefault(row["job_id"], []).append(row)
+    return grouped
+
+
+# ---------------------------------------------------------------------------
+# Applications
+# ---------------------------------------------------------------------------
+
+def get_application_by_job(organization_id: str, job_id: str) -> Optional[dict]:
+    result = supabase_admin.table("job_hunter_applications") \
+        .select("*") \
+        .eq("organization_id", organization_id).eq("job_id", job_id) \
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def create_application(row: dict) -> dict:
+    result = supabase_admin.table("job_hunter_applications").insert(row).execute()
+    return result.data[0]
+
+
+def update_application(application_id: str, updates: dict) -> dict:
+    result = supabase_admin.table("job_hunter_applications") \
+        .update(updates).eq("id", application_id).execute()
+    return result.data[0]
+
+
+def get_application(application_id: str, organization_id: str) -> Optional[dict]:
+    result = supabase_admin.table("job_hunter_applications") \
+        .select("*") \
+        .eq("id", application_id).eq("organization_id", organization_id) \
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def list_applications(organization_id: str, status: Optional[str] = None) -> list[dict]:
+    query = supabase_admin.table("job_hunter_applications").select("*") \
+        .eq("organization_id", organization_id)
+    if status:
+        query = query.eq("status", status)
+    result = query.order("updated_at", desc=True).execute()
+    return result.data
+
+
+# ---------------------------------------------------------------------------
+# Activity / Notes / Attachments / Reminders
+# ---------------------------------------------------------------------------
+
+def add_activity(row: dict) -> dict:
+    result = supabase_admin.table("job_hunter_activity").insert(row).execute()
+    return result.data[0]
+
+
+def list_activity(application_id: str) -> list[dict]:
+    result = supabase_admin.table("job_hunter_activity") \
+        .select("*").eq("application_id", application_id) \
+        .order("created_at", desc=True).execute()
+    return result.data
+
+
+def add_note(row: dict) -> dict:
+    result = supabase_admin.table("job_hunter_notes").insert(row).execute()
+    return result.data[0]
+
+
+def list_notes(application_id: str) -> list[dict]:
+    result = supabase_admin.table("job_hunter_notes") \
+        .select("*").eq("application_id", application_id) \
+        .order("created_at", desc=True).execute()
+    return result.data
+
+
+def add_attachment(row: dict) -> dict:
+    result = supabase_admin.table("job_hunter_attachments").insert(row).execute()
+    return result.data[0]
+
+
+def list_attachments(application_id: str) -> list[dict]:
+    result = supabase_admin.table("job_hunter_attachments") \
+        .select("*").eq("application_id", application_id) \
+        .order("created_at", desc=True).execute()
+    return result.data
+
+
+def add_reminder(row: dict) -> dict:
+    result = supabase_admin.table("job_hunter_reminders").insert(row).execute()
+    return result.data[0]
+
+
+def list_reminders(application_id: str) -> list[dict]:
+    result = supabase_admin.table("job_hunter_reminders") \
+        .select("*").eq("application_id", application_id) \
+        .order("remind_at").execute()
+    return result.data
+
+
+def get_due_reminders() -> list[dict]:
+    """Pending reminders whose remind_at has passed — used by the scheduler
+    to raise a notification (never to auto-send an email)."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    result = supabase_admin.table("job_hunter_reminders") \
+        .select("*").eq("status", "pending").lte("remind_at", now).execute()
+    return result.data
+
+
+def mark_reminder_notified(reminder_id: str) -> dict:
+    result = supabase_admin.table("job_hunter_reminders") \
+        .update({"status": "notified"}).eq("id", reminder_id).execute()
+    return result.data[0]
+
+
+# ---------------------------------------------------------------------------
+# Search runs (6-hourly sweep audit trail)
+# ---------------------------------------------------------------------------
+
+def create_search_run(organization_id: str, platforms: list[str]) -> dict:
+    result = supabase_admin.table("job_hunter_search_runs").insert({
+        "organization_id": organization_id,
+        "platforms_run": platforms,
+        "status": "running",
+    }).execute()
+    return result.data[0]
+
+
+def finish_search_run(run_id: str, status: str, jobs_found: int, jobs_new: int, error_message: Optional[str] = None) -> dict:
+    from datetime import datetime, timezone
+    result = supabase_admin.table("job_hunter_search_runs").update({
+        "status": status,
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "jobs_found": jobs_found,
+        "jobs_new": jobs_new,
+        "error_message": error_message,
+    }).eq("id", run_id).execute()
+    return result.data[0]
+
+
+def list_orgs_with_preferences() -> list[str]:
+    """Every org that has completed Job Hunter onboarding — the scheduler
+    loops over these every 6 hours."""
+    result = supabase_admin.table("job_hunter_preferences") \
+        .select("organization_id").eq("onboarding_completed", True).execute()
+    return [row["organization_id"] for row in result.data]
