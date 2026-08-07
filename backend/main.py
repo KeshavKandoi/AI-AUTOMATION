@@ -160,6 +160,22 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.get("/debug/profile-key-check")
+def debug_profile_key_check():
+    """TEMPORARY — remove after diagnosing PostgREST table access with the new key."""
+    from config import supabase_admin
+    result = {}
+    try:
+        r = supabase_admin.table("user_profiles").select("*").eq("email", "keshavkandoi2000@gmail.com").execute()
+        result["table_query"] = "SUCCESS"
+        result["rows_found"] = len(r.data)
+        result["data"] = r.data
+    except Exception as e:
+        result["table_query"] = "FAILED"
+        result["error"] = str(e)
+    return result
+
+
 
 def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
