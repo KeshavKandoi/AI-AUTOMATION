@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { apiClient } from '@/api/client'
+import { useAuthStore } from '@/store/authStore'
 import Login from '@/pages/auth/Login'
 import Signup from '@/pages/auth/Signup'
 import VerifyOtp from '@/pages/auth/VerifyOtp'
@@ -22,6 +25,28 @@ import AuditLogs from '@/pages/auditLogs/AuditLogs'
 const queryClient = new QueryClient()
 
 function App() {
+  const [bootstrapped, setBootstrapped] = useState(false)
+  const isDevAccount = useAuthStore((s) => s.isDevAccount)
+  const setAuth = useAuthStore((s) => s.setAuth)
+  const logout = useAuthStore((s) => s.logout)
+
+  useEffect(() => {
+    // Dev Account has no real session/refresh cookie — skip the silent
+    // refresh attempt entirely and just render immediately.
+    if (isDevAccount) {
+      setBootstrapped(true)
+      return
+    }
+    apiClient
+      .post('/auth/refresh')
+      .then((res) => setAuth(res.data.user, res.data.access_token))
+      .catch(() => logout())
+      .finally(() => setBootstrapped(true))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (!bootstrapped) return null
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
