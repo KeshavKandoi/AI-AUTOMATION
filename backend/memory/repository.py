@@ -39,16 +39,22 @@ def list_memories(
 
     # Default view excludes soft-deleted rows unless the caller explicitly
     # asks for status="deleted" (e.g. a future "Trash" filter).
-    if status:
-        query = query.eq("status", status)
-    else:
-        # Exclude only rows explicitly marked deleted. Legacy rows written
-        # before this module existed have status IS NULL, and Postgres's
-        # neq() against NULL never matches — using not_.eq() here (NOT status
-        # = 'deleted') still excludes those the same way, but is the correct
-        # operator to reason about; the real fix is treating NULL as "active"
-        # at read time via the .or_() clause below so old rows aren't hidden.
+    # status filter is tri-state from the frontend's Active/Archived/All tabs:
+    #   "active" (or no filter) -> active tab, the default view. Legacy rows
+    #     written before this module existed have status IS NULL -- treated
+    #     as active so they don't silently disappear from the default view.
+    #   "archived" -> archived tab only.
+    #   "all"      -> everything except soft-deleted.
+    #   anything else (e.g. "deleted") -> exact match, for internal use.
+    # Archived is NEVER included in the default/active view -- this is an
+    # archive, not a "completed items still visible" list.
+    effective_status = status or "active"
+    if effective_status == "active":
+        query = query.or_("status.is.null,status.eq.active")
+    elif effective_status == "all":
         query = query.or_("status.is.null,status.neq.deleted")
+    else:
+        query = query.eq("status", effective_status)
 
     if category:
         query = query.eq("category", category)
