@@ -112,7 +112,7 @@ export default function AuditLogDetailDrawer({ open, logId, onClose }: AuditLogD
             )}
 
             {typeof metadata?.commit_url === 'string' || typeof metadata?.event_link === 'string' || typeof metadata?.issue_url === 'string' ? (
-              
+              <a
                 href={
                   (metadata?.commit_url as string) ||
                   (metadata?.event_link as string) ||
