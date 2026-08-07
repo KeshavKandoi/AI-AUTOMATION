@@ -160,6 +160,31 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.get("/debug/auth-key-check")
+def debug_auth_key_check():
+    """TEMPORARY — remove after diagnosing the Render env var issue."""
+    import os
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    result = {
+        "key_length": len(key),
+        "key_prefix": key[:20],
+        "key_suffix": key[-10:],
+        "key_repr_first_30": repr(key[:30]),
+        "key_repr_last_15": repr(key[-15:]),
+        "has_leading_whitespace": key != key.lstrip(),
+        "has_trailing_whitespace": key != key.rstrip(),
+    }
+    try:
+        from config import supabase_admin
+        users = supabase_admin.auth.admin.list_users()
+        result["admin_api_call"] = "SUCCESS"
+        result["user_count"] = len(users)
+    except Exception as e:
+        result["admin_api_call"] = "FAILED"
+        result["error"] = str(e)
+    return result
+
+
 def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid token")
