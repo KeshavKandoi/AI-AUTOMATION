@@ -176,14 +176,24 @@ def debug_login_trace(email: str, password: str):
         result["error"] = str(e)
         return result
 
+    uid = result["returned_user_id"]
     try:
         from auth import repository
-        profile = repository.get_user_profile(result["returned_user_id"])
-        result["profile_lookup"] = "FOUND" if profile else "NOT FOUND"
-        result["profile"] = profile
+        profile = repository.get_user_profile(uid)
+        result["profile_lookup_via_repository"] = "FOUND" if profile else "NOT FOUND"
     except Exception as e:
-        result["profile_lookup"] = "ERROR"
-        result["profile_error"] = str(e)
+        result["profile_lookup_via_repository"] = f"ERROR: {e}"
+
+    try:
+        direct = supabase_admin.table("user_profiles").select("*").eq("id", uid).execute()
+        result["profile_lookup_direct_by_id"] = f"rows={len(direct.data)}"
+        result["profile_direct_data"] = direct.data
+    except Exception as e:
+        result["profile_lookup_direct_by_id"] = f"ERROR: {e}"
+
+    result["uid_type"] = str(type(uid))
+    result["uid_repr"] = repr(uid)
+    result["uid_len"] = len(uid) if uid else None
 
     return result
 
