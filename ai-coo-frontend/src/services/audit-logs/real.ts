@@ -2,7 +2,6 @@ import { apiClient } from '@/api/client'
 import type {
   AuditLogEntry,
   AuditLogFilterOptions,
-  AuditLogFilters,
   AuditLogListResponse,
   AuditLogsService,
 } from './types'
