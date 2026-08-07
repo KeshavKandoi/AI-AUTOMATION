@@ -53,7 +53,7 @@ export default function VerifyOtp() {
     setLoading(true)
     try {
       const res = await authApi.verifyOtp({ email, otp })
-      setAuth(res.data.user, res.data.tokens.access_token, res.data.tokens.refresh_token)
+      setAuth(res.data.user, res.data.access_token)
       navigate('/dashboard')
     } catch (err: any) {
       setServerError(err?.response?.data?.detail ?? 'Invalid or expired code. Try again.')
