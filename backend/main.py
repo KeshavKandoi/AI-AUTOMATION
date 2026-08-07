@@ -105,6 +105,7 @@ from audit_logs.routes import router as audit_logs_router
 from memory.routes import router as memory_router
 from auth.routes import router as auth_router
 from notifications.routes import router as notifications_router
+from job_hunter.routes import router as job_hunter_router
 
 app = FastAPI(title="AI COO Backend")
 
@@ -139,6 +140,7 @@ app.include_router(audit_logs_router)
 app.include_router(memory_router)
 app.include_router(auth_router)
 app.include_router(notifications_router)
+app.include_router(job_hunter_router)
 
 
 @app.on_event("startup")
