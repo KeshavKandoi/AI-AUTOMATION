@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     TEST_ORG_ID: str
     GITHUB_WEBHOOK_SECRET: str
     GENERIC_WEBHOOK_SECRET: str
+    RESEND_API_KEY: str
+    RESEND_FROM_EMAIL: str
+    OTP_EXPIRY_MINUTES: int = 10
+    OTP_RESEND_COOLDOWN_SECONDS: int = 30
+    COOKIE_DOMAIN: str = ""
     ENVIRONMENT: str = "development"
     TOKEN_ENCRYPTION_KEY: str
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
