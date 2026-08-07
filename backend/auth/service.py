@@ -125,7 +125,7 @@ def resend_signup_otp(email: str):
     _issue_otp(email, "signup")
 
 
-def _post_auth(user_id: str, email: str):
+def _post_auth(user_id: str, email: str, full_name: str = ""):
     """Issues a real Supabase session (access + refresh token) for an already-
     verified user, via a generated magic link — avoids ever re-handling the
     user's plaintext password after signup verification."""
@@ -135,7 +135,7 @@ def _post_auth(user_id: str, email: str):
     })
     token_hash = link_res.properties.hashed_token
     verified = supabase_admin.auth.verify_otp({"token_hash": token_hash, "type": "magiclink"})
-    user_out = _build_user_out(user_id, email)
+    user_out = _build_user_out(user_id, email, full_name)
     return user_out, verified.session.access_token, verified.session.refresh_token
 
 
@@ -149,7 +149,8 @@ def verify_signup_otp(email: str, otp: str):
         raise HTTPException(status_code=404, detail="Account not found")
 
     supabase_admin.auth.admin.update_user_by_id(match.id, {"email_confirm": True})
-    return _post_auth(match.id, email)
+    full_name = (match.user_metadata or {}).get("full_name", "")
+    return _post_auth(match.id, email, full_name)
 
 
 def login(email: str, password: str):
@@ -162,7 +163,8 @@ def login(email: str, password: str):
     if not result.session:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    user_out = _build_user_out(result.user.id, email)
+    full_name = (result.user.user_metadata or {}).get("full_name", "") if result.user else ""
+    user_out = _build_user_out(result.user.id, email, full_name)
     return user_out, result.session.access_token, result.session.refresh_token
 
 
@@ -195,5 +197,6 @@ def refresh_session(refresh_token: str):
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     if not result.session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
-    user_out = _build_user_out(result.user.id, result.user.email)
+    full_name = (result.user.user_metadata or {}).get("full_name", "") if result.user else ""
+    user_out = _build_user_out(result.user.id, result.user.email, full_name)
     return result.session.access_token, result.session.refresh_token, user_out
