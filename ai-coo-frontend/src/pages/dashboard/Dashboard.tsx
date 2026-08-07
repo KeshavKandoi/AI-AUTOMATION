@@ -5,7 +5,7 @@ import { tasksApi } from '@/api/tasks'
 import { schedulerApi } from '@/api/scheduler'
 import { integrationsApi } from '@/api/integrations'
 import { auditLogsService, type AuditLogEntry } from '@/services/audit-logs'
-import { getModuleIcon, getStatusTone, formatActionLabel } from '@/lib/auditLogDisplay'
+import { getModuleIcon, formatActionLabel } from '@/lib/auditLogDisplay'
 import { useAuthStore } from '@/store/authStore'
 import StatCard from '@/components/ui/StatCard'
 
