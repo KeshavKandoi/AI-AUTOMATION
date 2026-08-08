@@ -116,7 +116,14 @@ def list_for_org(
     }
 
 
-def mark_notification_read(notification_id: str) -> Optional[dict]:
+def mark_notification_read(notification_id: str, organization_id: str) -> Optional[dict]:
+    """Marks a single notification read, after verifying it belongs to the
+    calling org — same ownership-check pattern as memory.get_memory_or_404.
+    Returns None if the notification doesn't exist or belongs to a
+    different org, so the route can 404 either way without leaking which."""
+    notification = repository.get_notification(notification_id)
+    if not notification or notification["organization_id"] != organization_id:
+        return None
     read_at = datetime.now(timezone.utc).isoformat()
     return repository.mark_read(notification_id, read_at)
 
