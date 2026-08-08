@@ -1,5 +1,5 @@
 import { apiClient } from '@/api/client'
-import type { NotificationEntry, NotificationFilters, NotificationListResponse, NotificationsService } from './types'
+import type { NotificationEntry, NotificationListResponse, NotificationsService } from './types'
 
 export const realNotificationsService: NotificationsService = {
   list: (orgId, limit = 50, offset = 0, filters = {}) =>
