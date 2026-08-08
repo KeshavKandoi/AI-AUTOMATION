@@ -169,20 +169,38 @@ def login(email: str, password: str):
     return user_out, result.session.access_token, result.session.refresh_token
 
 
-def forgot_password(email: str):
-    """Checks whether the account exists without calling the Admin API
-    (list_users has proven intermittently unreliable in this environment).
-    sign_in_with_password with a deliberately wrong password still lets
-    Supabase distinguish "no such user" from "wrong password" via the error
-    message, without ever risking a real login or needing admin privileges."""
-    try:
-        supabase_admin.auth.sign_in_with_password({"email": email, "password": "__nonexistent_probe__"})
-        exists = True  # extremely unlikely to actually succeed
-    except Exception as e:
-        msg = str(e).lower()
-        exists = "invalid login credentials" in msg or "email not confirmed" in msg
+def _list_users_with_retry(max_attempts: int = 3):
+    """The Admin API's list_users has shown itself to be intermittently
+    unreliable in this environment (transient AuthApiError even with a
+    verified-correct key). A sign_in-based probe can't substitute for it here
+    — Supabase deliberately returns the same "Invalid login credentials"
+    message for both existing and nonexistent emails, so there's no way to
+    distinguish them without admin-level lookup. Retrying is the correct fix
+    for a transient failure rather than working around a permanent one."""
+    import time
+    last_error = None
+    for attempt in range(max_attempts):
+        try:
+            return supabase_admin.auth.admin.list_users()
+        except Exception as e:
+            last_error = e
+            logger.warning(f"list_users attempt {attempt + 1}/{max_attempts} failed: {e}")
+            if attempt < max_attempts - 1:
+                time.sleep(0.5 * (attempt + 1))
+    logger.error(f"list_users failed after {max_attempts} attempts: {last_error}")
+    raise last_error
 
-    if exists:
+
+def forgot_password(email: str):
+    try:
+        users = _list_users_with_retry()
+    except Exception:
+        # Don't leak whether the lookup itself failed vs the email not
+        # existing — fail closed (no OTP sent) but still return the same
+        # generic message so behavior is indistinguishable to the caller.
+        return
+    match = next((u for u in users if u.email == email), None)
+    if match:
         _issue_otp(email, "password_reset")
     # Always returns silently regardless of whether the email exists —
     # caller (routes.py) returns the same generic message either way.
