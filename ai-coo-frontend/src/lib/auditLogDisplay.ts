@@ -10,6 +10,8 @@ import {
   Settings,
   User,
   ScrollText,
+  Brain,
+  Briefcase,
   type LucideIcon,
 } from 'lucide-react'
 import type { AuditStatus } from '@/services/audit-logs'
@@ -28,6 +30,8 @@ export const MODULE_ICON: Record<string, LucideIcon> = {
   settings: Settings,
   auth: User,
   system: ScrollText,
+  memory: Brain,
+  job_hunter: Briefcase,
 }
 
 export function getModuleIcon(module: string | null): LucideIcon {
@@ -47,6 +51,8 @@ export const MODULE_LABELS: Record<string, string> = {
   settings: 'Settings',
   auth: 'Authentication',
   system: 'System',
+  memory: 'Memory',
+  job_hunter: 'Job Hunter',
 }
 
 export function getModuleLabel(module: string | null): string {
