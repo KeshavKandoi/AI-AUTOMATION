@@ -25,7 +25,7 @@ export const navItems: NavItem[] = [
   { label: 'Audit Logs', path: '/audit-logs', icon: ScrollText },
   { label: 'Integrations', path: '/integrations', icon: Plug },
   { label: 'Memory', path: '/memory', icon: Brain },
-  { label: 'Notifications', path: '/notifications', icon: Bell, comingSoon: true },
+  { label: 'Notifications', path: '/notifications', icon: Bell },
   { label: 'Analytics', path: '/analytics', icon: BarChart3, comingSoon: true },
   { label: 'Settings', path: '/settings', icon: Settings, comingSoon: true },
   { label: 'Profile', path: '/profile', icon: User, comingSoon: true },
