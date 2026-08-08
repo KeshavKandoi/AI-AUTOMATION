@@ -22,6 +22,7 @@ import CalendarPage from '@/pages/calendar/Calendar'
 import Workflows from '@/pages/workflows/Workflows'
 import AuditLogs from '@/pages/auditLogs/AuditLogs'
 import Memory from '@/pages/memory/Memory'
+import Notifications from '@/pages/notifications/Notifications'
 
 const queryClient = new QueryClient()
 
@@ -73,7 +74,7 @@ function App() {
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/integrations" element={<Integrations />} />
               <Route path="/memory" element={<Memory />} />
-              <Route path="/notifications" element={<ComingSoon title="Notifications" />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="/analytics" element={<ComingSoon title="Analytics" />} />
               <Route path="/settings" element={<ComingSoon title="Settings" />} />
               <Route path="/profile" element={<ComingSoon title="Profile" />} />
