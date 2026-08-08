@@ -8,11 +8,17 @@ from auth.schemas import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# Frontend (localhost:5173 in dev, or the deployed frontend origin in prod)
+# and backend (Render) are cross-site in every environment this app runs in
+# — SameSite=Lax would be silently dropped by the browser on cross-site
+# fetch/XHR calls (only Strict/Lax-exempt top-level navigations get Lax
+# cookies), breaking the refresh-cookie flow specifically in local dev
+# testing. SameSite=None is required unconditionally here, not just in prod.
 COOKIE_KWARGS = dict(
     key="refresh_token",
     httponly=True,
-    secure=settings.ENVIRONMENT == "production",
-    samesite="none" if settings.ENVIRONMENT == "production" else "lax",
+    secure=True,
+    samesite="none",
     path="/auth",
 )
 if settings.COOKIE_DOMAIN:
