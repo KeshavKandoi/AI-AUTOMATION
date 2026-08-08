@@ -18,6 +18,8 @@ Verified live (2026-08-08) against https://www.workatastartup.com/jobs:
   keep one sweep fast — original_apply_url takes the user straight to
   the real posting where they can read the full description themselves.
 """
+import re
+
 from job_hunter.platforms.playwright_base import PlaywrightJobProvider
 from job_hunter.platforms.base import RawJob
 from job_hunter.platforms.matching import matches_preferences, normalize_employment_type
@@ -110,6 +112,7 @@ class YCJobsProvider(PlaywrightJobProvider):
 
         employment_type = normalize_employment_type(employment_type_raw)
         apply_url = f"{BASE_URL}/jobs/{job_id}"
+        salary_min, salary_max, salary_currency = self._parse_salary(salary_text)
 
         # YC startups title roles unconventionally ("Founding Engineer",
         # "Member of Technical Staff") rather than standard titles like
@@ -118,17 +121,22 @@ class YCJobsProvider(PlaywrightJobProvider):
         # page itself (/jobs/l/<slug>) is already a strong relevance signal
         # from YC's own categorization, so we trust it for role relevance
         # and strip desired_roles/skills before calling matches_preferences
-        # here, so it only applies location/employment-type filtering
-        # (passing title="" would NOT achieve this — matches_preferences
-        # reads desired_roles/skills from `preferences` itself, so an empty
-        # title would make the role/skill check always fail instead of
-        # being skipped).
+        # here, so it only applies location/employment-type/salary
+        # filtering (passing title="" would NOT achieve this —
+        # matches_preferences reads desired_roles/skills from
+        # `preferences` itself, so an empty title would make the
+        # role/skill check always fail instead of being skipped).
+        # experience_text is intentionally NOT passed — sub_role here is
+        # a category tag ("Full stack"), not a real years-of-experience
+        # string, so passing it would be semantically misleading even
+        # though harmless (parse_experience_years would just return None).
         location_only_preferences = {
             k: v for k, v in preferences.items() if k not in ("desired_roles", "skills")
         }
         if not matches_preferences(
             location_only_preferences, title=title, description="",
             location=location or "", employment_type=employment_type or "",
+            salary_min=salary_min, salary_currency=salary_currency,
         ):
             return None
 
@@ -142,9 +150,46 @@ class YCJobsProvider(PlaywrightJobProvider):
             location=location,
             employment_type=employment_type,
             experience_required=sub_role,
-            salary_currency=None,  # embedded in salary_text below, not cleanly separable
-            description=salary_text or None,  # best-effort: surfaces salary range until detail-page fetch is added
+            salary_min=salary_min,
+            salary_max=salary_max,
+            salary_currency=salary_currency,
         )
+
+    @staticmethod
+    def _parse_salary(salary_text):
+        """Parses YC-style '$124K - $188K CAD' or 'EUR55K - EUR80K EUR' into
+        (min, max, currency). Returns (None, None, None) if unparseable --
+        never raises, a malformed salary string should never drop the job."""
+        if not salary_text:
+            return None, None, None
+        try:
+            currency_match = re.search(r"\b([A-Z]{3})\b", salary_text)
+            currency = currency_match.group(1) if currency_match else None
+            if not currency:
+                if "$" in salary_text:
+                    currency = "USD"
+                elif "\u20ac" in salary_text:
+                    currency = "EUR"
+                elif "\u20b9" in salary_text:
+                    currency = "INR"
+
+            numbers = re.findall(r"[\d.]+K?", salary_text)
+            parsed = []
+            for n in numbers:
+                mult = 1000 if n.upper().endswith("K") else 1
+                n_clean = n.upper().rstrip("K")
+                try:
+                    parsed.append(float(n_clean) * mult)
+                except ValueError:
+                    continue
+
+            if len(parsed) >= 2:
+                return parsed[0], parsed[1], currency
+            elif len(parsed) == 1:
+                return parsed[0], parsed[0], currency
+        except Exception:
+            pass
+        return None, None, None
 
 
 register_provider(YCJobsProvider())
