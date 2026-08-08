@@ -8,3 +8,4 @@ all go through the registry, never import a specific platform directly.
 from job_hunter.platforms import greenhouse   # noqa: F401
 from job_hunter.platforms import lever        # noqa: F401
 from job_hunter.platforms import ashby        # noqa: F401
+from job_hunter.platforms import yc_jobs      # noqa: F401
