@@ -153,6 +153,8 @@ class WellfoundProvider(PlaywrightJobProvider):
                     if not matches_preferences(
                         preferences, title=card["title"], description="",
                         location=location or "", employment_type=card["employment_type"] or "",
+                        experience_text=card["experience_text"],
+                        salary_min=salary_min, salary_currency=salary_currency,
                     ):
                         continue
 
