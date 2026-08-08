@@ -27,6 +27,10 @@ async def run_search_for_org(organization_id: str) -> dict:
         logger.info(f"[job_hunter] Skipping search for org {organization_id} — onboarding not completed")
         return {"skipped": True, "reason": "onboarding_not_completed"}
 
+    if repository.has_running_search(organization_id):
+        logger.info(f"[job_hunter] Skipping search for org {organization_id} — a sweep is already in progress")
+        return {"skipped": True, "reason": "search_already_running"}
+
     platforms = registry.get_registered_platforms()
     run = repository.create_search_run(organization_id, platforms)
 
