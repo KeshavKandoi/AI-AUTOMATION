@@ -1,13 +1,3 @@
-export type MemoryCategory =
-  | 'user_preference'
-  | 'project'
-  | 'repository'
-  | 'workflow'
-  | 'conversation'
-  | 'integration'
-  | 'knowledge'
-  | 'custom'
-
 export type MemoryImportance = 'low' | 'medium' | 'high' | 'critical'
 export type MemoryStatusFilter = 'active' | 'archived' | 'all'
 
