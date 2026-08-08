@@ -25,8 +25,8 @@ def list_notifications(
 
 
 @router.post("/{notification_id}/read")
-def mark_read(notification_id: str):
-    updated = service.mark_notification_read(notification_id)
+def mark_read(notification_id: str, org_id: str):
+    updated = service.mark_notification_read(notification_id, org_id)
     if not updated:
         raise HTTPException(status_code=404, detail="Notification not found")
     return {"status": "read", "notification": updated}
