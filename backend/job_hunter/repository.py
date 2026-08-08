@@ -299,3 +299,53 @@ def get_provider_statuses(organization_id: str) -> list[dict]:
     result = supabase_admin.table("job_hunter_provider_status") \
         .select("*").eq("organization_id", organization_id).execute()
     return result.data
+
+
+# ---------------------------------------------------------------------------
+# Career pages registry (auto-detection source + custom-site fallback list)
+# ---------------------------------------------------------------------------
+
+def list_enabled_career_pages() -> list[dict]:
+    result = supabase_admin.table("job_provider_career_pages") \
+        .select("*").eq("enabled", True).execute()
+    return result.data
+
+
+def list_undetected_career_pages() -> list[dict]:
+    """Career pages that haven't been matched to a known ATS yet — these
+    are candidates for the custom-site fallback scraper."""
+    result = supabase_admin.table("job_provider_career_pages") \
+        .select("*").eq("enabled", True).is_("detected_ats", "null").execute()
+    return result.data
+
+
+def mark_career_page_detected(page_id: str, ats: str, token: str) -> None:
+    from datetime import datetime, timezone
+    supabase_admin.table("job_provider_career_pages").update({
+        "detected_ats": ats,
+        "detected_token": token,
+        "last_status": "ok",
+        "last_synced_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", page_id).execute()
+
+
+def mark_career_page_status(page_id: str, status: str) -> None:
+    from datetime import datetime, timezone
+    supabase_admin.table("job_provider_career_pages").update({
+        "last_status": status,
+        "last_synced_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", page_id).execute()
+
+
+def upsert_detected_company(provider: str, company_name: str, board_token: str, website: str) -> None:
+    """Called when the ATS detector finds a company using a known provider
+    (Greenhouse/Lever/Ashby) via its career page — registers it into
+    job_provider_companies so the real API-based adapter picks it up
+    automatically from then on, instead of scraping it."""
+    supabase_admin.table("job_provider_companies").upsert({
+        "provider": provider,
+        "company_name": company_name,
+        "board_token": board_token,
+        "website": website,
+        "enabled": True,
+    }, on_conflict="provider,board_token").execute()
