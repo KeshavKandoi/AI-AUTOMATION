@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from job_hunter import service
 from job_hunter.schemas import (
     JobHunterPreferencesCreate, JobHunterPreferencesUpdate,
     ApplicationCreate, ApplicationUpdate,
-    NoteCreate, AttachmentCreate, ReminderCreate,
+    NoteCreate, ReminderCreate,
 )
 
 router = APIRouter(prefix="/job-hunter", tags=["job-hunter"])
@@ -92,13 +92,33 @@ def add_note(application_id: str, org_id: str, payload: NoteCreate):
 
 
 @router.post("/applications/{application_id}/attachments")
-def add_attachment(application_id: str, org_id: str, payload: AttachmentCreate):
+async def add_attachment(
+    application_id: str,
+    org_id: str,
+    file_type: str = Form(...),
+    file: UploadFile = File(...),
+):
+    file_bytes = await file.read()
     attachment = service.add_attachment(
         org_id, application_id,
-        file_name=payload.file_name, storage_path=payload.storage_path,
-        file_type=payload.file_type, size_bytes=payload.size_bytes,
+        file_name=file.filename or "upload",
+        file_bytes=file_bytes,
+        content_type=file.content_type or "application/octet-stream",
+        file_type=file_type,
     )
     return {"status": "added", "attachment": attachment}
+
+
+@router.get("/applications/{application_id}/attachments/{attachment_id}/download")
+def download_attachment(application_id: str, attachment_id: str, org_id: str):
+    url = service.get_attachment_download_url(org_id, application_id, attachment_id)
+    return {"download_url": url}
+
+
+@router.delete("/applications/{application_id}/attachments/{attachment_id}")
+def delete_attachment(application_id: str, attachment_id: str, org_id: str):
+    service.delete_attachment(org_id, application_id, attachment_id)
+    return {"status": "deleted", "attachment_id": attachment_id}
 
 
 @router.post("/applications/{application_id}/reminders")
