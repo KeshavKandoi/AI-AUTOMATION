@@ -165,7 +165,6 @@ export default function Memory() {
       if (context?.prev) queryClient.setQueryData(listQueryKey, context.prev)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['memory'] }),
-  }),
   })
 
   function openDetail(id: string) {
