@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 
-from config import settings, supabase_admin, logger
+from config import settings, get_auth_client, logger
 from email_service import send_otp_email
 from auth import repository
 
@@ -76,9 +76,11 @@ def _build_user_out(user_id: str, email: str, full_name: str = "") -> dict:
 
 
 def signup(full_name: str, email: str, password: str, organization_name: str) -> str:
+    auth_client = get_auth_client()
+
     try:
-        existing = supabase_admin.auth.admin.list_users()
-    except Exception as e:
+        existing = auth_client.auth.admin.list_users()
+    except Exception:
         logger.exception(f"Signup: list_users failed for {email}")
         raise HTTPException(status_code=502, detail="Authentication service is temporarily unavailable. Please try again shortly.")
 
@@ -93,13 +95,13 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
         return email
 
     try:
-        created = supabase_admin.auth.admin.create_user({
+        created = auth_client.auth.admin.create_user({
             "email": email,
             "password": password,
             "email_confirm": False,
             "user_metadata": {"full_name": full_name},
         })
-    except Exception as e:
+    except Exception:
         logger.exception(f"Signup: create_user failed for {email}")
         raise HTTPException(status_code=400, detail="Could not create your account. Please check your details and try again.")
 
@@ -111,10 +113,10 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
         org = repository.create_organization(organization_name)
         repository.create_user_profile(user_id, org["id"], email)
         _issue_otp(email, "signup")
-    except Exception as e:
+    except Exception:
         logger.exception(f"Signup: post-user-creation step failed for {email} (user_id={user_id}) — rolling back")
         try:
-            supabase_admin.auth.admin.delete_user(user_id)
+            auth_client.auth.admin.delete_user(user_id)
         except Exception:
             logger.exception(f"Signup rollback: failed to delete orphaned auth user {user_id} for {email} — MANUAL CLEANUP NEEDED")
         raise HTTPException(status_code=500, detail="Could not complete signup. Please try again.")
@@ -130,12 +132,13 @@ def _post_auth(user_id: str, email: str, full_name: str = ""):
     """Issues a real Supabase session (access + refresh token) for an already-
     verified user, via a generated magic link — avoids ever re-handling the
     user's plaintext password after signup verification."""
-    link_res = supabase_admin.auth.admin.generate_link({
+    auth_client = get_auth_client()
+    link_res = auth_client.auth.admin.generate_link({
         "type": "magiclink",
         "email": email,
     })
     token_hash = link_res.properties.hashed_token
-    verified = supabase_admin.auth.verify_otp({"token_hash": token_hash, "type": "magiclink"})
+    verified = auth_client.auth.verify_otp({"token_hash": token_hash, "type": "magiclink"})
     user_out = _build_user_out(user_id, email, full_name)
     return user_out, verified.session.access_token, verified.session.refresh_token
 
@@ -144,20 +147,22 @@ def verify_signup_otp(email: str, otp: str):
     if not _verify_otp(email, otp, "signup"):
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
-    users = supabase_admin.auth.admin.list_users()
+    auth_client = get_auth_client()
+    users = auth_client.auth.admin.list_users()
     match = next((u for u in users if u.email == email), None)
     if not match:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    supabase_admin.auth.admin.update_user_by_id(match.id, {"email_confirm": True})
+    auth_client.auth.admin.update_user_by_id(match.id, {"email_confirm": True})
     full_name = (match.user_metadata or {}).get("full_name", "")
     return _post_auth(match.id, email, full_name)
 
 
 def login(email: str, password: str):
+    auth_client = get_auth_client()
     try:
-        result = supabase_admin.auth.sign_in_with_password({"email": email, "password": password})
-    except Exception as e:
+        result = auth_client.auth.sign_in_with_password({"email": email, "password": password})
+    except Exception:
         logger.exception(f"Login failed for {email}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -178,10 +183,11 @@ def _list_users_with_retry(max_attempts: int = 3):
     distinguish them without admin-level lookup. Retrying is the correct fix
     for a transient failure rather than working around a permanent one."""
     import time
+    auth_client = get_auth_client()
     last_error = None
     for attempt in range(max_attempts):
         try:
-            return supabase_admin.auth.admin.list_users()
+            return auth_client.auth.admin.list_users()
         except Exception as e:
             last_error = e
             logger.warning(f"list_users attempt {attempt + 1}/{max_attempts} failed: {e}")
@@ -210,18 +216,20 @@ def reset_password(email: str, otp: str, new_password: str):
     if not _verify_otp(email, otp, "password_reset"):
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
-    users = supabase_admin.auth.admin.list_users()
+    auth_client = get_auth_client()
+    users = auth_client.auth.admin.list_users()
     match = next((u for u in users if u.email == email), None)
     if not match:
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
-    supabase_admin.auth.admin.update_user_by_id(match.id, {"password": new_password})
+    auth_client.auth.admin.update_user_by_id(match.id, {"password": new_password})
 
 
 def refresh_session(refresh_token: str):
+    auth_client = get_auth_client()
     try:
-        result = supabase_admin.auth.refresh_session(refresh_token)
-    except Exception as e:
+        result = auth_client.auth.refresh_session(refresh_token)
+    except Exception:
         logger.exception("Refresh failed")
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     if not result.session:
