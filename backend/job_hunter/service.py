@@ -381,17 +381,56 @@ def add_note(organization_id: str, application_id: str, content: str) -> dict:
     return note
 
 
-def add_attachment(organization_id: str, application_id: str, file_name: str, storage_path: str, file_type: str, size_bytes: Optional[int]) -> dict:
+ALLOWED_ATTACHMENT_CONTENT_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/png",
+    "image/jpeg",
+    "text/plain",
+}
+MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024  # 10MB — matches the bucket-level cap
+
+
+def add_attachment(
+    organization_id: str,
+    application_id: str,
+    file_name: str,
+    file_bytes: bytes,
+    content_type: str,
+    file_type: str,
+) -> dict:
+    """Real upload: validates the file, uploads bytes to the private
+    Supabase Storage bucket under an org-and-application-scoped path
+    (never a client-supplied path), then creates the DB row pointing at
+    the real storage path. Raises on validation failure or upload
+    failure — never creates a DB row for a file that didn't actually
+    upload."""
     application = repository.get_application(application_id, organization_id)
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
+
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    if len(file_bytes) > MAX_ATTACHMENT_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail=f"File exceeds the 10MB size limit")
+    if content_type not in ALLOWED_ATTACHMENT_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {content_type}")
+
+    try:
+        storage_path = repository.upload_attachment_file(
+            organization_id, application_id, file_name, file_bytes, content_type
+        )
+    except Exception as e:
+        logger.error(f"Attachment upload failed for application {application_id}: {e}")
+        raise HTTPException(status_code=502, detail="Failed to upload file. Please try again.")
 
     attachment = repository.add_attachment({
         "application_id": application_id,
         "file_name": file_name,
         "storage_path": storage_path,
         "file_type": file_type,
-        "size_bytes": size_bytes,
+        "size_bytes": len(file_bytes),
     })
     log_event(
         organization_id=organization_id,
@@ -401,10 +440,63 @@ def add_attachment(organization_id: str, application_id: str, file_name: str, st
         status="success",
         resource_type="job_hunter_application",
         resource_id=application_id,
-        metadata={"file_type": file_type},
+        metadata={"file_type": file_type, "size_bytes": len(file_bytes)},
         source="backend",
     )
     return attachment
+
+
+def get_attachment_download_url(organization_id: str, application_id: str, attachment_id: str) -> str:
+    """Returns a short-lived signed URL for downloading a private
+    attachment. Verifies the attachment actually belongs to an
+    application under this organization before generating the URL —
+    never trusts attachment_id alone."""
+    application = repository.get_application(application_id, organization_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    attachment = repository.get_attachment(attachment_id)
+    if not attachment or attachment["application_id"] != application_id:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    try:
+        return repository.get_attachment_signed_url(attachment["storage_path"])
+    except Exception as e:
+        logger.error(f"Failed to generate signed URL for attachment {attachment_id}: {e}")
+        raise HTTPException(status_code=502, detail="Failed to generate download link. Please try again.")
+
+
+def delete_attachment(organization_id: str, application_id: str, attachment_id: str) -> None:
+    """Deletes both the storage object and the DB row. Deletes the DB
+    row only after the storage delete succeeds, to avoid an orphaned
+    file with no DB row pointing at it (a silent storage leak) — but
+    if the storage object is already gone (e.g. manual cleanup), we
+    still remove the stale DB row rather than leave it dangling
+    forever."""
+    application = repository.get_application(application_id, organization_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    attachment = repository.get_attachment(attachment_id)
+    if not attachment or attachment["application_id"] != application_id:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    try:
+        repository.delete_attachment_file(attachment["storage_path"])
+    except Exception as e:
+        logger.warning(f"Storage delete failed for attachment {attachment_id} (removing DB row anyway): {e}")
+
+    repository.delete_attachment_row(attachment_id)
+    log_event(
+        organization_id=organization_id,
+        module=MODULE,
+        action="attachment_deleted",
+        summary=f"Attachment deleted: {attachment['file_name']}",
+        status="success",
+        resource_type="job_hunter_application",
+        resource_id=application_id,
+        source="backend",
+    )
 
 
 def create_reminder(organization_id: str, application_id: str, remind_at: str, note: Optional[str]) -> dict:
