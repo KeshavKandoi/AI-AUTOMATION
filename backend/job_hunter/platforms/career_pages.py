@@ -156,12 +156,18 @@ class CareerPagesProvider(PlaywrightJobProvider):
                 const links = Array.from(document.querySelectorAll('li a[href], article a[href]'));
                 const seen = new Set();
                 const results = [];
+                // Job detail pages on corporate career sites overwhelmingly end
+                // in a numeric ID segment (e.g. /positions/7732569/,
+                // /jobs/12345, /careers/98765-title) — this is a much more
+                // reliable structural signal than link text, which mixes real
+                // postings with nav/footer links ("FAQ", "Privacy", etc).
+                const jobIdPattern = /\/\d{4,}(\/|-|$)/;
                 for (const link of links) {
                     const href = link.getAttribute('href');
                     if (!href || seen.has(href)) continue;
+                    if (!jobIdPattern.test(href)) continue;
                     const title = (link.textContent || '').trim();
                     if (!title || title.length < 3 || title.length > 200) continue;
-                    // Skip obvious non-job nav links
                     if (/^(home|about|contact|login|sign ?up|privacy|terms)$/i.test(title)) continue;
 
                     let container = link;
