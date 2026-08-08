@@ -1,15 +1,24 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronsLeft, LogOut } from 'lucide-react'
 import { navItems } from '@/lib/navigation'
 import { useAuthStore } from '@/store/authStore'
+import { notificationsService } from '@/services/notifications'
 import { cn } from '@/lib/utils'
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+
+  const { data: unreadCount } = useQuery({
+    queryKey: ['notifications', 'unread-count', user?.organization_id],
+    queryFn: () => notificationsService.list(user!.organization_id, 1, 0).then((r) => r.unread_count),
+    enabled: !!user?.organization_id,
+    refetchInterval: 30000,
+  })
 
   return (
     <motion.aside
@@ -45,9 +54,19 @@ export default function Sidebar() {
                 {isActive && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full bg-[var(--color-signal)]" />
                 )}
-                <item.icon size={17} className="shrink-0" />
+                <span className="relative shrink-0">
+                  <item.icon size={17} />
+                  {collapsed && item.path === '/notifications' && !!unreadCount && unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-[var(--color-alert)]" />
+                  )}
+                </span>
                 {!collapsed && (
                   <span className="truncate flex-1">{item.label}</span>
+                )}
+                {!collapsed && item.path === '/notifications' && !!unreadCount && unreadCount > 0 && (
+                  <span className="text-[10px] font-medium text-[var(--color-void)] bg-[var(--color-alert)] rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center shrink-0">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
                 )}
                 {!collapsed && item.comingSoon && (
                   <span className="text-[9px] uppercase tracking-wide text-[var(--color-text-faint)] border border-[var(--color-border)] rounded px-1 py-0.5 shrink-0">
