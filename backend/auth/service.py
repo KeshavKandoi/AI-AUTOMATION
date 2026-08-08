@@ -56,14 +56,15 @@ def _verify_otp(email: str, otp: str, purpose: str) -> bool:
     return True
 
 
-def _build_user_out(user_id: str, email: str) -> dict:
+def _build_user_out(user_id: str, email: str, full_name: str = "") -> dict:
+    """full_name is passed in from whatever Supabase Auth call already has it
+    on hand (sign_in_with_password, verify_otp, refresh_session all return
+    user_metadata directly) — avoids a second, separate Admin API call per
+    request, which has shown itself to be intermittently unreliable."""
     profile = repository.get_user_profile(user_id)
-    logger.info(f"[AUTH-DEBUG] _build_user_out: user_id={user_id} email={email} profile_found={profile is not None} profile={profile}")
     if not profile:
-        raise HTTPException(status_code=404, detail="User profile not found")
+        raise HTTPException(status_code=404, detail="This account never finished setup. Please sign up again.")
     org = repository.get_org_by_id(profile["organization_id"])
-    auth_user = supabase_admin.auth.admin.get_user_by_id(user_id)
-    full_name = (auth_user.user.user_metadata or {}).get("full_name", "") if auth_user and auth_user.user else ""
     return {
         "id": user_id,
         "email": email,
