@@ -60,6 +60,19 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("hpack").setLevel(logging.WARNING)
 
 supabase_admin = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+
+
+def get_auth_client():
+    """Creates a fresh, short-lived Supabase client for stateful per-request
+    auth operations (sign_in_with_password, verify_otp, refresh_session,
+    Admin API calls). These must NOT reuse the shared `supabase_admin`
+    singleton — the gotrue client stores session/auth state on itself, and
+    reusing one instance across concurrent requests from different users
+    risks state bleeding between them. Cheap to create (just an HTTP client
+    wrapper, no connection pool) — safe to call once per auth operation.
+    Table/PostgREST access is unaffected by this and continues to use the
+    shared `supabase_admin` client as before."""
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 import httpx
