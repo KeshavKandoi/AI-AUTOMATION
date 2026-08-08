@@ -349,3 +349,52 @@ def upsert_detected_company(provider: str, company_name: str, board_token: str, 
         "website": website,
         "enabled": True,
     }, on_conflict="provider,board_token").execute()
+
+
+# ---------------------------------------------------------------------------
+# Attachment file storage (Supabase Storage — private bucket)
+# ---------------------------------------------------------------------------
+
+ATTACHMENTS_BUCKET = "job-hunter-attachments"
+
+
+def upload_attachment_file(organization_id: str, application_id: str, file_name: str, file_bytes: bytes, content_type: str) -> str:
+    """Uploads file bytes to the private attachments bucket under a path
+    scoped by organization and application, so one org can never guess or
+    access another org's file path. Returns the storage path (not a URL —
+    the bucket is private, so callers must request a signed URL to
+    actually read the file). Raises on failure; never silently drops
+    a failed upload."""
+    import uuid
+    safe_name = "".join(c for c in file_name if c.isalnum() or c in "._-") or "file"
+    storage_path = f"{organization_id}/{application_id}/{uuid.uuid4().hex}_{safe_name}"
+
+    supabase_admin.storage.from_(ATTACHMENTS_BUCKET).upload(
+        storage_path,
+        file_bytes,
+        file_options={"content-type": content_type or "application/octet-stream"},
+    )
+    return storage_path
+
+
+def get_attachment_signed_url(storage_path: str, expires_in_seconds: int = 300) -> str:
+    """Returns a time-limited signed URL for reading a private attachment.
+    Default 5 minutes — short-lived since this is regenerated per request,
+    never stored or reused."""
+    result = supabase_admin.storage.from_(ATTACHMENTS_BUCKET).create_signed_url(
+        storage_path, expires_in_seconds
+    )
+    return result["signedURL"] if "signedURL" in result else result.get("signed_url")
+
+
+def delete_attachment_file(storage_path: str) -> None:
+    supabase_admin.storage.from_(ATTACHMENTS_BUCKET).remove([storage_path])
+
+
+def get_attachment(attachment_id: str) -> Optional[dict]:
+    result = supabase_admin.table("job_hunter_attachments").select("*").eq("id", attachment_id).execute()
+    return result.data[0] if result.data else None
+
+
+def delete_attachment_row(attachment_id: str) -> None:
+    supabase_admin.table("job_hunter_attachments").delete().eq("id", attachment_id).execute()
