@@ -11,3 +11,4 @@ from job_hunter.platforms import ashby        # noqa: F401
 from job_hunter.platforms import yc_jobs      # noqa: F401
 from job_hunter.platforms import career_pages # noqa: F401
 from job_hunter.platforms import internshala  # noqa: F401
+from job_hunter.platforms import wellfound    # noqa: F401
