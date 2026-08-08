@@ -106,16 +106,66 @@ export default function Memory() {
   const page = Math.floor(offset / PAGE_SIZE) + 1
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
+  useEffect(() => {
+    if (!isLoading && !isFetching && offset > 0 && items.length === 0 && total > 0) {
+      setOffset((o) => Math.max(0, o - PAGE_SIZE))
+    }
+  }, [isLoading, isFetching, items.length, total, offset])
+
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
+
+  function withPending<T>(id: string, fn: () => Promise<T>): Promise<T> {
+    setPendingIds((prev) => new Set(prev).add(id))
+    return fn().finally(() => {
+      setPendingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    })
+  }
+
+  const listQueryKey = ['memory', 'list', orgId, PAGE_SIZE, offset, filters] as const
+
   const pinMutation = useMutation({
     mutationFn: (m: MemoryEntry) =>
-      m.pinned ? memoryService.unpin(m.id, orgId!) : memoryService.pin(m.id, orgId!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['memory'] }),
+      withPending(m.id, () => (m.pinned ? memoryService.unpin(m.id, orgId!) : memoryService.pin(m.id, orgId!))),
+    onMutate: async (m: MemoryEntry) => {
+      await queryClient.cancelQueries({ queryKey: ['memory', 'list'] })
+      const prev = queryClient.getQueryData(listQueryKey)
+      queryClient.setQueryData(listQueryKey, (old: typeof data) =>
+        old
+          ? { ...old, items: old.items.map((it) => (it.id === m.id ? { ...it, pinned: !it.pinned } : it)) }
+          : old
+      )
+      return { prev }
+    },
+    onError: (_err, _m, context) => {
+      if (context?.prev) queryClient.setQueryData(listQueryKey, context.prev)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['memory'] }),
   })
 
   const favoriteMutation = useMutation({
     mutationFn: (m: MemoryEntry) =>
-      m.favorited ? memoryService.unfavorite(m.id, orgId!) : memoryService.favorite(m.id, orgId!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['memory'] }),
+      withPending(m.id, () =>
+        m.favorited ? memoryService.unfavorite(m.id, orgId!) : memoryService.favorite(m.id, orgId!)
+      ),
+    onMutate: async (m: MemoryEntry) => {
+      await queryClient.cancelQueries({ queryKey: ['memory', 'list'] })
+      const prev = queryClient.getQueryData(listQueryKey)
+      queryClient.setQueryData(listQueryKey, (old: typeof data) =>
+        old
+          ? { ...old, items: old.items.map((it) => (it.id === m.id ? { ...it, favorited: !it.favorited } : it)) }
+          : old
+      )
+      return { prev }
+    },
+    onError: (_err, _m, context) => {
+      if (context?.prev) queryClient.setQueryData(listQueryKey, context.prev)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['memory'] }),
+  }),
   })
 
   function openDetail(id: string) {
@@ -213,6 +263,7 @@ export default function Memory() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Search title or content..."
+                  aria-label="Search memories"
                   className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]"
                 />
               </div>
@@ -272,6 +323,7 @@ export default function Memory() {
 
               <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1 ml-auto">
                 <button
+                  aria-label="Grid view"
                   onClick={() => setView('grid')}
                   className={
                     view === 'grid'
@@ -282,6 +334,7 @@ export default function Memory() {
                   <Grid3x3 size={14} />
                 </button>
                 <button
+                  aria-label="List view"
                   onClick={() => setView('list')}
                   className={
                     view === 'list'
@@ -329,8 +382,16 @@ export default function Memory() {
                   return (
                     <div
                       key={m.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => openDetail(m.id)}
-                      className="cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 hover:border-[var(--color-border-hover)] transition-colors flex flex-col gap-2"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          openDetail(m.id)
+                        }
+                      }}
+                      className="cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 hover:border-[var(--color-border-hover)] transition-colors flex flex-col gap-2 focus:outline-none focus:ring-1 focus:ring-[var(--color-signal)]"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
@@ -339,20 +400,24 @@ export default function Memory() {
                         </span>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
+                            aria-label={m.pinned ? 'Unpin memory' : 'Pin memory'}
+                            disabled={pendingIds.has(m.id)}
                             onClick={(e) => {
                               e.stopPropagation()
                               pinMutation.mutate(m)
                             }}
-                            className={m.pinned ? 'text-[var(--color-signal)]' : 'text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]'}
+                            className={(m.pinned ? 'text-[var(--color-signal)]' : 'text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]') + ' disabled:opacity-50'}
                           >
                             <Pin size={13} fill={m.pinned ? 'currentColor' : 'none'} />
                           </button>
                           <button
+                            aria-label={m.favorited ? 'Unfavorite memory' : 'Favorite memory'}
+                            disabled={pendingIds.has(m.id)}
                             onClick={(e) => {
                               e.stopPropagation()
                               favoriteMutation.mutate(m)
                             }}
-                            className={m.favorited ? 'text-[var(--color-amber)]' : 'text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]'}
+                            className={(m.favorited ? 'text-[var(--color-amber)]' : 'text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]') + ' disabled:opacity-50'}
                           >
                             <Star size={13} fill={m.favorited ? 'currentColor' : 'none'} />
                           </button>
@@ -385,8 +450,16 @@ export default function Memory() {
                   return (
                     <div
                       key={m.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => openDetail(m.id)}
-                      className="cursor-pointer py-3 flex items-center gap-3 hover:bg-[var(--color-surface-hover)] transition-colors px-2 -mx-2 rounded-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          openDetail(m.id)
+                        }
+                      }}
+                      className="cursor-pointer py-3 flex items-center gap-3 hover:bg-[var(--color-surface-hover)] transition-colors px-2 -mx-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--color-signal)]"
                     >
                       <Icon size={14} className="text-[var(--color-text-faint)] shrink-0" />
                       <div className="min-w-0 flex-1">
