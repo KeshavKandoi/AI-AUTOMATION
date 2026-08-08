@@ -60,6 +60,12 @@ def forgot_password(payload: ForgotPasswordRequest):
     return {"message": "If an account exists with this email, a reset code has been sent."}
 
 
+@router.post("/resend-reset-otp")
+def resend_reset_otp(payload: ForgotPasswordRequest):
+    service.forgot_password(payload.email)
+    return {"message": "If an account exists with this email, a new code has been sent."}
+
+
 @router.post("/reset-password")
 def reset_password(payload: ResetPasswordRequest):
     service.reset_password(payload.email, payload.otp, payload.new_password)
