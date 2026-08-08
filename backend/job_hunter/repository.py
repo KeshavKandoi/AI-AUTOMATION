@@ -398,3 +398,24 @@ def get_attachment(attachment_id: str) -> Optional[dict]:
 
 def delete_attachment_row(attachment_id: str) -> None:
     supabase_admin.table("job_hunter_attachments").delete().eq("id", attachment_id).execute()
+
+
+def has_running_search(organization_id: str) -> bool:
+    """Checks if a search sweep is already in progress for this org —
+    used to prevent overlapping sweeps (manual /run-now trigger racing
+    the 6-hourly scheduled job, or two manual triggers close together).
+    A run is considered stale (and treated as NOT blocking) if it's been
+    'running' for more than 15 minutes, since that almost certainly means
+    a previous process crashed mid-sweep without reaching finish_search_run
+    — otherwise a genuine crash would permanently lock that org out of
+    ever searching again."""
+    from datetime import datetime, timezone, timedelta
+    stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+
+    result = supabase_admin.table("job_hunter_search_runs") \
+        .select("id, started_at") \
+        .eq("organization_id", organization_id) \
+        .eq("status", "running") \
+        .gte("started_at", stale_cutoff) \
+        .execute()
+    return len(result.data) > 0
