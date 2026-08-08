@@ -1,18 +1,29 @@
 from typing import Optional, Literal
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
-# Kept as plain str (not a strict Literal) so future categories can be added
-# without a backend schema change — mirrors the audit_logs module/action
-# fields. The values below are the ones the frontend currently renders with
-# a dedicated icon/label; any other string still works, it just falls back
-# to a generic display.
-MemoryCategory = Literal[
-    "user_preference", "project", "repository", "workflow",
-    "conversation", "integration", "knowledge", "custom",
-]
 MemoryImportance = Literal["low", "medium", "high", "critical"]
-MemoryStatus = Literal["active", "archived", "deleted"]
+
+TITLE_MAX = 200
+CONTENT_MAX = 20000
+
+
+def _clean_title(v: str) -> str:
+    v = v.strip()
+    if not v:
+        raise ValueError("title must not be empty")
+    if len(v) > TITLE_MAX:
+        raise ValueError(f"title must be at most {TITLE_MAX} characters")
+    return v
+
+
+def _clean_content(v: str) -> str:
+    v = v.strip()
+    if not v:
+        raise ValueError("content must not be empty")
+    if len(v) > CONTENT_MAX:
+        raise ValueError(f"content must be at most {CONTENT_MAX} characters")
+    return v
 
 
 class MemoryCreate(BaseModel):
@@ -26,6 +37,16 @@ class MemoryCreate(BaseModel):
     user_id: Optional[str] = None
     metadata: dict = {}
 
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v):
+        return _clean_title(v)
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v):
+        return _clean_content(v)
+
 
 class MemoryUpdate(BaseModel):
     title: Optional[str] = None
@@ -34,6 +55,16 @@ class MemoryUpdate(BaseModel):
     tags: Optional[list[str]] = None
     importance: Optional[MemoryImportance] = None
     metadata: Optional[dict] = None
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v):
+        return _clean_title(v) if v is not None else v
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v):
+        return _clean_content(v) if v is not None else v
 
 
 class MemoryOut(BaseModel):
