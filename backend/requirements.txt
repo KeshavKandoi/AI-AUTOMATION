@@ -75,3 +75,4 @@ supabase==2.31.0
 supabase-auth==2.31.0
 supabase-functions==2.31.0
 playwright
+python-multipart
