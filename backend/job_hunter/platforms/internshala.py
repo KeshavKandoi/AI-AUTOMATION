@@ -114,13 +114,15 @@ class InternshalaProvider(PlaywrightJobProvider):
         # listing is full-time by default; internships live under /internships/)
         employment_type = "Full-time"
 
+        salary_min, salary_max, salary_currency = self._parse_salary(salary_text)
+
         if not matches_preferences(
             preferences, title=title, description="",
             location=location or "", employment_type=employment_type,
+            experience_text=experience_text,
+            salary_min=salary_min, salary_currency=salary_currency,
         ):
             return None
-
-        salary_min, salary_max, salary_currency = self._parse_salary(salary_text)
 
         return RawJob(
             company_name=company_name,
