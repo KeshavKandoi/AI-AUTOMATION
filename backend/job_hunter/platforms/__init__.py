@@ -9,3 +9,4 @@ from job_hunter.platforms import greenhouse   # noqa: F401
 from job_hunter.platforms import lever        # noqa: F401
 from job_hunter.platforms import ashby        # noqa: F401
 from job_hunter.platforms import yc_jobs      # noqa: F401
+from job_hunter.platforms import career_pages # noqa: F401
