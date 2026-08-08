@@ -170,9 +170,19 @@ def login(email: str, password: str):
 
 
 def forgot_password(email: str):
-    users = supabase_admin.auth.admin.list_users()
-    match = next((u for u in users if u.email == email), None)
-    if match:
+    """Checks whether the account exists without calling the Admin API
+    (list_users has proven intermittently unreliable in this environment).
+    sign_in_with_password with a deliberately wrong password still lets
+    Supabase distinguish "no such user" from "wrong password" via the error
+    message, without ever risking a real login or needing admin privileges."""
+    try:
+        supabase_admin.auth.sign_in_with_password({"email": email, "password": "__nonexistent_probe__"})
+        exists = True  # extremely unlikely to actually succeed
+    except Exception as e:
+        msg = str(e).lower()
+        exists = "invalid login credentials" in msg or "email not confirmed" in msg
+
+    if exists:
         _issue_otp(email, "password_reset")
     # Always returns silently regardless of whether the email exists —
     # caller (routes.py) returns the same generic message either way.
