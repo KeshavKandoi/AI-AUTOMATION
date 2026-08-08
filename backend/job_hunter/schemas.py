@@ -183,10 +183,12 @@ class NoteOut(BaseModel):
 
 
 class AttachmentCreate(BaseModel):
-    file_name: str
-    storage_path: str
+    """No longer used as a request body schema — attachments are now
+    uploaded via multipart/form-data (see routes.py), not JSON with a
+    client-supplied storage_path. Kept only if referenced elsewhere;
+    the real upload path is service.add_attachment() accepting raw
+    file bytes."""
     file_type: AttachmentType
-    size_bytes: Optional[int] = None
 
 
 class AttachmentOut(BaseModel):
