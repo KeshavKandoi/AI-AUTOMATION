@@ -162,17 +162,6 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.get("/debug/probe-error-check")
-def debug_probe_error_check(email: str):
-    """TEMPORARY — shows the exact error message Supabase returns for a
-    sign_in_with_password probe, to fix the forgot_password existence check."""
-    from config import supabase_admin
-    try:
-        supabase_admin.auth.sign_in_with_password({"email": email, "password": "__nonexistent_probe__"})
-        return {"result": "unexpected success"}
-    except Exception as e:
-        return {"error_str": str(e), "error_type": str(type(e))}
-
 
 
 
