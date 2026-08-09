@@ -28,6 +28,11 @@ export interface ForgotPasswordPayload {
   email: string
 }
 
+export interface ChangePasswordPayload {
+  current_password: string
+  new_password: string
+}
+
 export interface ResetPasswordPayload {
   email: string
   otp: string
