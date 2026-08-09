@@ -139,3 +139,15 @@ async def run_search_now(org_id: str):
     from job_hunter.scheduler_jobs import run_search_for_org
     result = await run_search_for_org(org_id)
     return {"status": "triggered", "result": result}
+
+
+@router.get("/providers/health")
+def get_provider_health(org_id: str):
+    from job_hunter import repository
+    providers = repository.get_provider_health_summary(org_id)
+    unhealthy = [p for p in providers if not p["is_healthy"]]
+    return {
+        "providers": providers,
+        "unhealthy_count": len(unhealthy),
+        "unhealthy_platforms": [p["platform"] for p in unhealthy],
+    }
