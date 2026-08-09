@@ -126,3 +126,22 @@ async def run_due_reminders() -> int:
     if count:
         logger.info(f"[job_hunter] Triggered {count} due reminder(s)")
     return count
+
+
+async def run_gmail_poll_for_all_orgs() -> dict:
+    """Called every hour by the scheduler. Loops every org with completed
+    Job Hunter onboarding; one org's failure never blocks the rest since
+    poll_gmail_for_org catches its own exceptions. Orgs without a
+    connected Gmail integration are skipped cheaply (poll_gmail_for_org
+    checks this internally and returns early)."""
+    from job_hunter.gmail_integration import poll_gmail_for_org
+
+    org_ids = repository.list_orgs_with_preferences()
+    logger.info(f"[job_hunter] Starting hourly Gmail poll sweep for {len(org_ids)} orgs")
+
+    results = {}
+    for org_id in org_ids:
+        results[org_id] = await poll_gmail_for_org(org_id)
+
+    logger.info(f"[job_hunter] Gmail poll sweep complete for {len(org_ids)} orgs")
+    return results
