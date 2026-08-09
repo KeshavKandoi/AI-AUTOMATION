@@ -5,6 +5,7 @@ import type {
   VerifyOtpPayload,
   ForgotPasswordPayload,
   ResetPasswordPayload,
+  ChangePasswordPayload,
   User,
 } from '@/types/auth'
 
@@ -31,4 +32,7 @@ export const authApi = {
     apiClient.post<{ message: string }>('/auth/resend-reset-otp', { email }),
 
   me: () => apiClient.get<User>('/auth/me'),
+
+  changePassword: (payload: ChangePasswordPayload) =>
+    apiClient.post<{ message: string }>('/auth/change-password', payload),
 }
