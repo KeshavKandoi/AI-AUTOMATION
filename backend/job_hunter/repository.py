@@ -441,3 +441,69 @@ def get_provider_health_summary(organization_id: str) -> list[dict]:
             "is_healthy": is_healthy,
         })
     return summary
+
+
+# ---------------------------------------------------------------------------
+# Gmail poll tracking + events (application-status detection)
+# ---------------------------------------------------------------------------
+
+def has_running_gmail_poll(organization_id: str) -> bool:
+    """Same pattern as has_running_search — prevents overlapping Gmail
+    polls for the same org. 15-minute staleness cutoff so a crashed poll
+    never permanently locks the org out."""
+    from datetime import datetime, timezone, timedelta
+    stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    result = supabase_admin.table("job_hunter_gmail_poll_runs") \
+        .select("id") \
+        .eq("organization_id", organization_id) \
+        .eq("status", "running") \
+        .gte("started_at", stale_cutoff) \
+        .execute()
+    return len(result.data) > 0
+
+
+def create_gmail_poll_run(organization_id: str) -> dict:
+    result = supabase_admin.table("job_hunter_gmail_poll_runs").insert({
+        "organization_id": organization_id,
+        "status": "running",
+    }).execute()
+    return result.data[0]
+
+
+def finish_gmail_poll_run(
+    run_id: str, status: str, messages_scanned: int, messages_processed: int,
+    applications_updated: int, error_message: Optional[str] = None,
+) -> dict:
+    from datetime import datetime, timezone
+    result = supabase_admin.table("job_hunter_gmail_poll_runs").update({
+        "status": status,
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "messages_scanned": messages_scanned,
+        "messages_processed": messages_processed,
+        "applications_updated": applications_updated,
+        "error_message": error_message,
+    }).eq("id", run_id).execute()
+    return result.data[0]
+
+
+def gmail_message_already_processed(organization_id: str, gmail_message_id: str) -> bool:
+    result = supabase_admin.table("job_hunter_gmail_events") \
+        .select("id") \
+        .eq("organization_id", organization_id) \
+        .eq("gmail_message_id", gmail_message_id) \
+        .execute()
+    return len(result.data) > 0
+
+
+def create_gmail_event(row: dict) -> dict:
+    result = supabase_admin.table("job_hunter_gmail_events").insert(row).execute()
+    return result.data[0]
+
+
+def list_gmail_events(organization_id: str, category: Optional[str] = None, limit: int = 50) -> list[dict]:
+    query = supabase_admin.table("job_hunter_gmail_events").select("*") \
+        .eq("organization_id", organization_id)
+    if category:
+        query = query.eq("category", category)
+    result = query.order("processed_at", desc=True).limit(limit).execute()
+    return result.data
