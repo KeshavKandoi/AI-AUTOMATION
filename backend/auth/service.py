@@ -225,6 +225,25 @@ def reset_password(email: str, otp: str, new_password: str):
     auth_client.auth.admin.update_user_by_id(match.id, {"password": new_password})
 
 
+def change_password(user_id: str, email: str, current_password: str, new_password: str):
+    """Verifies the current password by attempting a real sign-in (proves the
+    caller actually knows it, not just that they hold a valid access token —
+    e.g. protects against a stolen/leaked token being used to lock the real
+    owner out), then updates via the Admin API. Does not touch or invalidate
+    the caller's existing session."""
+    auth_client = get_auth_client()
+    try:
+        auth_client.auth.sign_in_with_password({"email": email, "password": current_password})
+    except Exception:
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    try:
+        auth_client.auth.admin.update_user_by_id(user_id, {"password": new_password})
+    except Exception:
+        logger.exception(f"change_password: update_user_by_id failed for user_id={user_id}")
+        raise HTTPException(status_code=500, detail="Could not update password. Please try again.")
+
+
 def refresh_session(refresh_token: str):
     auth_client = get_auth_client()
     try:
