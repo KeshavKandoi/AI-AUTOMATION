@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Response, Request, HTTPException
+from fastapi import APIRouter, Response, Request, HTTPException, Depends
 from config import settings
 from auth import service
+from auth.dependencies import get_current_user
 from auth.schemas import (
     SignupRequest, LoginRequest, VerifyOtpRequest, ResendOtpRequest,
-    ForgotPasswordRequest, ResetPasswordRequest,
+    ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -92,3 +93,9 @@ def refresh(request: Request, response: Response):
 def logout(response: Response):
     _clear_refresh_cookie(response)
     return {"message": "Logged out"}
+
+
+@router.post("/change-password")
+def change_password(payload: ChangePasswordRequest, user: dict = Depends(get_current_user)):
+    service.change_password(user.get("sub"), user.get("email"), payload.current_password, payload.new_password)
+    return {"message": "Password changed successfully"}
