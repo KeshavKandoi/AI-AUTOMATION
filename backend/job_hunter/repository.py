@@ -419,3 +419,25 @@ def has_running_search(organization_id: str) -> bool:
         .gte("started_at", stale_cutoff) \
         .execute()
     return len(result.data) > 0
+
+
+def get_provider_health_summary(organization_id: str) -> list[dict]:
+    """Enriches raw provider_status rows with a computed health verdict.
+    A provider is flagged 'degraded' if its last_error is set (an actual
+    failure), or 'error' status from the most recent run. This is
+    deliberately based on the single most recent run rather than a
+    rolling window — job_hunter_provider_status only stores one row per
+    (org, platform) via upsert, so there's no history to average over
+    without querying job_hunter_search_runs separately, which stores
+    aggregate counts across ALL providers per run, not per-provider
+    detail. Flagging on the latest known state is the honest signal
+    available with the current schema."""
+    statuses = get_provider_statuses(organization_id)
+    summary = []
+    for s in statuses:
+        is_healthy = s["status"] == "active" and not s.get("last_error")
+        summary.append({
+            **s,
+            "is_healthy": is_healthy,
+        })
+    return summary
