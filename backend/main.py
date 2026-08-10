@@ -5,25 +5,7 @@ import httpx
 from datetime import datetime, timedelta, timezone
 
 import time
-from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token, get_valid_access_token
-
-def run_gemini(prompt: str):
-    """Wraps a Gemini generate_content call. Raises a clean 503 on transient
-    provider errors (overload, unavailable) instead of letting them surface
-    as unhandled 500s. Logs the real exception for debugging."""
-    from google.genai import errors as genai_errors
-    try:
-        return gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
-    except genai_errors.ServerError as e:
-        logger.error(f"Gemini ServerError (transient): {e}")
-        raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again shortly.")
-    except genai_errors.APIError as e:
-        logger.error(f"Gemini APIError: {e}")
-        raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again shortly.")
-    except Exception as e:
-        logger.error(f"Unexpected error calling Gemini: {e}")
-        raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again shortly.")
-
+from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token, get_valid_access_token, run_gemini
 
 async def fetch_github_repos_and_issues(access_token: str):
     """Fetches the user's repos and open issues for repos that have any.
