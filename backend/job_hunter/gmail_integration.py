@@ -18,6 +18,9 @@ this file is orchestration on top of what already exists.
 import httpx
 from datetime import datetime, timezone
 
+from job_hunter.interview_datetime_extractor import extract_interview_datetime
+from job_hunter.calendar_integration import sync_interview_event, update_interview_event, cancel_interview_event
+
 from config import logger
 from job_hunter import repository, service
 from job_hunter.gmail_classifier import classify_email
@@ -171,12 +174,14 @@ async def poll_gmail_for_org(organization_id: str) -> dict:
         ]
 
         candidates = []
+        application_job_map = {}
         for app in open_applications:
             job = repository.get_job(app["job_id"], organization_id)
             if not job:
                 continue
             verified_domain = _get_verified_domain_for_job(job)
             candidates.append((app, job, verified_domain))
+            application_job_map[app["id"]] = job  # store full job dict, not just id — avoids redundant get_job() calls later
 
         async with httpx.AsyncClient(timeout=20) as client:
             message_refs = await _list_recent_messages(client, access_token)
@@ -254,6 +259,53 @@ async def poll_gmail_for_org(organization_id: str) -> dict:
                                 "metadata": {"gmail_message_id": message_id},
                                 "source": "gmail",
                             })
+
+                        # Calendar sync: structured extraction first, LLM fallback,
+                        # confidence-gated — a low-confidence or failed extraction
+                        # never blocks the status update above, it just means
+                        # calendar_event stays unset for this email (still safely
+                        # recorded in job_hunter_gmail_events below).
+                        if classification.category == "interview_invite":
+                            extracted = extract_interview_datetime(msg, subject, body_text)
+                            if extracted:
+                                job_for_app = application_job_map.get(application_id)
+                                if job_for_app:
+                                    await sync_interview_event(
+                                        organization_id=organization_id,
+                                        application_id=application_id,
+                                        job=job_for_app,
+                                        gmail_message_id=message_id,
+                                        gmail_thread_id=msg.get("threadId"),
+                                        gmail_history_id=msg.get("historyId"),
+                                        extracted=extracted,
+                                    )
+                        elif classification.category == "reschedule":
+                            extracted = extract_interview_datetime(msg, subject, body_text)
+                            if extracted:
+                                updated_event = await update_interview_event(
+                                    organization_id=organization_id,
+                                    application_id=application_id,
+                                    gmail_message_id=message_id,
+                                    gmail_history_id=msg.get("historyId"),
+                                    extracted=extracted,
+                                )
+                                if updated_event is None:
+                                    # No prior tracked event — fall back to
+                                    # creating a fresh one so the interview
+                                    # still ends up on the calendar.
+                                    job_for_app = application_job_map.get(application_id)
+                                    if job_for_app:
+                                        await sync_interview_event(
+                                            organization_id=organization_id,
+                                            application_id=application_id,
+                                            job=job_for_app,
+                                            gmail_message_id=message_id,
+                                            gmail_thread_id=msg.get("threadId"),
+                                            gmail_history_id=msg.get("historyId"),
+                                            extracted=extracted,
+                                        )
+                        elif classification.category in ("withdrawal", "rejection"):
+                            await cancel_interview_event(organization_id, application_id)
                 elif classification.category == "unmatched" or (match_result and not match_result.is_confident):
                     final_category = "unmatched"
 
