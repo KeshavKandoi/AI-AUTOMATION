@@ -507,3 +507,46 @@ def list_gmail_events(organization_id: str, category: Optional[str] = None, limi
         query = query.eq("category", category)
     result = query.order("processed_at", desc=True).limit(limit).execute()
     return result.data
+
+
+# ---------------------------------------------------------------------------
+# Calendar events (interview scheduling from Gmail detection)
+# ---------------------------------------------------------------------------
+
+def get_calendar_event_by_gmail_message(organization_id: str, gmail_message_id: str) -> Optional[dict]:
+    """Idempotency check — same gmail_message_id can never produce two
+    calendar events for this org."""
+    result = supabase_admin.table("job_hunter_calendar_events") \
+        .select("*") \
+        .eq("organization_id", organization_id) \
+        .eq("gmail_message_id", gmail_message_id) \
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def get_active_calendar_event_for_application(organization_id: str, application_id: str) -> Optional[dict]:
+    """Finds the most recent non-cancelled calendar event for an
+    application — used by reschedule/cancellation handling to find the
+    existing google_calendar_event_id to update/cancel, rather than
+    creating a new event."""
+    result = supabase_admin.table("job_hunter_calendar_events") \
+        .select("*") \
+        .eq("organization_id", organization_id) \
+        .eq("application_id", application_id) \
+        .in_("sync_status", ["created", "updated"]) \
+        .order("created_at", desc=True) \
+        .limit(1) \
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def create_calendar_event_row(row: dict) -> dict:
+    result = supabase_admin.table("job_hunter_calendar_events").insert(row).execute()
+    return result.data[0]
+
+
+def update_calendar_event_row(event_id: str, updates: dict) -> dict:
+    from datetime import datetime, timezone
+    updates = {**updates, "updated_at": datetime.now(timezone.utc).isoformat()}
+    result = supabase_admin.table("job_hunter_calendar_events").update(updates).eq("id", event_id).execute()
+    return result.data[0]
