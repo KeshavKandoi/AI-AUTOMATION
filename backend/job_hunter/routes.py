@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from job_hunter import service
 from job_hunter.schemas import (
     JobHunterPreferencesCreate, JobHunterPreferencesUpdate,
     ApplicationCreate, ApplicationUpdate,
     NoteCreate, ReminderCreate,
 )
+from auth.dependencies import get_current_org_id
 
 router = APIRouter(prefix="/job-hunter", tags=["job-hunter"])
 
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/job-hunter", tags=["job-hunter"])
 # ---------------------------------------------------------------------------
 
 @router.get("/preferences")
-def get_preferences(org_id: str):
+def get_preferences(org_id: str = Depends(get_current_org_id)):
     prefs = service.get_preferences(org_id)
     if not prefs:
         return {"onboarding_completed": False, "preferences": None}
@@ -22,13 +23,13 @@ def get_preferences(org_id: str):
 
 
 @router.post("/preferences")
-def save_preferences(org_id: str, payload: JobHunterPreferencesCreate):
+def save_preferences(payload: JobHunterPreferencesCreate, org_id: str = Depends(get_current_org_id)):
     saved = service.save_preferences(org_id, payload)
     return {"status": "saved", "preferences": saved}
 
 
 @router.patch("/preferences")
-def update_preferences(org_id: str, payload: JobHunterPreferencesUpdate):
+def update_preferences(payload: JobHunterPreferencesUpdate, org_id: str = Depends(get_current_org_id)):
     saved = service.update_preferences(org_id, payload)
     return {"status": "updated", "preferences": saved}
 
@@ -39,12 +40,12 @@ def update_preferences(org_id: str, payload: JobHunterPreferencesUpdate):
 
 @router.get("/jobs")
 def list_jobs(
-    org_id: str,
     limit: int = 50,
     offset: int = 0,
     employment_type: str | None = None,
     work_mode: str | None = None,
     search: str | None = None,
+    org_id: str = Depends(get_current_org_id),
 ):
     return service.list_jobs(
         org_id, limit=limit, offset=offset,
@@ -53,7 +54,7 @@ def list_jobs(
 
 
 @router.get("/jobs/{job_id}")
-def get_job(job_id: str, org_id: str):
+def get_job(job_id: str, org_id: str = Depends(get_current_org_id)):
     return service.get_job_with_sources(job_id, org_id)
 
 
@@ -62,23 +63,23 @@ def get_job(job_id: str, org_id: str):
 # ---------------------------------------------------------------------------
 
 @router.get("/applications")
-def list_applications(org_id: str, status: str | None = None):
+def list_applications(status: str | None = None, org_id: str = Depends(get_current_org_id)):
     return service.list_applications(org_id, status=status)
 
 
 @router.post("/applications")
-def create_application(org_id: str, payload: ApplicationCreate):
+def create_application(payload: ApplicationCreate, org_id: str = Depends(get_current_org_id)):
     application = service.get_or_create_application(org_id, payload.job_id, initial_status=payload.status)
     return {"status": "created", "application": application}
 
 
 @router.get("/applications/{application_id}")
-def get_application(application_id: str, org_id: str):
+def get_application(application_id: str, org_id: str = Depends(get_current_org_id)):
     return service.get_application_detail(org_id, application_id)
 
 
 @router.patch("/applications/{application_id}")
-def update_application(application_id: str, org_id: str, payload: ApplicationUpdate):
+def update_application(application_id: str, payload: ApplicationUpdate, org_id: str = Depends(get_current_org_id)):
     if payload.status is None:
         raise HTTPException(status_code=400, detail="status is required")
     updated = service.update_application_status(org_id, application_id, payload.status)
@@ -86,7 +87,7 @@ def update_application(application_id: str, org_id: str, payload: ApplicationUpd
 
 
 @router.post("/applications/{application_id}/notes")
-def add_note(application_id: str, org_id: str, payload: NoteCreate):
+def add_note(application_id: str, payload: NoteCreate, org_id: str = Depends(get_current_org_id)):
     note = service.add_note(org_id, application_id, payload.content)
     return {"status": "added", "note": note}
 
@@ -94,9 +95,9 @@ def add_note(application_id: str, org_id: str, payload: NoteCreate):
 @router.post("/applications/{application_id}/attachments")
 async def add_attachment(
     application_id: str,
-    org_id: str,
     file_type: str = Form(...),
     file: UploadFile = File(...),
+    org_id: str = Depends(get_current_org_id),
 ):
     file_bytes = await file.read()
     attachment = service.add_attachment(
@@ -110,19 +111,19 @@ async def add_attachment(
 
 
 @router.get("/applications/{application_id}/attachments/{attachment_id}/download")
-def download_attachment(application_id: str, attachment_id: str, org_id: str):
+def download_attachment(application_id: str, attachment_id: str, org_id: str = Depends(get_current_org_id)):
     url = service.get_attachment_download_url(org_id, application_id, attachment_id)
     return {"download_url": url}
 
 
 @router.delete("/applications/{application_id}/attachments/{attachment_id}")
-def delete_attachment(application_id: str, attachment_id: str, org_id: str):
+def delete_attachment(application_id: str, attachment_id: str, org_id: str = Depends(get_current_org_id)):
     service.delete_attachment(org_id, application_id, attachment_id)
     return {"status": "deleted", "attachment_id": attachment_id}
 
 
 @router.post("/applications/{application_id}/reminders")
-def create_reminder(application_id: str, org_id: str, payload: ReminderCreate):
+def create_reminder(application_id: str, payload: ReminderCreate, org_id: str = Depends(get_current_org_id)):
     reminder = service.create_reminder(
         org_id, application_id,
         remind_at=payload.remind_at.isoformat(), note=payload.note,
@@ -135,14 +136,14 @@ def create_reminder(application_id: str, org_id: str, payload: ReminderCreate):
 # ---------------------------------------------------------------------------
 
 @router.post("/search/run-now")
-async def run_search_now(org_id: str):
+async def run_search_now(org_id: str = Depends(get_current_org_id)):
     from job_hunter.scheduler_jobs import run_search_for_org
     result = await run_search_for_org(org_id)
     return {"status": "triggered", "result": result}
 
 
 @router.get("/providers/health")
-def get_provider_health(org_id: str):
+def get_provider_health(org_id: str = Depends(get_current_org_id)):
     from job_hunter import repository
     providers = repository.get_provider_health_summary(org_id)
     unhealthy = [p for p in providers if not p["is_healthy"]]
