@@ -232,7 +232,7 @@ function ApplicationDetailModal({ applicationId, onClose }: { applicationId: str
                         {application.job.location}
                       </span>
                     )}
-                    
+                      <a
                       href={application.job.original_apply_url}
                       target="_blank"
                       rel="noreferrer"
