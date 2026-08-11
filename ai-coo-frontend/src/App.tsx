@@ -14,6 +14,7 @@ import Dashboard from '@/pages/dashboard/Dashboard'
 import ComingSoon from '@/pages/ComingSoon'
 import Tasks from '@/pages/tasks/Tasks'
 import HumanApproval from '@/pages/approvals/HumanApproval'
+import JobHunter from '@/pages/jobHunter/JobHunter'
 import Integrations from '@/pages/integrations/Integrations'
 import CommitScheduler from '@/pages/commitScheduler/CommitScheduler'
 import GitHub from '@/pages/github/GitHub'
@@ -72,6 +73,7 @@ function App() {
               <Route path="/commit-scheduler" element={<CommitScheduler />} />
               <Route path="/pull-requests" element={<ComingSoon title="Pull Requests" />} />
               <Route path="/approvals" element={<HumanApproval />} />
+              <Route path="/job-hunter" element={<JobHunter />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/integrations" element={<Integrations />} />
               <Route path="/memory" element={<Memory />} />
