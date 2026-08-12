@@ -135,11 +135,34 @@ def create_reminder(application_id: str, payload: ReminderCreate, org_id: str = 
 # Manual trigger (mirrors commit_scheduler's /run-now pattern)
 # ---------------------------------------------------------------------------
 
-@router.post("/search/run-now")
+@router.post("/search/run-now", status_code=202)
 async def run_search_now(org_id: str = Depends(get_current_org_id)):
+    """Triggers an immediate search sweep for this org without blocking
+    the HTTP request for the several minutes a full sweep can take.
+    Reuses the existing live AsyncIOScheduler instance (the same one
+    running the 6-hourly run_search_for_all_orgs job) as the execution
+    mechanism, rather than introducing a second background-task system —
+    scheduling an async callable this way is already how every other
+    scheduled job in this app runs. Reuses the existing has_running_search
+    staleness-aware guard (already relied on by the 6-hourly sweep) so a
+    manual trigger racing the scheduled job, or two manual triggers close
+    together, can never overlap. replace_existing=True on a per-org job id
+    additionally coalesces rapid double-clicks onto a single scheduled run
+    rather than queuing duplicates."""
+    from job_hunter import repository
     from job_hunter.scheduler_jobs import run_search_for_org
-    result = await run_search_for_org(org_id)
-    return {"status": "triggered", "result": result}
+    from scheduler import scheduler
+
+    if repository.has_running_search(org_id):
+        return {"status": "already_running"}
+
+    scheduler.add_job(
+        run_search_for_org,
+        args=[org_id],
+        id=f"job_hunter_manual_search_{org_id}",
+        replace_existing=True,
+    )
+    return {"status": "started"}
 
 
 @router.get("/providers/health")
