@@ -19,7 +19,7 @@ import type {
   PreferencesResponse,
   ProviderHealthResponse,
   ReminderOut,
-  SearchRunResult,
+  SearchTriggerResponse,
 } from './types'
 
 export const realJobHunterService = {
@@ -122,11 +122,15 @@ export const realJobHunterService = {
       )
       .then((r) => r.data.reminder),
 
-  // Search trigger
+  // Search trigger — backend now returns immediately (202) and runs the
+  // sweep in the background via the existing scheduler, since a full
+  // sweep can take several minutes and was previously blocking the
+  // request until Render's proxy timed it out. No jobs_found/jobs_new
+  // counts are available synchronously anymore.
   runSearchNow: () =>
     apiClient
-      .post<{ status: string; result: SearchRunResult }>('/job-hunter/search/run-now')
-      .then((r) => r.data.result),
+      .post<SearchTriggerResponse>('/job-hunter/search/run-now')
+      .then((r) => r.data),
 
   // Provider health
   getProviderHealth: () =>
