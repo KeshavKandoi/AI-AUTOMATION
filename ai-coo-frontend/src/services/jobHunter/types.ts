@@ -222,11 +222,10 @@ export interface ProviderHealthResponse {
 // Search run-now
 // ---------------------------------------------------------------------------
 
-export interface SearchRunResult {
-  skipped?: boolean
-  reason?: string
-  jobs_found?: number
-  jobs_new?: number
-  statuses?: Record<string, unknown>
-  error?: string
+// Backend now returns immediately (202) and runs the sweep in the
+// background — no jobs_found/jobs_new here since they don't exist yet
+// at request time. "already_running" means the existing staleness-aware
+// has_running_search() guard blocked a duplicate/overlapping trigger.
+export interface SearchTriggerResponse {
+  status: 'started' | 'already_running'
 }
