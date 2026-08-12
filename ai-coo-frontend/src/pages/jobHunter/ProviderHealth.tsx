@@ -84,9 +84,9 @@ export default function ProviderHealth() {
 
       {runSearchMutation.isSuccess && !runSearchMutation.isPending && (
         <div className="rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2 text-xs text-[var(--color-signal)]">
-          {runSearchMutation.data.skipped
-            ? "Search skipped - " + (runSearchMutation.data.reason ?? "already running or too recent")
-            : "Search triggered - provider statuses will refresh shortly"}
+          {runSearchMutation.data.status === "already_running"
+            ? "A search is already running for your account - check back shortly."
+            : "Search started - provider statuses will update here once it finishes."}
         </div>
       )}
       {runSearchMutation.isError && <ErrorBanner message="Couldn't trigger a search run." />}
