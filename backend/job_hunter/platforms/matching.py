@@ -52,6 +52,35 @@ def normalize_employment_type(raw: Optional[str]) -> Optional[str]:
     return EMPLOYMENT_TYPE_MAP.get(key, raw)
 
 
+WORK_MODE_MAP = {
+    "remote": "Remote",
+    "remoteonly": "Remote",
+    "fullyremote": "Remote",
+    "workfromhome": "Remote",
+    "wfh": "Remote",
+    "hybrid": "Hybrid",
+    "onsite": "On-site",
+    "onsiteonly": "On-site",
+    "inoffice": "On-site",
+    "office": "On-site",
+    "inperson": "On-site",
+}
+
+
+def normalize_work_mode(raw: Optional[str]) -> Optional[str]:
+    """Maps a provider's raw work-mode text to exactly one of the three
+    canonical database values: "Remote", "Hybrid", "On-site". Returns None
+    for anything ambiguous or unrecognized -- callers must never guess a
+    work mode from a bare location/city/country name. This is the single
+    shared normalizer every provider adapter routes explicit work-mode
+    signals through, so the database never accumulates variant spellings
+    (remote / REMOTE / WFH / Onsite / In office / ...)."""
+    if not raw:
+        return None
+    key = raw.strip().lower().replace("-", "").replace("_", "").replace(" ", "")
+    return WORK_MODE_MAP.get(key)
+
+
 def _contains_word(haystack: str, needle: str) -> bool:
     """Word-boundary substring match. For multi-word needles (e.g. "backend
     engineer"), requires the exact phrase with boundaries on both ends —
@@ -136,13 +165,20 @@ def matches_preferences(
     experience_text: Optional[str] = None,
     salary_min: Optional[float] = None,
     salary_currency: Optional[str] = None,
+    work_mode: Optional[str] = None,
 ) -> bool:
     """
-    experience_text / salary_min / salary_currency are optional and
-    backward compatible — existing call sites that don't pass them are
+    experience_text / salary_min / salary_currency / work_mode are optional
+    and backward compatible — existing call sites that don't pass them are
     unaffected (those filters simply never trigger, same as before this
     change). Providers that already extract this data at scrape time
     should pass it through for the new filtering to take effect.
+
+    work_mode, when provided, must already be one of the canonical values
+    ("Remote", "Hybrid", "On-site") -- callers should route raw provider
+    text through normalize_work_mode() before passing it here. When not
+    provided, work-mode filtering falls back to the original substring
+    check against the raw location text (fully backward compatible).
     """
     title_l = title or ""
     location_l = (location or "").lower()
@@ -162,10 +198,17 @@ def matches_preferences(
         if not (role_match or skill_in_title):
             return False
 
-    # Location / work mode match — only filters when we actually have a location
-    if location_l and (preferred_locations or work_modes):
-        loc_match = any(pl in location_l for pl in preferred_locations)
-        if "remote" in work_modes and "remote" in location_l:
+    # Location / work mode match — only filters when we have something to check
+    work_mode_l = (normalize_work_mode(work_mode) or "").lower()
+    if (location_l or work_mode_l) and (preferred_locations or work_modes):
+        loc_match = any(pl in location_l for pl in preferred_locations) if location_l else False
+        if work_mode_l:
+            # Provider gave us an explicit, already-normalized work mode --
+            # trust it directly instead of re-deriving "remote" from raw
+            # location text (which some providers strip the word out of).
+            if work_mode_l in work_modes:
+                loc_match = True
+        elif "remote" in work_modes and "remote" in location_l:
             loc_match = True
         if not loc_match:
             return False
