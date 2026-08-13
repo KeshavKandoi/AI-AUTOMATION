@@ -57,17 +57,25 @@ def _categories_for_preferences(preferences: dict) -> list[str]:
     return list(matched) if matched else ["software-engineer"]
 
 
-# Explicit-only remote signal matcher for YC location text. Never infer
-# remote from a bare city/country name -- only fires on a leading phrase
-# that unambiguously states remote work.
-_YC_REMOTE_PATTERN = re.compile(r"^(fully\s+remote|remote\s+only|remote)\b", re.IGNORECASE)
+# Explicit-only remote signal matcher for YC location text. YC lists
+# multi-location roles as slash-separated segments, e.g.
+# "Bengaluru, KA, IN / Remote" or "SF, US / Remote (US)" -- "Remote" can
+# appear in ANY segment, not just the first, so each segment is checked
+# individually against a full-segment match. Never infers remote from a
+# bare city/country segment or generic terms like "Worldwide".
+_YC_REMOTE_SEGMENT_PATTERN = re.compile(
+    r"^(fully\s+remote|remote\s+only|remote)(\s*\([^)]*\))?$",
+    re.IGNORECASE,
+)
 
 
 def _parse_work_mode(location):
     if not location:
         return None
-    if _YC_REMOTE_PATTERN.match(location.strip()):
-        return normalize_work_mode("Remote")
+    segments = [s.strip() for s in location.split("/")]
+    for segment in segments:
+        if _YC_REMOTE_SEGMENT_PATTERN.match(segment):
+            return normalize_work_mode("Remote")
     return None
 
 
