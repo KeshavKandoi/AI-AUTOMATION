@@ -3,7 +3,7 @@ import httpx
 from config import logger
 from job_hunter import repository
 from job_hunter.platforms.base import BaseJobProvider, RawJob, RateLimiter, retry_with_backoff, ProviderError
-from job_hunter.platforms.matching import matches_preferences, normalize_employment_type
+from job_hunter.platforms.matching import matches_preferences, normalize_employment_type, normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 
 
@@ -40,12 +40,14 @@ class AshbyProvider(BaseJobProvider):
                     location = job.get("location", "") or ""
                     if job.get("isRemote") and "remote" not in location.lower():
                         location = f"{location} (Remote)".strip()
+                    work_mode = normalize_work_mode("Remote") if job.get("isRemote") else None
                     employment_type = normalize_employment_type(job.get("employmentType"))
                     description = job.get("descriptionPlain", "") or ""
 
                     if not matches_preferences(
                         preferences, title=title, description=description,
                         location=location, employment_type=employment_type or "",
+                        work_mode=work_mode,
                     ):
                         continue
 
@@ -58,6 +60,7 @@ class AshbyProvider(BaseJobProvider):
                         platform_url=job.get("jobUrl", apply_url),
                         platform_job_id=job.get("id"),
                         location=location or None,
+                        work_mode=work_mode,
                         employment_type=employment_type,
                         description=description[:5000] if description else None,
                         posted_at=job.get("publishedAt"),
