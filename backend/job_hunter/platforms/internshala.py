@@ -3,27 +3,23 @@ Internshala job board adapter — searches both /jobs/ (full-time roles)
 and /internships/ (internships), since Student/Fresher personas
 (explicitly supported in onboarding) are underserved by jobs-only search.
 
-Verified live (2026-08-08) against https://internshala.com/jobs/ and
-https://internshala.com/internships/:
-- Both are public, no login required for browsing.
-- Same card structure ([internshipid], a.job-title-href, .company-name,
-  .about_job .text, .job_skill) on both listing types — genuinely
-  reusable extraction, not superficially similar.
-- Real keyword search on both: /jobs/keywords-<term>/ and
-  /internships/keywords-<term>/ (confirmed relevant results on both).
-- Detail URL differs: /job/detail/... vs /internship/detail/... (both
-  come through data-href on the card, so no special-casing needed there).
-- Internship cards report a stipend (monthly, via .stipend span) and a
-  duration ("6 Months", via a calendar-icon .row-1-item) instead of
-  salary/experience. These are semantically different from annual salary
-  and years-of-experience — deliberately NOT mapped into salary_min/max
-  or experience_required (which would corrupt salary-based filtering:
-  a real ₹10k/month stipend would look like an absurd "annual salary" and
-  get wrongly rejected against any real expectation). Stipend and
-  duration are folded into the description text instead, which is the
-  correct place for free-text info the schema doesn't model.
-- Pagination via /jobs/page-N/ and /internships/page-N/ (same pattern,
-  confirmed working on /jobs/ earlier; consistent site-wide convention).
+Query-expansion strategy (added after diagnosing why a literal multi-word
+desired_role like "Software Engineer" returned only 1 internship result):
+Internshala's own search does a fairly literal match against listing
+titles/tags. A real internship titled "Software Development Intern" or
+"SDE Intern" will never surface for the exact phrase "software engineer",
+even though it's clearly relevant. To recover that inventory without
+guessing or fabricating a target count, each desired_role is expanded
+into an ordered list of queries: the exact phrase first, then curated
+related terms for common tech roles (ROLE_EXPANSION_MAP), then generic
+significant-word fallbacks derived from the role text itself (so this
+also works for roles not in the curated map). Fallback queries are only
+attempted when the exact phrase underperforms (MIN_RESULTS_BEFORE_FALLBACK),
+and broadening stops early once a role has accumulated a healthy number
+of unique results (SUBSTANTIAL_RESULTS_THRESHOLD), so this never turns
+into an unbounded scrape. Every query still runs through the same
+dedup-by-platform_job_id set, so overlapping queries never double-count
+or double-insert the same job.
 """
 import re
 from typing import Optional
@@ -37,10 +33,27 @@ from job_hunter.platforms.registry import register_provider
 from playwright.async_api import Page
 
 BASE_URL = "https://internshala.com"
-MAX_PAGES_PER_ROLE = 2   # 50 cards/page — 2 pages per role keeps a multi-role sweep reasonable
+
+# Pages checked per individual query (exact phrase or a fallback term).
+MAX_PAGES_PER_ROLE = 4
+
+# Total queries attempted per (role, listing type) — 1 exact phrase +
+# up to (MAX_QUERIES_PER_ROLE - 1) fallback queries.
+MAX_QUERIES_PER_ROLE = 7
+
+# If the exact-phrase query returns at least this many cards (summed
+# across the pages it's allowed to check), fallback queries are skipped
+# entirely for that role/listing — the exact phrase is already working.
+MIN_RESULTS_BEFORE_FALLBACK = 5
+
+# Once a role/listing has accumulated at least this many unique results
+# across queries, remaining fallback queries for that role are skipped —
+# broadening stops once coverage is already healthy, rather than always
+# exhausting all 6 fallback queries regardless of how much was found.
+SUBSTANTIAL_RESULTS_THRESHOLD = 30
+
 MAX_ROLES_PER_SWEEP = 5  # cap distinct role searches per org per run
 
-# Which listing types to search, and their URL path segment / employment type.
 LISTING_TYPES = [
     {"path": "jobs", "employment_type": "Full-time"},
     {"path": "internships", "employment_type": "Internship"},
@@ -66,6 +79,77 @@ def _parse_work_mode(location: Optional[str]) -> Optional[str]:
     return None
 
 
+# Curated related-term expansions for common multi-word tech roles.
+# Generic and extensible -- add more entries as needed. This is only the
+# first tier of fallback; _significant_words() below provides a fully
+# generic fallback for any role not listed here.
+ROLE_EXPANSION_MAP: dict[str, list[str]] = {
+    "software engineer": ["software development", "sde", "software developer", "developer"],
+    "software developer": ["software development", "sde", "developer"],
+    "machine learning engineer": ["machine learning", "ml engineer", "ai engineer", "artificial intelligence"],
+    "data scientist": ["data science", "data analyst", "machine learning"],
+    "data analyst": ["data analysis", "data science"],
+    "frontend developer": ["frontend", "front end developer", "web developer", "ui developer"],
+    "front end developer": ["frontend", "web developer"],
+    "backend developer": ["backend", "back end developer", "server side developer"],
+    "back end developer": ["backend", "server side developer"],
+    "full stack developer": ["full stack", "fullstack developer", "web developer"],
+    "full stack engineer": ["full stack", "fullstack developer", "software developer"],
+    "ai engineer": ["artificial intelligence", "machine learning", "ml engineer"],
+    "devops engineer": ["devops", "site reliability", "cloud engineer"],
+    "mobile developer": ["mobile app developer", "android developer", "ios developer"],
+    "android developer": ["android app developer", "mobile developer"],
+    "ios developer": ["ios app developer", "mobile developer"],
+    "product manager": ["product management", "associate product manager"],
+    "ui designer": ["ui ux designer", "product designer"],
+    "ux designer": ["ui ux designer", "product designer"],
+}
+
+_STOPWORDS = {"a", "an", "the", "of", "and", "for", "to", "in", "on", "with", "&"}
+
+
+def _significant_words(role: str) -> list[str]:
+    """Generic fallback tokenizer -- works for ANY role string, not just
+    ones in ROLE_EXPANSION_MAP. Strips filler words, keeps meaningful
+    individual tokens in their original order, case-insensitive dedup."""
+    tokens = re.findall(r"[A-Za-z][A-Za-z+#.]*", role or "")
+    seen_lower = set()
+    result = []
+    for t in tokens:
+        tl = t.lower()
+        if tl in _STOPWORDS or len(t) <= 1 or tl in seen_lower:
+            continue
+        seen_lower.add(tl)
+        result.append(t)
+    return result
+
+
+def _expand_role_queries(role: str) -> list[str]:
+    """Builds an ordered query list for one desired_role: exact phrase
+    first, then curated related terms (if this role is in
+    ROLE_EXPANSION_MAP), then generic significant-word fallbacks derived
+    from the role text itself. Capped at MAX_QUERIES_PER_ROLE total,
+    case-insensitive deduped against queries already in the list."""
+    role_norm = (role or "").strip()
+    if not role_norm:
+        return []
+
+    queries = [role_norm]
+    seen_lower = {role_norm.lower()}
+
+    for related in ROLE_EXPANSION_MAP.get(role_norm.lower(), []):
+        if related.lower() not in seen_lower:
+            queries.append(related)
+            seen_lower.add(related.lower())
+
+    for word in _significant_words(role_norm):
+        if word.lower() not in seen_lower:
+            queries.append(word)
+            seen_lower.add(word.lower())
+
+    return queries[:MAX_QUERIES_PER_ROLE]
+
+
 class InternshalaProvider(PlaywrightJobProvider):
     platform = "internshala"
     rate_limit_seconds = 2.0
@@ -76,10 +160,6 @@ class InternshalaProvider(PlaywrightJobProvider):
             logger.info("[internshala] Skipping -- no desired_roles in preferences")
             return []
 
-        # Only search internships if the user's preferences actually
-        # include "Internship" as a desired employment type — searching
-        # internships for a user who only wants Full-time would just
-        # waste requests on results that will always be filtered out.
         employment_types = preferences.get("employment_types", [])
         wants_internships = not employment_types or "Internship" in employment_types
         wants_fulltime = not employment_types or "Full-time" in employment_types
@@ -93,10 +173,8 @@ class InternshalaProvider(PlaywrightJobProvider):
         results: list[RawJob] = []
         seen_job_ids: set[str] = set()
 
-        # Diagnostics -- surfaced via a summary log line so a "0 jobs"
-        # outcome is never silently ambiguous between "genuinely nothing
-        # available" and "the scraper broke".
         diag = {
+            "queries_executed": 0,
             "pages_visited": 0,
             "cards_found": 0,
             "parse_failures": 0,
@@ -107,59 +185,93 @@ class InternshalaProvider(PlaywrightJobProvider):
 
         for listing in listing_types:
             for role in roles:
-                encoded = quote(role)
-                for page_num in range(1, MAX_PAGES_PER_ROLE + 1):
-                    suffix = "" if page_num == 1 else f"page-{page_num}/"
-                    url = f"{BASE_URL}/{listing['path']}/keywords-{encoded}/{suffix}"
+                queries = _expand_role_queries(role)
+                role_start_count = len(results)
 
-                    # goto_with_retry raises ProviderError on genuine nav
-                    # failure after exhausting retries -- deliberately NOT
-                    # caught here, so the registry marks this provider
-                    # "error" with a real reason instead of quietly
-                    # returning fewer jobs than actually exist.
-                    await self.goto_with_retry(page, url)
-                    diag["pages_visited"] += 1
-                    await page.wait_for_timeout(1500)
+                for q_index, query in enumerate(queries):
+                    is_exact = q_index == 0
 
-                    cards = await page.query_selector_all("[internshipid]")
-                    diag["cards_found"] += len(cards)
+                    if not is_exact:
+                        role_unique_so_far = len(results) - role_start_count
+                        if role_unique_so_far >= SUBSTANTIAL_RESULTS_THRESHOLD:
+                            logger.info(
+                                f"[internshala] '{role}' ({listing['path']}): "
+                                f"{role_unique_so_far} unique job(s) already found, "
+                                f"stopping further fallback queries"
+                            )
+                            break
+
+                    encoded = quote(query)
+                    diag["queries_executed"] += 1
+                    query_new_jobs = 0
+                    query_cards_total = 0
+
+                    for page_num in range(1, MAX_PAGES_PER_ROLE + 1):
+                        suffix = "" if page_num == 1 else f"page-{page_num}/"
+                        url = f"{BASE_URL}/{listing['path']}/keywords-{encoded}/{suffix}"
+
+                        # goto_with_retry raises ProviderError on genuine nav
+                        # failure after exhausting retries -- deliberately NOT
+                        # caught here, so the registry marks this provider
+                        # "error" with a real reason instead of quietly
+                        # returning fewer jobs than actually exist.
+                        await self.goto_with_retry(page, url)
+                        diag["pages_visited"] += 1
+                        await page.wait_for_timeout(1500)
+
+                        cards = await page.query_selector_all("[internshipid]")
+                        diag["cards_found"] += len(cards)
+                        query_cards_total += len(cards)
+                        logger.info(
+                            f"[internshala] {listing['path']} query='{query}' "
+                            f"(role='{role}', exact={is_exact}) page {page_num}: "
+                            f"{len(cards)} card(s) at {url}"
+                        )
+                        if not cards:
+                            break
+
+                        new_on_page = 0
+                        for card in cards:
+                            job, reason = await self._extract_card(card, preferences, listing["employment_type"])
+                            if job is None:
+                                if reason == "rejected":
+                                    diag["preference_rejections"] += 1
+                                else:
+                                    diag["parse_failures"] += 1
+                                continue
+                            if job.platform_job_id in seen_job_ids:
+                                diag["duplicates"] += 1
+                                continue
+                            seen_job_ids.add(job.platform_job_id)
+                            results.append(job)
+                            diag["parsed_ok"] += 1
+                            new_on_page += 1
+                            query_new_jobs += 1
+
+                        if new_on_page == 0:
+                            break  # this page added nothing new — likely end of real results
+
                     logger.info(
-                        f"[internshala] {listing['path']} '{role}' page {page_num}: "
-                        f"{len(cards)} card(s) found at {url}"
+                        f"[internshala] query='{query}' (role='{role}', exact={is_exact}, "
+                        f"listing={listing['path']}) contributed {query_new_jobs} unique "
+                        f"new job(s) from {query_cards_total} card(s) seen"
                     )
-                    if not cards:
-                        break  # no more results for this role/listing-type — stop paginating
 
-                    new_on_page = 0
-                    for card in cards:
-                        job, reason = await self._extract_card(card, preferences, listing["employment_type"])
-                        if job is None:
-                            if reason == "rejected":
-                                diag["preference_rejections"] += 1
-                            else:
-                                diag["parse_failures"] += 1
-                            continue
-                        if job.platform_job_id in seen_job_ids:
-                            diag["duplicates"] += 1
-                            continue
-                        seen_job_ids.add(job.platform_job_id)
-                        results.append(job)
-                        diag["parsed_ok"] += 1
-                        new_on_page += 1
-
-                    if new_on_page == 0:
-                        break  # this page added nothing new — likely end of real results
+                    if is_exact and query_cards_total >= MIN_RESULTS_BEFORE_FALLBACK:
+                        # Exact phrase already performed well -- no need to
+                        # broaden for this role/listing.
+                        break
 
         logger.info(
-            f"[internshala] Sweep summary: pages_visited={diag['pages_visited']} "
-            f"cards_found={diag['cards_found']} parsed_ok={diag['parsed_ok']} "
-            f"parse_failures={diag['parse_failures']} "
+            f"[internshala] Sweep summary: queries_executed={diag['queries_executed']} "
+            f"pages_visited={diag['pages_visited']} cards_found={diag['cards_found']} "
+            f"parsed_ok={diag['parsed_ok']} parse_failures={diag['parse_failures']} "
             f"preference_rejections={diag['preference_rejections']} "
-            f"duplicates={diag['duplicates']} final_results={len(results)}"
+            f"duplicates={diag['duplicates']} final_unique_results={len(results)}"
         )
         if diag["cards_found"] == 0:
             logger.warning(
-                "[internshala] Zero cards found across all pages/roles -- this usually "
+                "[internshala] Zero cards found across all queries/pages -- this usually "
                 "means the [internshipid] selector no longer matches live page markup, "
                 "the page didn't finish rendering before extraction, or the site is "
                 "serving different markup to headless/bot traffic. Not necessarily "
@@ -197,9 +309,6 @@ class InternshalaProvider(PlaywrightJobProvider):
                 skills.append(text)
 
         if employment_type == "Internship":
-            # Internship cards: stipend (monthly) + duration, NOT
-            # salary/experience — see module docstring for why these
-            # aren't mapped into salary_min/max or experience_required.
             stipend_text = await self.safe_text(card, ".stipend")
             duration_text = None
             row_items = await card.query_selector_all(".row-1-item")
