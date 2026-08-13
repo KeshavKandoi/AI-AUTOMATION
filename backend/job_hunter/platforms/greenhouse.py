@@ -1,10 +1,11 @@
 import re
+from typing import Optional
 import httpx
 
 from config import logger
 from job_hunter import repository
 from job_hunter.platforms.base import BaseJobProvider, RawJob, RateLimiter, retry_with_backoff, ProviderError
-from job_hunter.platforms.matching import matches_preferences
+from job_hunter.platforms.matching import matches_preferences, normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 
 
@@ -12,6 +13,30 @@ def _strip_html(html: str) -> str:
     text = re.sub(r"<[^>]+>", " ", html or "")
     text = re.sub(r"\s+", " ", text).strip()
     return text[:5000]
+
+
+# Explicit-only phrases. Matched against the structured location string
+# first, then the stripped job description -- never inferred from a bare
+# country/region name like "United States", "Worldwide", or "Anywhere",
+# which are NOT reliable remote signals on their own.
+_GREENHOUSE_WORK_MODE_PATTERNS = [
+    (re.compile(r"\bfully\s+remote\b", re.IGNORECASE), "Remote"),
+    (re.compile(r"\bremote\b", re.IGNORECASE), "Remote"),
+    (re.compile(r"\bhybrid\b", re.IGNORECASE), "Hybrid"),
+    (re.compile(r"\bon-?site\b", re.IGNORECASE), "On-site"),
+    (re.compile(r"\bin-?office\b", re.IGNORECASE), "On-site"),
+]
+
+
+def _extract_work_mode(location: str, description: str) -> Optional[str]:
+    """Scans the structured location string first, then the stripped job
+    description, for an explicit work-mode phrase. Returns None (never
+    guesses) when neither contains one of these unambiguous signals."""
+    for text in (location or "", (description or "")[:2000]):
+        for pattern, mode in _GREENHOUSE_WORK_MODE_PATTERNS:
+            if pattern.search(text):
+                return normalize_work_mode(mode)
+    return None
 
 
 class GreenhouseProvider(BaseJobProvider):
@@ -47,8 +72,12 @@ class GreenhouseProvider(BaseJobProvider):
                     location = (job.get("location") or {}).get("name", "")
                     description_html = job.get("content", "") or ""
                     description = _strip_html(description_html)
+                    work_mode = _extract_work_mode(location, description)
 
-                    if not matches_preferences(preferences, title=title, description=description, location=location):
+                    if not matches_preferences(
+                        preferences, title=title, description=description,
+                        location=location, work_mode=work_mode,
+                    ):
                         continue
 
                     url = job.get("absolute_url", "")
@@ -60,6 +89,7 @@ class GreenhouseProvider(BaseJobProvider):
                         platform_url=url,
                         platform_job_id=str(job.get("id", "")),
                         location=location or None,
+                        work_mode=work_mode,
                         description=description or None,
                         posted_at=job.get("updated_at"),
                     ))
