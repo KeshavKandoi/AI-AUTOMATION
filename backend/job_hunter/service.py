@@ -134,12 +134,22 @@ def ingest_discovered_job(
     if existing:
         job = existing
         content_changed = _content_changed(existing, description, salary_min, salary_max)
-        repository.update_job(job["id"], {
+        updates = {
             "last_seen_at": datetime.now(timezone.utc).isoformat(),
             **({"description": description} if description else {}),
             **({"salary_min": salary_min} if salary_min is not None else {}),
             **({"salary_max": salary_max} if salary_max is not None else {}),
-        })
+        }
+        # Self-heal previously-NULL work_mode/employment_type once a
+        # provider fix supplies a real, explicit value on a later sweep.
+        # Never overwrites an existing non-NULL value -- a reliable value
+        # already on record is never replaced by a new, possibly less
+        # certain one from a re-discovery pass.
+        if not existing.get("work_mode") and work_mode:
+            updates["work_mode"] = work_mode
+        if not existing.get("employment_type") and employment_type:
+            updates["employment_type"] = employment_type
+        repository.update_job(job["id"], updates)
         is_new = False
     else:
         job = repository.create_job({
