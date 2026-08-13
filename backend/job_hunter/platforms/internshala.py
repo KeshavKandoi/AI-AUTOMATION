@@ -26,11 +26,13 @@ https://internshala.com/internships/:
   confirmed working on /jobs/ earlier; consistent site-wide convention).
 """
 import re
+from typing import Optional
 from urllib.parse import quote
 
+from config import logger
 from job_hunter.platforms.playwright_base import PlaywrightJobProvider
 from job_hunter.platforms.base import RawJob
-from job_hunter.platforms.matching import matches_preferences, normalize_employment_type
+from job_hunter.platforms.matching import matches_preferences, normalize_employment_type, normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 from playwright.async_api import Page
 
@@ -44,6 +46,25 @@ LISTING_TYPES = [
     {"path": "internships", "employment_type": "Internship"},
 ]
 
+_INTERNSHALA_WORK_MODE_PATTERNS = [
+    (re.compile(r"work\s*from\s*home", re.IGNORECASE), "Remote"),
+    (re.compile(r"\bremote\b", re.IGNORECASE), "Remote"),
+    (re.compile(r"\bhybrid\b", re.IGNORECASE), "Hybrid"),
+    (re.compile(r"work\s*from\s*office", re.IGNORECASE), "On-site"),
+]
+
+
+def _parse_work_mode(location: Optional[str]) -> Optional[str]:
+    """Explicit-signal-only -- a bare city name like 'Jaipur' must stay
+    NULL. Only fires on an unambiguous phrase such as 'Work From Home',
+    'Remote', 'Hybrid'."""
+    if not location:
+        return None
+    for pattern, mode in _INTERNSHALA_WORK_MODE_PATTERNS:
+        if pattern.search(location):
+            return normalize_work_mode(mode)
+    return None
+
 
 class InternshalaProvider(PlaywrightJobProvider):
     platform = "internshala"
@@ -52,6 +73,7 @@ class InternshalaProvider(PlaywrightJobProvider):
     async def extract_jobs(self, page: Page, preferences: dict) -> list[RawJob]:
         roles = preferences.get("desired_roles", [])[:MAX_ROLES_PER_SWEEP]
         if not roles:
+            logger.info("[internshala] Skipping -- no desired_roles in preferences")
             return []
 
         # Only search internships if the user's preferences actually
@@ -71,47 +93,101 @@ class InternshalaProvider(PlaywrightJobProvider):
         results: list[RawJob] = []
         seen_job_ids: set[str] = set()
 
+        # Diagnostics -- surfaced via a summary log line so a "0 jobs"
+        # outcome is never silently ambiguous between "genuinely nothing
+        # available" and "the scraper broke".
+        diag = {
+            "pages_visited": 0,
+            "cards_found": 0,
+            "parse_failures": 0,
+            "preference_rejections": 0,
+            "duplicates": 0,
+            "parsed_ok": 0,
+        }
+
         for listing in listing_types:
             for role in roles:
                 encoded = quote(role)
                 for page_num in range(1, MAX_PAGES_PER_ROLE + 1):
                     suffix = "" if page_num == 1 else f"page-{page_num}/"
                     url = f"{BASE_URL}/{listing['path']}/keywords-{encoded}/{suffix}"
+
+                    # goto_with_retry raises ProviderError on genuine nav
+                    # failure after exhausting retries -- deliberately NOT
+                    # caught here, so the registry marks this provider
+                    # "error" with a real reason instead of quietly
+                    # returning fewer jobs than actually exist.
                     await self.goto_with_retry(page, url)
+                    diag["pages_visited"] += 1
                     await page.wait_for_timeout(1500)
 
                     cards = await page.query_selector_all("[internshipid]")
+                    diag["cards_found"] += len(cards)
+                    logger.info(
+                        f"[internshala] {listing['path']} '{role}' page {page_num}: "
+                        f"{len(cards)} card(s) found at {url}"
+                    )
                     if not cards:
                         break  # no more results for this role/listing-type — stop paginating
 
                     new_on_page = 0
                     for card in cards:
-                        job = await self._extract_card(card, preferences, listing["employment_type"])
+                        job, reason = await self._extract_card(card, preferences, listing["employment_type"])
                         if job is None:
+                            if reason == "rejected":
+                                diag["preference_rejections"] += 1
+                            else:
+                                diag["parse_failures"] += 1
                             continue
                         if job.platform_job_id in seen_job_ids:
+                            diag["duplicates"] += 1
                             continue
                         seen_job_ids.add(job.platform_job_id)
                         results.append(job)
+                        diag["parsed_ok"] += 1
                         new_on_page += 1
 
                     if new_on_page == 0:
                         break  # this page added nothing new — likely end of real results
 
+        logger.info(
+            f"[internshala] Sweep summary: pages_visited={diag['pages_visited']} "
+            f"cards_found={diag['cards_found']} parsed_ok={diag['parsed_ok']} "
+            f"parse_failures={diag['parse_failures']} "
+            f"preference_rejections={diag['preference_rejections']} "
+            f"duplicates={diag['duplicates']} final_results={len(results)}"
+        )
+        if diag["cards_found"] == 0:
+            logger.warning(
+                "[internshala] Zero cards found across all pages/roles -- this usually "
+                "means the [internshipid] selector no longer matches live page markup, "
+                "the page didn't finish rendering before extraction, or the site is "
+                "serving different markup to headless/bot traffic. Not necessarily "
+                "'no jobs available'."
+            )
+
         return results
 
     async def _extract_card(self, card, preferences: dict, employment_type: str):
+        """Returns (RawJob | None, reason). reason is None on success,
+        "parse_failure" when required card fields are missing/unreadable,
+        or "rejected" when matches_preferences() filtered the job out --
+        kept distinct so sweep-level diagnostics can tell a scraper
+        problem apart from a genuinely irrelevant listing."""
         job_id = await card.get_attribute("internshipid")
         detail_href = await card.get_attribute("data-href")
         if not job_id or not detail_href:
-            return None
+            return None, "parse_failure"
 
         apply_url = detail_href if detail_href.startswith("http") else f"{BASE_URL}{detail_href}"
 
         title = await self.safe_text(card, "a.job-title-href")
+        if not title:
+            return None, "parse_failure"
         company_name = await self.safe_text(card, ".company-name") or "Unknown Company"
         location = await self.safe_text(card, ".locations a") or await self.safe_text(card, ".locations")
         description = await self.safe_text(card, ".about_job .text")
+        work_mode = _parse_work_mode(location)
 
         skill_els = await card.query_selector_all(".job_skill")
         skills = []
@@ -147,8 +223,9 @@ class InternshalaProvider(PlaywrightJobProvider):
             if not matches_preferences(
                 preferences, title=title, description="",
                 location=location or "", employment_type=employment_type,
+                work_mode=work_mode,
             ):
-                return None
+                return None, "rejected"
 
             return RawJob(
                 company_name=company_name,
@@ -158,10 +235,11 @@ class InternshalaProvider(PlaywrightJobProvider):
                 platform_url=apply_url,
                 platform_job_id=job_id,
                 location=location or None,
+                work_mode=work_mode,
                 employment_type=employment_type,
                 description=description or None,
                 required_skills=skills,
-            )
+            ), None
 
         # Full-time job cards: real salary + experience (existing logic)
         salary_text = None
@@ -183,8 +261,9 @@ class InternshalaProvider(PlaywrightJobProvider):
             location=location or "", employment_type=employment_type,
             experience_text=experience_text,
             salary_min=salary_min, salary_currency=salary_currency,
+            work_mode=work_mode,
         ):
-            return None
+            return None, "rejected"
 
         return RawJob(
             company_name=company_name,
@@ -194,6 +273,7 @@ class InternshalaProvider(PlaywrightJobProvider):
             platform_url=apply_url,
             platform_job_id=job_id,
             location=location or None,
+            work_mode=work_mode,
             employment_type=employment_type,
             experience_required=experience_text,
             salary_min=salary_min,
@@ -201,7 +281,7 @@ class InternshalaProvider(PlaywrightJobProvider):
             salary_currency=salary_currency,
             description=description or None,
             required_skills=skills,
-        )
+        ), None
 
     @staticmethod
     def _parse_salary(salary_text: str | None):
