@@ -15,10 +15,16 @@ def _strip_html(html: str) -> str:
     return text[:5000]
 
 
-# Explicit-only phrases. Matched against the structured location string
-# first, then the stripped job description -- never inferred from a bare
-# country/region name like "United States", "Worldwide", or "Anywhere",
-# which are NOT reliable remote signals on their own.
+# Explicit-only phrases, checked ONLY against the structured
+# location.name field -- never against free-text job descriptions.
+# Descriptions frequently contain conditional/nuanced phrasing (e.g.
+# "This role can either be fully remote depending on which US state you
+# live in, or based in our New York City office") that a regex cannot
+# safely disambiguate from an unconditional statement -- scanning
+# description text produced real false positives during testing and was
+# removed. location.name is short, structured, and Greenhouse companies
+# use it directly for values like "Remote", "Remote - USA",
+# "Remote - US: Select locations", "Hybrid" -- these are trustworthy.
 _GREENHOUSE_WORK_MODE_PATTERNS = [
     (re.compile(r"\bfully\s+remote\b", re.IGNORECASE), "Remote"),
     (re.compile(r"\bremote\b", re.IGNORECASE), "Remote"),
@@ -28,14 +34,16 @@ _GREENHOUSE_WORK_MODE_PATTERNS = [
 ]
 
 
-def _extract_work_mode(location: str, description: str) -> Optional[str]:
-    """Scans the structured location string first, then the stripped job
-    description, for an explicit work-mode phrase. Returns None (never
-    guesses) when neither contains one of these unambiguous signals."""
-    for text in (location or "", (description or "")[:2000]):
-        for pattern, mode in _GREENHOUSE_WORK_MODE_PATTERNS:
-            if pattern.search(text):
-                return normalize_work_mode(mode)
+def _extract_work_mode(location: str) -> Optional[str]:
+    """Checks ONLY the structured location.name field for an explicit
+    work-mode phrase. Returns None (never guesses) when it contains
+    nothing unambiguous -- e.g. a bare city/country/region name like
+    "United States", "Worldwide", or "Anywhere" is NOT treated as a
+    remote signal."""
+    text = location or ""
+    for pattern, mode in _GREENHOUSE_WORK_MODE_PATTERNS:
+        if pattern.search(text):
+            return normalize_work_mode(mode)
     return None
 
 
@@ -72,7 +80,7 @@ class GreenhouseProvider(BaseJobProvider):
                     location = (job.get("location") or {}).get("name", "")
                     description_html = job.get("content", "") or ""
                     description = _strip_html(description_html)
-                    work_mode = _extract_work_mode(location, description)
+                    work_mode = _extract_work_mode(location)
 
                     if not matches_preferences(
                         preferences, title=title, description=description,
