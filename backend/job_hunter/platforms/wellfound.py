@@ -30,7 +30,7 @@ import re
 
 from job_hunter.platforms.playwright_base import PlaywrightJobProvider
 from job_hunter.platforms.base import RawJob
-from job_hunter.platforms.matching import matches_preferences
+from job_hunter.platforms.matching import matches_preferences, normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 from playwright.async_api import Page
 
@@ -106,19 +106,25 @@ def _parse_salary(salary_text: str):
 
 
 def _parse_location(location_text: str):
-    """'In office • San Francisco' -> ('San Francisco', 'Onsite')
+    """'In office • San Francisco' -> ('San Francisco', 'On-site')
     'Remote only • Europe' -> ('Europe', 'Remote')
-    'Remote • United Kingdom' -> ('United Kingdom', 'Remote')"""
+    'Remote • United Kingdom' -> ('United Kingdom', 'Remote')
+    'Hybrid • Austin' -> ('Austin', 'Hybrid')
+    Routes the raw mode prefix through the shared normalize_work_mode()
+    so output casing always matches the canonical DB values ("On-site",
+    not "Onsite") and stays consistent with every other provider."""
     if not location_text:
         return None, None
     parts = location_text.split("•")
     mode_raw = parts[0].strip().lower()
     location = parts[1].strip() if len(parts) > 1 else None
 
-    if "remote" in mode_raw:
-        work_mode = "Remote"
+    if "hybrid" in mode_raw:
+        work_mode = normalize_work_mode("Hybrid")
+    elif "remote" in mode_raw:
+        work_mode = normalize_work_mode("Remote")
     elif "office" in mode_raw:
-        work_mode = "Onsite"
+        work_mode = normalize_work_mode("On-site")
     else:
         work_mode = None
 
@@ -155,6 +161,7 @@ class WellfoundProvider(PlaywrightJobProvider):
                         location=location or "", employment_type=card["employment_type"] or "",
                         experience_text=card["experience_text"],
                         salary_min=salary_min, salary_currency=salary_currency,
+                        work_mode=work_mode,
                     ):
                         continue
 
