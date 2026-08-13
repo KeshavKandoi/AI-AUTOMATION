@@ -257,9 +257,17 @@ class InternshalaProvider(PlaywrightJobProvider):
                         f"new job(s) from {query_cards_total} card(s) seen"
                     )
 
-                    if is_exact and query_cards_total >= MIN_RESULTS_BEFORE_FALLBACK:
-                        # Exact phrase already performed well -- no need to
-                        # broaden for this role/listing.
+                    if is_exact and query_new_jobs >= MIN_RESULTS_BEFORE_FALLBACK:
+                        # Exact phrase already yielded enough ACCEPTED,
+                        # relevant jobs -- no need to broaden for this
+                        # role/listing. Gating on query_new_jobs (unique,
+                        # preference-matched results) rather than raw card
+                        # count, since Internshala's own search returns
+                        # dozens of loosely-related cards regardless of
+                        # query specificity -- a raw-card threshold almost
+                        # never triggers fallback and defeats the purpose
+                        # of broadening. query_cards_total is retained
+                        # purely for diagnostic logging.
                         break
 
         logger.info(
