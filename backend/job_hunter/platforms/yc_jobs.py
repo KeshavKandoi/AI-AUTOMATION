@@ -22,7 +22,7 @@ import re
 
 from job_hunter.platforms.playwright_base import PlaywrightJobProvider
 from job_hunter.platforms.base import RawJob
-from job_hunter.platforms.matching import matches_preferences, normalize_employment_type
+from job_hunter.platforms.matching import matches_preferences, normalize_employment_type, normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 from playwright.async_api import Page
 
@@ -55,6 +55,20 @@ def _categories_for_preferences(preferences: dict) -> list[str]:
         if any(any(kw in role for kw in keywords) for role in roles):
             matched.add(category)
     return list(matched) if matched else ["software-engineer"]
+
+
+# Explicit-only remote signal matcher for YC location text. Never infer
+# remote from a bare city/country name -- only fires on a leading phrase
+# that unambiguously states remote work.
+_YC_REMOTE_PATTERN = re.compile(r"^(fully\s+remote|remote\s+only|remote)\b", re.IGNORECASE)
+
+
+def _parse_work_mode(location):
+    if not location:
+        return None
+    if _YC_REMOTE_PATTERN.match(location.strip()):
+        return normalize_work_mode("Remote")
+    return None
 
 
 class YCJobsProvider(PlaywrightJobProvider):
@@ -105,6 +119,7 @@ class YCJobsProvider(PlaywrightJobProvider):
 
         employment_type_raw = details[0] if len(details) > 0 else None
         location = details[1] if len(details) > 1 else None
+        work_mode = _parse_work_mode(location)
         # details[2] is the sub-role tag (e.g. "Full stack") — not mapped to
         # our schema directly, folded into experience_required as a hint.
         sub_role = details[2] if len(details) > 2 else None
@@ -137,6 +152,7 @@ class YCJobsProvider(PlaywrightJobProvider):
             location_only_preferences, title=title, description="",
             location=location or "", employment_type=employment_type or "",
             salary_min=salary_min, salary_currency=salary_currency,
+            work_mode=work_mode,
         ):
             return None
 
@@ -148,6 +164,7 @@ class YCJobsProvider(PlaywrightJobProvider):
             platform_url=apply_url,
             platform_job_id=job_id,
             location=location,
+            work_mode=work_mode,
             employment_type=employment_type,
             experience_required=sub_role,
             salary_min=salary_min,
