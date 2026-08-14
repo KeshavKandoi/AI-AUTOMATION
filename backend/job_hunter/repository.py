@@ -4,6 +4,7 @@ service.py should never call supabase_admin directly — only through this file.
 """
 from typing import Optional
 from config import supabase_admin
+from job_hunter.retry import retry_db_call
 
 
 # ---------------------------------------------------------------------------
@@ -28,21 +29,30 @@ def upsert_preferences(organization_id: str, row: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def get_job_by_dedup_key(organization_id: str, dedup_key: str) -> Optional[dict]:
-    result = supabase_admin.table("job_hunter_jobs") \
-        .select("*") \
-        .eq("organization_id", organization_id) \
-        .eq("dedup_key", dedup_key) \
-        .execute()
+    result = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_jobs")
+            .select("*")
+            .eq("organization_id", organization_id)
+            .eq("dedup_key", dedup_key)
+            .execute(),
+        operation_name="get_job_by_dedup_key",
+    )
     return result.data[0] if result.data else None
 
 
 def create_job(row: dict) -> dict:
-    result = supabase_admin.table("job_hunter_jobs").insert(row).execute()
+    result = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_jobs").insert(row).execute(),
+        operation_name="create_job",
+    )
     return result.data[0]
 
 
 def update_job(job_id: str, updates: dict) -> dict:
-    result = supabase_admin.table("job_hunter_jobs").update(updates).eq("id", job_id).execute()
+    result = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_jobs").update(updates).eq("id", job_id).execute(),
+        operation_name="update_job",
+    )
     return result.data[0]
 
 
@@ -82,15 +92,21 @@ def add_job_source(row: dict) -> Optional[dict]:
     unique constraint if this exact source was already recorded for this
     job — same platform re-discovering the same posting on a later sweep
     shouldn't create a duplicate badge."""
-    existing = supabase_admin.table("job_hunter_job_sources") \
-        .select("id") \
-        .eq("job_id", row["job_id"]) \
-        .eq("platform", row["platform"]) \
-        .eq("platform_url", row["platform_url"]) \
-        .execute()
+    existing = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_job_sources")
+            .select("id")
+            .eq("job_id", row["job_id"])
+            .eq("platform", row["platform"])
+            .eq("platform_url", row["platform_url"])
+            .execute(),
+        operation_name="add_job_source_check_existing",
+    )
     if existing.data:
         return None
-    result = supabase_admin.table("job_hunter_job_sources").insert(row).execute()
+    result = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_job_sources").insert(row).execute(),
+        operation_name="add_job_source_insert",
+    )
     return result.data[0] if result.data else None
 
 
