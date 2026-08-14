@@ -5,7 +5,7 @@ import httpx
 from config import logger
 from job_hunter import repository
 from job_hunter.platforms.base import BaseJobProvider, RawJob, RateLimiter, retry_with_backoff, ProviderError
-from job_hunter.platforms.matching import matches_preferences, normalize_work_mode
+from job_hunter.platforms.matching import normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 
 
@@ -82,12 +82,10 @@ class GreenhouseProvider(BaseJobProvider):
                     description = _strip_html(description_html)
                     work_mode = _extract_work_mode(location)
 
-                    if not matches_preferences(
-                        preferences, title=title, description=description,
-                        location=location, work_mode=work_mode,
-                    ):
-                        continue
-
+                    # ARCHITECTURE CHANGE: preference matching removed from
+                    # discovery -- see ashby.py for full rationale. Every
+                    # technically valid parsed job is stored regardless of
+                    # current org preferences.
                     url = job.get("absolute_url", "")
                     results.append(RawJob(
                         company_name=company["company_name"],
