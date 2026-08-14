@@ -10,8 +10,11 @@ Verified live (2026-08-08) against https://www.workatastartup.com/jobs:
   job ID sets).
 - No functional keyword search for logged-out users — we compensate by
   mapping the org's desired_roles to the closest YC category (or
-  categories) and still applying our own matches_preferences() filter
-  within that category for role/skill precision.
+  categories) for role/skill precision. (Historically this also applied
+  matches_preferences() as an accept/reject filter here; as of the
+  discovery/filtering architecture change, every technically valid parsed
+  job is returned regardless of preference match -- user-specific
+  filtering now happens only at query time against the database.)
 - Job cards have no description text — only title, company (+ YC batch),
   tagline, employment type, location, sub-role tag, and salary. Full
   descriptions live behind each job's detail page; not fetched here to
@@ -22,7 +25,7 @@ import re
 
 from job_hunter.platforms.playwright_base import PlaywrightJobProvider
 from job_hunter.platforms.base import RawJob
-from job_hunter.platforms.matching import matches_preferences, normalize_employment_type, normalize_work_mode
+from job_hunter.platforms.matching import normalize_employment_type, normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 from playwright.async_api import Page
 
@@ -153,17 +156,12 @@ class YCJobsProvider(PlaywrightJobProvider):
         # a category tag ("Full stack"), not a real years-of-experience
         # string, so passing it would be semantically misleading even
         # though harmless (parse_experience_years would just return None).
-        location_only_preferences = {
-            k: v for k, v in preferences.items() if k not in ("desired_roles", "skills")
-        }
-        if not matches_preferences(
-            location_only_preferences, title=title, description="",
-            location=location or "", employment_type=employment_type or "",
-            salary_min=salary_min, salary_currency=salary_currency,
-            work_mode=work_mode,
-        ):
-            return None
-
+        # ARCHITECTURE CHANGE: preference matching removed from discovery
+        # -- see ashby.py for full rationale. Every technically valid
+        # parsed job is stored regardless of current org preferences.
+        # _categories_for_preferences() above still controls WHICH YC
+        # category pages get scraped -- that discovery-scope logic is
+        # unchanged.
         return RawJob(
             company_name=company_name,
             job_title=title,
