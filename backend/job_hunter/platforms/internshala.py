@@ -28,7 +28,7 @@ from urllib.parse import quote
 from config import logger
 from job_hunter.platforms.playwright_base import PlaywrightJobProvider
 from job_hunter.platforms.base import RawJob
-from job_hunter.platforms.matching import matches_preferences, normalize_employment_type, normalize_work_mode
+from job_hunter.platforms.matching import normalize_employment_type, normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 from playwright.async_api import Page
 
@@ -337,13 +337,13 @@ class InternshalaProvider(PlaywrightJobProvider):
             elif extra_info:
                 description = " | ".join(extra_info)
 
-            if not matches_preferences(
-                preferences, title=title, description="",
-                location=location or "", employment_type=employment_type,
-                work_mode=work_mode,
-            ):
-                return None, "rejected"
-
+            # ARCHITECTURE CHANGE: preference matching removed from
+            # discovery -- see ashby.py for full rationale. Every
+            # technically valid parsed internship is stored regardless of
+            # current org preferences. The query/listing-type selection
+            # logic above (wants_internships, _expand_role_queries) still
+            # controls WHICH searches run -- that discovery-scope logic is
+            # unchanged.
             return RawJob(
                 company_name=company_name,
                 job_title=title,
@@ -373,15 +373,9 @@ class InternshalaProvider(PlaywrightJobProvider):
 
         salary_min, salary_max, salary_currency = self._parse_salary(salary_text)
 
-        if not matches_preferences(
-            preferences, title=title, description="",
-            location=location or "", employment_type=employment_type,
-            experience_text=experience_text,
-            salary_min=salary_min, salary_currency=salary_currency,
-            work_mode=work_mode,
-        ):
-            return None, "rejected"
-
+        # ARCHITECTURE CHANGE: preference matching removed from discovery
+        # -- see the Internship branch above and ashby.py for full
+        # rationale.
         return RawJob(
             company_name=company_name,
             job_title=title,
