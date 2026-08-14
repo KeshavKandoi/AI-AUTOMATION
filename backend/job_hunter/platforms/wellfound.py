@@ -30,7 +30,7 @@ import re
 
 from job_hunter.platforms.playwright_base import PlaywrightJobProvider
 from job_hunter.platforms.base import RawJob
-from job_hunter.platforms.matching import matches_preferences, normalize_work_mode
+from job_hunter.platforms.matching import normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 from playwright.async_api import Page
 
@@ -156,15 +156,12 @@ class WellfoundProvider(PlaywrightJobProvider):
                     location, work_mode = _parse_location(card["location_text"])
                     salary_min, salary_max, salary_currency = _parse_salary(card["salary_text"])
 
-                    if not matches_preferences(
-                        preferences, title=card["title"], description="",
-                        location=location or "", employment_type=card["employment_type"] or "",
-                        experience_text=card["experience_text"],
-                        salary_min=salary_min, salary_currency=salary_currency,
-                        work_mode=work_mode,
-                    ):
-                        continue
-
+                    # ARCHITECTURE CHANGE: preference matching removed from
+                    # discovery -- see ashby.py for full rationale. Every
+                    # technically valid parsed job is stored regardless of
+                    # current org preferences. _slugs_for_preferences()
+                    # above still controls WHICH role pages get scraped --
+                    # that discovery-scope logic is unchanged.
                     seen_job_ids.add(job_id)
                     new_count += 1
                     results.append(RawJob(
