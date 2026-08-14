@@ -9,6 +9,7 @@ from config import logger
 from job_hunter import repository, service
 from job_hunter.platforms import registry
 from job_hunter.platforms import __init__ as _register_platforms  # noqa: F401 — triggers adapter registration
+from job_hunter.retry import RetryExhaustedError
 from audit_logs.service import log_event
 
 MODULE = "job_hunter"
@@ -39,7 +40,17 @@ async def run_search_for_org(organization_id: str) -> dict:
         raw_jobs = result["jobs"]
         statuses = result["statuses"]
 
-        jobs_new = 0
+        # Ingestion metrics -- added after a production sweep silently lost
+        # ~8,000 successfully-discovered jobs to stale-connection failures
+        # with no visibility into what actually happened. inserted/updated
+        # are now tracked explicitly (not inferred after the fact), and
+        # every permanent failure is logged with full provider/company/job/
+        # error detail rather than a single generic line.
+        jobs_new = 0        # kept for backward-compatible return shape
+        inserted = 0
+        updated = 0
+        permanent_failures = []  # list of dicts: platform, company, title, error
+
         for raw_job in raw_jobs:
             try:
                 job = service.ingest_discovered_job(
@@ -67,24 +78,73 @@ async def run_search_for_org(organization_id: str) -> dict:
                 )
                 if job.get("first_discovered_at") == job.get("last_seen_at"):
                     jobs_new += 1
+                    inserted += 1
+                else:
+                    updated += 1
+            except RetryExhaustedError as e:
+                # Transient network/connection failure that persisted
+                # across every retry attempt (see job_hunter/retry.py) --
+                # this job was discovered but could not be saved. Logged
+                # with full detail rather than silently dropped.
+                logger.error(
+                    f"[job_hunter] RETRY EXHAUSTED ingesting '{raw_job.job_title}' "
+                    f"@ {raw_job.company_name} (platform={raw_job.platform}): "
+                    f"{e.attempts} attempts, last error: {e.last_exception}"
+                )
+                permanent_failures.append({
+                    "platform": raw_job.platform, "company": raw_job.company_name,
+                    "title": raw_job.job_title, "error": f"retry_exhausted: {e.last_exception}",
+                })
             except Exception as e:
                 # One bad job record should never abort the whole sweep —
-                # log and continue to the next.
-                logger.error(f"[job_hunter] Failed to ingest job '{raw_job.job_title}' @ {raw_job.company_name}: {e}")
+                # log and continue to the next. Covers permanent errors
+                # (schema/validation/constraint) that are correctly never
+                # retried by retry_db_call().
+                logger.error(f"[job_hunter] Failed to ingest job '{raw_job.job_title}' @ {raw_job.company_name} (platform={raw_job.platform}): {e}")
+                permanent_failures.append({
+                    "platform": raw_job.platform, "company": raw_job.company_name,
+                    "title": raw_job.job_title, "error": str(e),
+                })
+
+        permanent_failure_count = len(permanent_failures)
+        # Reconciliation: discovered == inserted + updated + permanent_failures
+        # (there is no separate "duplicate/no-op" bucket at this layer --
+        # every raw_job that isn't a genuine insert is either an update to
+        # an existing job, per ingest_discovered_job()'s existing dedup-by-
+        # dedup_key logic, or a permanent failure).
+        reconciled = (inserted + updated + permanent_failure_count) == len(raw_jobs)
+        if not reconciled:
+            logger.warning(
+                f"[job_hunter] Ingestion accounting mismatch for org {organization_id}: "
+                f"discovered={len(raw_jobs)} inserted={inserted} updated={updated} "
+                f"permanent_failures={permanent_failure_count} "
+                f"(sum={inserted + updated + permanent_failure_count})"
+            )
 
         repository.finish_search_run(run["id"], status="success", jobs_found=len(raw_jobs), jobs_new=jobs_new)
         log_event(
             organization_id=organization_id,
             module=MODULE,
             action="search_run_completed",
-            summary=f"Job search completed: {len(raw_jobs)} jobs found ({jobs_new} new) across {len(platforms)} platforms",
+            summary=f"Job search completed: {len(raw_jobs)} jobs found ({jobs_new} new, {updated} updated, {permanent_failure_count} failed) across {len(platforms)} platforms",
             status="success",
             resource_type="job_hunter_search_run",
             resource_id=run["id"],
-            metadata={"statuses": statuses, "jobs_found": len(raw_jobs), "jobs_new": jobs_new},
+            metadata={
+                "statuses": statuses, "jobs_found": len(raw_jobs), "jobs_new": jobs_new,
+                "inserted": inserted, "updated": updated,
+                "permanent_failures": permanent_failure_count,
+                "reconciled": reconciled,
+            },
             source="scheduler",
         )
-        return {"jobs_found": len(raw_jobs), "jobs_new": jobs_new, "statuses": statuses}
+        return {
+            "jobs_found": len(raw_jobs), "jobs_new": jobs_new, "statuses": statuses,
+            "inserted": inserted, "updated": updated,
+            "permanent_failures": permanent_failure_count,
+            "permanent_failure_details": permanent_failures,
+            "reconciled": reconciled,
+        }
 
     except Exception as e:
         logger.exception(f"[job_hunter] Search run failed for org {organization_id}")
