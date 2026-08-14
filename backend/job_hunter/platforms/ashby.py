@@ -3,7 +3,7 @@ import httpx
 from config import logger
 from job_hunter import repository
 from job_hunter.platforms.base import BaseJobProvider, RawJob, RateLimiter, retry_with_backoff, ProviderError
-from job_hunter.platforms.matching import matches_preferences, normalize_employment_type, normalize_work_mode
+from job_hunter.platforms.matching import normalize_employment_type, normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 
 
@@ -44,13 +44,16 @@ class AshbyProvider(BaseJobProvider):
                     employment_type = normalize_employment_type(job.get("employmentType"))
                     description = job.get("descriptionPlain", "") or ""
 
-                    if not matches_preferences(
-                        preferences, title=title, description=description,
-                        location=location, employment_type=employment_type or "",
-                        work_mode=work_mode,
-                    ):
-                        continue
-
+                    # ARCHITECTURE CHANGE: preference matching removed from
+                    # discovery. Every technically valid parsed job (has a
+                    # title, real IDs, etc.) is stored regardless of whether
+                    # it matches this org's CURRENT desired_roles/skills/
+                    # work_modes/etc. User-specific filtering now happens
+                    # only at query time via service.list_jobs() /
+                    # repository.list_jobs(), against the database -- never
+                    # during scraping. matches_preferences() is kept in
+                    # matching.py (unused here) in case it's needed
+                    # elsewhere later.
                     apply_url = job.get("applyUrl") or job.get("jobUrl", "")
                     results.append(RawJob(
                         company_name=company["company_name"],
