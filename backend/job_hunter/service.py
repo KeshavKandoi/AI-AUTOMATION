@@ -149,6 +149,17 @@ def ingest_discovered_job(
             updates["work_mode"] = work_mode
         if not existing.get("employment_type") and employment_type:
             updates["employment_type"] = employment_type
+        # Reactivation: a job that had gone stale (is_active=false, no
+        # longer rediscovered within JOB_HUNTER_STALE_AFTER_DAYS) but is
+        # now successfully rediscovered again is genuinely back -- flip
+        # it active again alongside the last_seen_at refresh already
+        # happening above. This only runs on a SUCCESSFUL rediscovery
+        # (we're inside the `if existing:` branch after a real dedup-key
+        # match found via get_job_by_dedup_key) -- a failed/skipped
+        # ingestion never reaches this code path at all, so activity
+        # state is never touched on failure, by construction.
+        if existing.get("is_active") is False:
+            updates["is_active"] = True
         repository.update_job(job["id"], updates)
         is_new = False
     else:
