@@ -71,10 +71,21 @@ def list_jobs(
     employment_type: Optional[str] = None,
     work_mode: Optional[str] = None,
     search: Optional[str] = None,
+    include_inactive: bool = False,
 ) -> tuple[list[dict], int]:
+    """Normal Job Hunter browsing/filtering defaults to active jobs only
+    (is_active=true) -- a job not rediscovered within
+    JOB_HUNTER_STALE_AFTER_DAYS is soft-expired (see
+    mark_stale_jobs_inactive below) and excluded from these results by
+    default. Pass include_inactive=True for historical/audit access to
+    the full record set, e.g. an admin view or a job a user previously
+    tracked. This never deletes rows -- inactive jobs remain fully
+    queryable via this flag."""
     query = supabase_admin.table("job_hunter_jobs").select("*", count="exact") \
         .eq("organization_id", organization_id)
 
+    if not include_inactive:
+        query = query.eq("is_active", True)
     if employment_type:
         query = query.eq("employment_type", employment_type)
     if work_mode:
@@ -85,6 +96,23 @@ def list_jobs(
     query = query.order("last_seen_at", desc=True).range(offset, offset + limit - 1)
     result = query.execute()
     return result.data, (result.count or 0)
+
+
+def mark_stale_jobs_inactive(stale_before_iso: str) -> int:
+    """Soft-expires active jobs not rediscovered since stale_before_iso.
+    Never deletes rows -- only flips is_active to false. Idempotent by
+    construction: only touches rows that are currently is_active=true AND
+    past the threshold, so running this repeatedly (e.g. the daily
+    cleanup job firing more than once, or overlapping with a manual
+    trigger) simply re-selects an empty or smaller set on subsequent
+    runs rather than causing any incorrect state change. Returns the
+    number of jobs newly marked inactive."""
+    result = supabase_admin.table("job_hunter_jobs") \
+        .update({"is_active": False}) \
+        .eq("is_active", True) \
+        .lt("last_seen_at", stale_before_iso) \
+        .execute()
+    return len(result.data)
 
 
 def add_job_source(row: dict) -> Optional[dict]:
