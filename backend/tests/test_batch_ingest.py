@@ -145,10 +145,15 @@ def test_multiple_batches_are_processed_when_exceeding_batch_size():
 
     call_count = {"n": 0}
     def fake_upsert(rows):
+        # Must echo back the REAL dedup_key from each row's payload --
+        # regenerating dk{i} by index within each call would silently
+        # collide across batches (both batch 1 and batch 2 would produce
+        # dk0..dkN), which is a mock bug, not real Supabase behavior.
         call_count["n"] += 1
         return [
-            {"id": f"job{i}", "dedup_key": f"dk{i}", "first_discovered_at": "T1", "last_seen_at": "T1"}
-            for i in range(len(rows))
+            {"id": f"job_{row['dedup_key']}", "dedup_key": row["dedup_key"],
+             "first_discovered_at": "T1", "last_seen_at": "T1"}
+            for row in rows
         ]
 
     with patch("job_hunter.batch_ingest.repository") as repo, \
