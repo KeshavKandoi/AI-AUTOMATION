@@ -10,6 +10,7 @@ from job_hunter import repository, service
 from job_hunter.platforms import registry
 from job_hunter.platforms import __init__ as _register_platforms  # noqa: F401 — triggers adapter registration
 from job_hunter.retry import RetryExhaustedError
+from job_hunter.batch_ingest import ingest_discovered_jobs_batch
 from audit_logs.service import log_event
 
 MODULE = "job_hunter"
@@ -47,73 +48,27 @@ async def run_search_for_org(organization_id: str) -> dict:
         raw_jobs = result["jobs"]
         statuses = result["statuses"]
 
-        # Ingestion metrics -- added after a production sweep silently lost
-        # ~8,000 successfully-discovered jobs to stale-connection failures
-        # with no visibility into what actually happened. inserted/updated
-        # are now tracked explicitly (not inferred after the fact), and
-        # every permanent failure is logged with full provider/company/job/
-        # error detail rather than a single generic line.
-        jobs_new = 0        # kept for backward-compatible return shape
-        inserted = 0
-        updated = 0
-        permanent_failures = []  # list of dicts: platform, company, title, error
+        # Batch ingestion -- replaced the original per-job sequential loop
+        # (kept in job_hunter.service.ingest_discovered_job() for any
+        # other caller, e.g. a future single-job admin action) after
+        # measuring it took ~2.94 hours for 22,865 jobs due to 3-6
+        # sequential Supabase round-trips per job. See
+        # job_hunter/batch_ingest.py for the full design rationale and
+        # the guarantees it preserves (dedup, is_active reactivation,
+        # work_mode/employment_type self-heal, first_discovered_at/
+        # last_seen_at semantics, retry-safety).
+        batch_result = await ingest_discovered_jobs_batch(organization_id, raw_jobs)
+        jobs_new = batch_result["jobs_new"]
+        inserted = batch_result["inserted"]
+        updated = batch_result["updated"]
+        permanent_failures = batch_result["permanent_failure_details"]
+        permanent_failure_count = batch_result["permanent_failures"]
 
-        for raw_job in raw_jobs:
-            try:
-                job = service.ingest_discovered_job(
-                    organization_id=organization_id,
-                    company_name=raw_job.company_name,
-                    job_title=raw_job.job_title,
-                    original_apply_url=raw_job.original_apply_url,
-                    platform=raw_job.platform,
-                    platform_url=raw_job.platform_url,
-                    platform_job_id=raw_job.platform_job_id,
-                    location=raw_job.location,
-                    work_mode=raw_job.work_mode,
-                    employment_type=raw_job.employment_type,
-                    experience_required=raw_job.experience_required,
-                    salary_min=raw_job.salary_min,
-                    salary_max=raw_job.salary_max,
-                    salary_currency=raw_job.salary_currency,
-                    description=raw_job.description,
-                    responsibilities=raw_job.responsibilities,
-                    required_skills=raw_job.required_skills,
-                    qualifications=raw_job.qualifications,
-                    benefits=raw_job.benefits,
-                    company_info=raw_job.company_info,
-                    posted_at=raw_job.posted_at,
-                )
-                if job.get("first_discovered_at") == job.get("last_seen_at"):
-                    jobs_new += 1
-                    inserted += 1
-                else:
-                    updated += 1
-            except RetryExhaustedError as e:
-                # Transient network/connection failure that persisted
-                # across every retry attempt (see job_hunter/retry.py) --
-                # this job was discovered but could not be saved. Logged
-                # with full detail rather than silently dropped.
-                logger.error(
-                    f"[job_hunter] RETRY EXHAUSTED ingesting '{raw_job.job_title}' "
-                    f"@ {raw_job.company_name} (platform={raw_job.platform}): "
-                    f"{e.attempts} attempts, last error: {e.last_exception}"
-                )
-                permanent_failures.append({
-                    "platform": raw_job.platform, "company": raw_job.company_name,
-                    "title": raw_job.job_title, "error": f"retry_exhausted: {e.last_exception}",
-                })
-            except Exception as e:
-                # One bad job record should never abort the whole sweep —
-                # log and continue to the next. Covers permanent errors
-                # (schema/validation/constraint) that are correctly never
-                # retried by retry_db_call().
-                logger.error(f"[job_hunter] Failed to ingest job '{raw_job.job_title}' @ {raw_job.company_name} (platform={raw_job.platform}): {e}")
-                permanent_failures.append({
-                    "platform": raw_job.platform, "company": raw_job.company_name,
-                    "title": raw_job.job_title, "error": str(e),
-                })
-
-        permanent_failure_count = len(permanent_failures)
+        for f in permanent_failures:
+            logger.error(
+                f"[job_hunter] Permanent ingestion failure: '{f['title']}' "
+                f"@ {f['company']} (platform={f['platform']}): {f['error']}"
+            )
         # Reconciliation: discovered == inserted + updated + permanent_failures
         # (there is no separate "duplicate/no-op" bucket at this layer --
         # every raw_job that isn't a genuine insert is either an update to
