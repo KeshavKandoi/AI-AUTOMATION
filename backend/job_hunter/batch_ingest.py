@@ -164,7 +164,15 @@ async def ingest_discovered_jobs_batch(organization_id: str, raw_jobs: list) -> 
 
         # Map upserted rows back to their raw_job by dedup_key to run the
         # per-job source/notify step and determine insert vs update.
+        # counted_keys tracks which dedup_keys have already been counted
+        # toward inserted/updated this batch -- two RawJobs that resolve
+        # to the SAME dedup_key (e.g. the same posting found via two
+        # different search queries within one sweep) map to the SAME
+        # upserted DB row and must only be counted ONCE, even though the
+        # per-job source/notify step still runs for each RawJob (each one
+        # may carry a distinct platform_url worth recording as a source).
         upserted_by_key = {row["dedup_key"]: row for row in upserted}
+        counted_keys = set()
         followup_tasks = []
         for rj, dk in zip(batch, dedup_keys):
             job_row = upserted_by_key.get(dk)
@@ -179,10 +187,12 @@ async def ingest_discovered_jobs_batch(organization_id: str, raw_jobs: list) -> 
             existing = existing_map.get(dk)
             content_changed = _content_changed(existing, rj.description, rj.salary_min, rj.salary_max) if existing else False
 
-            if is_new:
-                inserted += 1
-            else:
-                updated += 1
+            if dk not in counted_keys:
+                counted_keys.add(dk)
+                if is_new:
+                    inserted += 1
+                else:
+                    updated += 1
 
             followup_tasks.append(
                 _add_source_and_notify(organization_id, job_row, rj, is_new, content_changed, sem)
