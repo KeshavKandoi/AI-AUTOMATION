@@ -28,6 +28,50 @@ def upsert_preferences(organization_id: str, row: dict) -> dict:
 # Jobs
 # ---------------------------------------------------------------------------
 
+def get_existing_by_dedup_keys(organization_id: str, dedup_keys: list[str]) -> dict[str, dict]:
+    """Batch version of get_job_by_dedup_key -- one SELECT ... WHERE
+    dedup_key IN (...) instead of N individual lookups. Returns a dict
+    keyed by dedup_key for O(1) lookup while building the upsert batch.
+    Used only to preserve existing work_mode/employment_type/is_active
+    values during the self-heal/reactivation logic -- the actual
+    insert-vs-update determination still comes from comparing
+    first_discovered_at == last_seen_at on the upsert response, exactly
+    as the original per-job path did."""
+    if not dedup_keys:
+        return {}
+    result = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_jobs")
+            .select("id, dedup_key, work_mode, employment_type, is_active, description, salary_min, salary_max")
+            .eq("organization_id", organization_id)
+            .in_("dedup_key", dedup_keys)
+            .execute(),
+        operation_name="get_existing_by_dedup_keys",
+    )
+    return {row["dedup_key"]: row for row in result.data}
+
+
+def batch_upsert_jobs(rows: list[dict]) -> list[dict]:
+    """Upserts many job rows in a single Supabase request, matched on the
+    existing (organization_id, dedup_key) unique constraint -- the same
+    constraint create_job()/update_job() have always relied on, so this
+    introduces no new duplicate-creation risk. default_to_null=False so
+    any column NOT included in a given row's payload is left untouched
+    on conflict (verified empirically: is_active and first_discovered_at
+    are preserved correctly across upsert when omitted). Idempotent by
+    construction -- retrying the same batch re-applies the same values,
+    which is safe whether or not the original request actually succeeded
+    server-side before the client saw a transient error."""
+    if not rows:
+        return []
+    result = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_jobs")
+            .upsert(rows, on_conflict="organization_id,dedup_key", default_to_null=False)
+            .execute(),
+        operation_name="batch_upsert_jobs",
+    )
+    return result.data
+
+
 def get_job_by_dedup_key(organization_id: str, dedup_key: str) -> Optional[dict]:
     result = retry_db_call(
         lambda: supabase_admin.table("job_hunter_jobs")
