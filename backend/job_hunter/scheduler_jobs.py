@@ -14,6 +14,13 @@ from audit_logs.service import log_event
 
 MODULE = "job_hunter"
 
+# How many days a job can go without being rediscovered by any provider
+# sweep before it's soft-expired (is_active set to false). Configurable
+# in one place -- change this value to adjust retention behavior without
+# hunting for it scattered through the codebase. Soft expiration only:
+# see repository.mark_stale_jobs_inactive() -- rows are never deleted.
+JOB_HUNTER_STALE_AFTER_DAYS = 30
+
 
 async def run_search_for_org(organization_id: str) -> dict:
     """
@@ -176,6 +183,26 @@ async def run_search_for_all_orgs() -> dict:
 
     logger.info(f"[job_hunter] Search sweep complete for {len(org_ids)} orgs")
     return results
+
+
+async def run_stale_job_cleanup() -> dict:
+    """Daily task (wired into scheduler.py separately from the 6-hour
+    scrape interval -- this does NOT touch or replace that schedule) that
+    soft-expires jobs not rediscovered within JOB_HUNTER_STALE_AFTER_DAYS.
+    Idempotent: repository.mark_stale_jobs_inactive() only updates rows
+    that are currently active AND past the threshold, so running this
+    multiple times (e.g. a missed run catching up, or manual trigger) is
+    always safe -- it never re-processes already-inactive rows or
+    produces incorrect state. Never deletes anything."""
+    from datetime import datetime, timezone, timedelta
+    stale_before = (datetime.now(timezone.utc) - timedelta(days=JOB_HUNTER_STALE_AFTER_DAYS)).isoformat()
+
+    count = repository.mark_stale_jobs_inactive(stale_before)
+    if count:
+        logger.info(f"[job_hunter] Stale-job cleanup: marked {count} job(s) inactive (not seen in {JOB_HUNTER_STALE_AFTER_DAYS}+ days)")
+    else:
+        logger.info(f"[job_hunter] Stale-job cleanup: no jobs past the {JOB_HUNTER_STALE_AFTER_DAYS}-day threshold")
+    return {"marked_inactive": count, "threshold_days": JOB_HUNTER_STALE_AFTER_DAYS}
 
 
 async def run_due_reminders() -> int:
