@@ -146,10 +146,28 @@ async def ingest_discovered_jobs_batch(organization_id: str, raw_jobs: list) -> 
                 })
             continue
 
-        upsert_rows = []
+        # Postgres's ON CONFLICT DO UPDATE cannot affect the same row
+        # twice within a single statement -- if this batch contains two+
+        # RawJobs that resolve to the SAME dedup_key (e.g. two near-
+        # identical listings on the same company's board, or the same
+        # posting found via two different search queries), sending both
+        # rows in one upsert call fails the ENTIRE batch with Postgres
+        # error 21000. Found via a real production sweep: a single
+        # duplicate pair on Stripe's Greenhouse board caused ~4,630 jobs
+        # across many unrelated batches to be wrongly marked as permanent
+        # failures. Fix: collapse to one row per unique dedup_key BEFORE
+        # calling Postgres -- last one seen wins, consistent with the
+        # "last value wins" semantics upsert already has for values within
+        # a single row. This does not change final data correctness: the
+        # per-RawJob counted_keys logic below already only counts each
+        # dedup_key once, and _add_source_and_notify still runs once per
+        # ORIGINAL RawJob (so no distinct platform_url source record is
+        # lost even when two RawJobs collapse to one DB row).
+        upsert_rows_by_key: dict[str, dict] = {}
         for rj, dk in zip(batch, dedup_keys):
             existing = existing_map.get(dk)
-            upsert_rows.append(_build_upsert_row(organization_id, rj, dk, existing))
+            upsert_rows_by_key[dk] = _build_upsert_row(organization_id, rj, dk, existing)
+        upsert_rows = list(upsert_rows_by_key.values())
 
         try:
             upserted = repository.batch_upsert_jobs(upsert_rows)
