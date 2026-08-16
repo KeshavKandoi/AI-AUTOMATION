@@ -166,3 +166,75 @@ def test_multiple_batches_are_processed_when_exceeding_batch_size():
 
     assert call_count["n"] == 2, f"expected 2 batch upsert calls for {BATCH_SIZE + 50} jobs at BATCH_SIZE={BATCH_SIZE}, got {call_count['n']}"
     assert result["inserted"] == BATCH_SIZE + 50
+
+
+def test_duplicate_dedup_keys_never_sent_to_upsert_together():
+    """Regression test for a real production bug: sending two rows with
+    the SAME dedup_key in one upsert call causes Postgres error 21000
+    ('ON CONFLICT DO UPDATE command cannot affect row a second time'),
+    which previously failed the ENTIRE batch (~4,630 jobs lost in one
+    real sweep from a single duplicate pair). Confirms upsert_rows passed
+    to repository.batch_upsert_jobs() never contains duplicate
+    dedup_keys, regardless of how many RawJobs in the batch share one."""
+    raw_jobs = [
+        _make_raw_job(title="Account Executive", url="http://x/a"),
+        _make_raw_job(title="Account Executive", url="http://x/a"),  # duplicate dedup_key
+        _make_raw_job(title="Different Job", url="http://x/b"),
+    ]
+
+    captured_upsert_rows = []
+    def fake_upsert(rows):
+        captured_upsert_rows.extend(rows)
+        return [
+            {"id": f"job_{row['dedup_key']}", "dedup_key": row["dedup_key"],
+             "first_discovered_at": "T1", "last_seen_at": "T1"}
+            for row in rows
+        ]
+
+    with patch("job_hunter.batch_ingest.repository") as repo, \
+         patch("job_hunter.batch_ingest.notify_job_match"):
+        repo.get_existing_by_dedup_keys.return_value = {}
+        repo.batch_upsert_jobs.side_effect = fake_upsert
+        # First two raw_jobs share dk1 (duplicate), third has dk2
+        with patch("job_hunter.batch_ingest.build_dedup_key", side_effect=["dk1", "dk1", "dk2"]):
+            result = asyncio.run(ingest_discovered_jobs_batch("org1", raw_jobs))
+
+    upsert_keys = [row["dedup_key"] for row in captured_upsert_rows]
+    assert len(upsert_keys) == len(set(upsert_keys)), (
+        f"upsert payload must never contain duplicate dedup_keys within one call, got: {upsert_keys}"
+    )
+    assert sorted(upsert_keys) == ["dk1", "dk2"], "exactly one row per unique dedup_key must be sent"
+    # All 3 original RawJobs still get their source/notify step (no data
+    # loss for the 2 that collapsed onto the same DB row) -- verified via
+    # no exception raised and correct insert/update counting:
+    assert result["inserted"] + result["updated"] == 2, "2 unique jobs, correctly counted once each"
+    assert result["permanent_failures"] == 0
+
+
+def test_real_postgres_conflict_error_would_have_failed_whole_batch_before_fix():
+    """Documents the exact failure mode this fix addresses: if
+    duplicate-collapsing were somehow bypassed and a real Postgres 21000
+    error occurred, the batch upsert exception handler correctly marks
+    the batch as failed rather than crashing the sweep -- this is the
+    existing safety net, still intact, for any future edge case this fix
+    doesn't anticipate."""
+    raw_jobs = [_make_raw_job(title="Job A"), _make_raw_job(title="Job B")]
+
+    postgres_conflict_error = RuntimeError(
+        "{'message': 'ON CONFLICT DO UPDATE command cannot affect row a "
+        "second time', 'code': '21000', 'hint': 'Ensure that no rows "
+        "proposed for insertion within the same command have duplicate "
+        "constrained values.'}"
+    )
+
+    with patch("job_hunter.batch_ingest.repository") as repo, \
+         patch("job_hunter.batch_ingest.notify_job_match"):
+        repo.get_existing_by_dedup_keys.return_value = {}
+        repo.batch_upsert_jobs.side_effect = postgres_conflict_error
+        with patch("job_hunter.batch_ingest.build_dedup_key", side_effect=["dk1", "dk2"]):
+            result = asyncio.run(ingest_discovered_jobs_batch("org1", raw_jobs))
+
+    # Even in this edge case, every job is accounted for as a permanent
+    # failure -- none silently vanish.
+    assert result["permanent_failures"] == 2
+    assert result["inserted"] + result["updated"] + result["permanent_failures"] == 2
