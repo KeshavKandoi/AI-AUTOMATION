@@ -45,12 +45,25 @@ def list_jobs(
     employment_type: str | None = None,
     work_mode: str | None = None,
     search: str | None = None,
+    roles: str | None = None,
+    skills: str | None = None,
     org_id: str = Depends(get_current_org_id),
 ):
+    """roles/skills: comma-separated lists, used by Discover's "For You"
+    view to personalize results against the stored database using the
+    org's saved preferences -- purely a query-time filter, DB-only."""
+    roles_list = [r.strip() for r in roles.split(",") if r.strip()] if roles else None
+    skills_list = [s.strip() for s in skills.split(",") if s.strip()] if skills else None
     return service.list_jobs(
         org_id, limit=limit, offset=offset,
         employment_type=employment_type, work_mode=work_mode, search=search,
+        roles=roles_list, skills=skills_list,
     )
+
+
+@router.get("/search/last-sync")
+def get_last_sync(org_id: str = Depends(get_current_org_id)):
+    return service.get_last_sync_status(org_id)
 
 
 @router.get("/jobs/{job_id}")
