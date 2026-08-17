@@ -246,6 +246,19 @@ def list_jobs(organization_id: str, limit: int = 50, offset: int = 0, **filters)
     return {"items": jobs, "total": total, "limit": limit, "offset": offset}
 
 
+def get_last_sync_status(organization_id: str) -> dict:
+    """Powers the Discover page's "Last synced" indicator -- pure DB
+    read, never triggers a scrape."""
+    run = repository.get_last_completed_search_run(organization_id)
+    if not run:
+        return {"last_synced_at": None, "status": None, "jobs_found": None, "jobs_new": None}
+    return {
+        "last_synced_at": run["finished_at"],
+        "status": run["status"],
+        "jobs_found": run.get("jobs_found"),
+        "jobs_new": run.get("jobs_new"),
+    }
+
 def get_job_with_sources(job_id: str, organization_id: str) -> dict:
     job = repository.get_job(job_id, organization_id)
     if not job:
