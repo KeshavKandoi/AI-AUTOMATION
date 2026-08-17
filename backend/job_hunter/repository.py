@@ -116,6 +116,8 @@ def list_jobs(
     work_mode: Optional[str] = None,
     search: Optional[str] = None,
     include_inactive: bool = False,
+    roles: Optional[list[str]] = None,
+    skills: Optional[list[str]] = None,
 ) -> tuple[list[dict], int]:
     """Normal Job Hunter browsing/filtering defaults to active jobs only
     (is_active=true) -- a job not rediscovered within
@@ -124,7 +126,14 @@ def list_jobs(
     default. Pass include_inactive=True for historical/audit access to
     the full record set, e.g. an admin view or a job a user previously
     tracked. This never deletes rows -- inactive jobs remain fully
-    queryable via this flag."""
+    queryable via this flag.
+
+    roles/skills: optional query-time personalization filter for the
+    Discover "For You" view. Every term across BOTH lists is OR'd
+    together as a job_title ilike match -- mirrors the permissive OR
+    semantics matching.matches_preferences() used to apply at discovery
+    time, now applied at query time instead against the already-stored
+    database inventory. Purely a DB filter; never triggers scraping."""
     query = supabase_admin.table("job_hunter_jobs").select("*", count="exact") \
         .eq("organization_id", organization_id)
 
@@ -136,10 +145,29 @@ def list_jobs(
         query = query.eq("work_mode", work_mode)
     if search:
         query = query.or_(f"job_title.ilike.%{search}%,company_name.ilike.%{search}%")
+    if roles or skills:
+        terms = [t.strip() for t in (roles or []) + (skills or []) if t and t.strip()]
+        if terms:
+            or_clause = ",".join(f"job_title.ilike.%{t}%" for t in terms)
+            query = query.or_(or_clause)
 
     query = query.order("last_seen_at", desc=True).range(offset, offset + limit - 1)
     result = query.execute()
     return result.data, (result.count or 0)
+
+
+def get_last_completed_search_run(organization_id: str) -> Optional[dict]:
+    """Most recent finished (success or failed) search run for this org --
+    powers the Discover page's "Last synced: X ago" indicator. Pure read,
+    no scraping triggered."""
+    result = supabase_admin.table("job_hunter_search_runs") \
+        .select("id, status, finished_at, jobs_found, jobs_new") \
+        .eq("organization_id", organization_id) \
+        .not_.is_("finished_at", "null") \
+        .order("finished_at", desc=True) \
+        .limit(1) \
+        .execute()
+    return result.data[0] if result.data else None
 
 
 def mark_stale_jobs_inactive(stale_before_iso: str) -> int:
