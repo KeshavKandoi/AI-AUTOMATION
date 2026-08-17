@@ -25,7 +25,7 @@ MODULE = "pull_requests"
 def _get_token(organization_id: str) -> str:
     try:
         return _resolve_access_token(organization_id, "github")
-    except ValueError:
+    except RuntimeError:
         raise HTTPException(status_code=400, detail="No connected GitHub integration for this organization")
 
 
