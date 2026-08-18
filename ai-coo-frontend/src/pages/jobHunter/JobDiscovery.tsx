@@ -457,7 +457,7 @@ export default function JobDiscovery() {
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Sources</h4>
                 <div className="flex flex-col gap-1">
                   {selectedJob.sources.map((s) => (
-                      
+                    <a
                       key={s.id}
                       href={s.platform_url}
                       target="_blank"
