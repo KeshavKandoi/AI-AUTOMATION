@@ -132,6 +132,15 @@ export interface JobListFilters {
   employment_type?: string
   work_mode?: string
   search?: string
+  roles?: string[]
+  skills?: string[]
+}
+
+export interface LastSyncStatus {
+  last_synced_at: string | null
+  status: string | null
+  jobs_found: number | null
+  jobs_new: number | null
 }
 
 // ---------------------------------------------------------------------------
