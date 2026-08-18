@@ -15,6 +15,7 @@ import type {
   JobListFilters,
   JobListResponse,
   JobOut,
+  LastSyncStatus,
   NoteOut,
   PreferencesResponse,
   ProviderHealthResponse,
@@ -44,13 +45,23 @@ export const realJobHunterService = {
       .then((r) => r.data.preferences!),
 
   // Jobs
-  listJobs: (limit = 50, offset = 0, filters: JobListFilters = {}) =>
-    apiClient
-      .get<JobListResponse>('/job-hunter/jobs', { params: { limit, offset, ...filters } })
-      .then((r) => r.data),
+  listJobs: (limit = 50, offset = 0, filters: JobListFilters = {}) => {
+    const { roles, skills, ...rest } = filters
+    const params: Record<string, unknown> = { limit, offset, ...rest }
+    if (roles && roles.length > 0) params.roles = roles.join(',')
+    if (skills && skills.length > 0) params.skills = skills.join(',')
+    return apiClient
+      .get<JobListResponse>('/job-hunter/jobs', { params })
+      .then((r) => r.data)
+  },
 
   getJob: (jobId: string) =>
     apiClient.get<JobOut>(`/job-hunter/jobs/${jobId}`).then((r) => r.data),
+
+  // Last sync status -- powers the Discover page's "Last synced" indicator.
+  // Pure DB read, never triggers a scrape.
+  getLastSync: () =>
+    apiClient.get<LastSyncStatus>('/job-hunter/search/last-sync').then((r) => r.data),
 
   // Applications
   listApplications: (status?: ApplicationStatus) =>
