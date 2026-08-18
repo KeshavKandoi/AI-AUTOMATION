@@ -10,6 +10,7 @@ import {
   MapPin,
   RefreshCw,
   Search,
+  Sparkles,
   Wallet,
 } from 'lucide-react'
 import { jobHunterService } from '@/services/jobHunter'
@@ -27,6 +28,8 @@ import Modal from '@/components/ui/Modal'
 const EMPLOYMENT_TYPES = ['Internship', 'Full-time', 'Part-time', 'Contract', 'Freelance']
 const WORK_MODES = ['Remote', 'Hybrid', 'Onsite']
 const PAGE_SIZE = 20
+
+type ViewMode = 'for_you' | 'all'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -55,8 +58,12 @@ function formatSalary(job: JobOut): string | null {
 function timeAgo(iso: string | null): string {
   if (!iso) return ''
   const diffMs = Date.now() - new Date(iso).getTime()
+  const minutes = Math.floor(diffMs / (1000 * 60))
+  const hours = Math.floor(diffMs / (1000 * 60 * 60))
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  if (days <= 0) return 'today'
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  if (hours < 24) return `${hours}h ago`
   if (days === 1) return '1 day ago'
   if (days < 30) return `${days} days ago`
   const months = Math.floor(days / 30)
@@ -66,6 +73,7 @@ function timeAgo(iso: string | null): string {
 export default function JobDiscovery() {
   const queryClient = useQueryClient()
 
+  const [viewMode, setViewMode] = useState<ViewMode>('for_you')
   const [searchDraft, setSearchDraft] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
   const [employmentType, setEmploymentType] = useState('')
@@ -73,22 +81,48 @@ export default function JobDiscovery() {
   const [offset, setOffset] = useState(0)
   const [selectedJob, setSelectedJob] = useState<JobOut | null>(null)
 
-  const filters: JobListFilters = useMemo(
-    () => ({
+  // Preferences power "For You" — the user's saved desired_roles/skills
+  // become the base personalization, applied as a DB-only query-time
+  // filter (never scraping). They never need to re-type this in Discover.
+  const { data: prefsData } = useQuery({
+    queryKey: ['job-hunter', 'preferences'],
+    queryFn: () => jobHunterService.getPreferences(),
+  })
+  const preferences = prefsData?.preferences
+
+  const { data: lastSync } = useQuery({
+    queryKey: ['job-hunter', 'last-sync'],
+    queryFn: () => jobHunterService.getLastSync(),
+    refetchInterval: 60_000,
+  })
+
+  const filters: JobListFilters = useMemo(() => {
+    const base: JobListFilters = {
       employment_type: employmentType || undefined,
       work_mode: workMode || undefined,
       search: appliedSearch || undefined,
-    }),
-    [employmentType, workMode, appliedSearch]
-  )
+    }
+    if (viewMode === 'for_you' && preferences) {
+      return {
+        ...base,
+        roles: preferences.desired_roles?.length ? preferences.desired_roles : undefined,
+        skills: preferences.skills?.length ? preferences.skills : undefined,
+      }
+    }
+    return base
+  }, [viewMode, preferences, employmentType, workMode, appliedSearch])
 
   useEffect(() => {
     setOffset(0)
-  }, [employmentType, workMode, appliedSearch])
+  }, [viewMode, employmentType, workMode, appliedSearch])
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['job-hunter', 'jobs', filters, offset],
     queryFn: () => jobHunterService.listJobs(PAGE_SIZE, offset, filters),
+    // For You depends on preferences having loaded first, so its filter
+    // is correct on the very first fetch rather than briefly showing
+    // unfiltered results.
+    enabled: viewMode === 'all' || prefsData !== undefined,
   })
 
   const { data: applications } = useQuery({
@@ -104,6 +138,7 @@ export default function JobDiscovery() {
     mutationFn: () => jobHunterService.runSearchNow(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['job-hunter', 'jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['job-hunter', 'last-sync'] })
     },
   })
 
@@ -121,39 +156,85 @@ export default function JobDiscovery() {
     setWorkMode('')
   }
 
-  const hasFilters = !!(employmentType || workMode || appliedSearch)
+  const hasTempFilters = !!(employmentType || workMode || appliedSearch)
   const total = data?.total ?? 0
   const items = data?.items ?? []
   const rangeStart = total === 0 ? 0 : offset + 1
   const rangeEnd = Math.min(offset + PAGE_SIZE, total)
+  const hasPreferences = !!(preferences?.desired_roles?.length || preferences?.skills?.length)
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Header: view toggle + last-synced indicator (replaces the old
+          prominent "Run search" primary action — the six-hour background
+          sweep keeps the database fresh automatically; a manual refresh
+          is now a small secondary action further down). */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex-1 min-w-[240px]">
-          <p className="text-sm text-[var(--color-text-muted)]">
-            {total > 0 ? `${total} matching jobs discovered so far` : 'Run a search to discover matching jobs'}
-          </p>
+        <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+          <button
+            onClick={() => setViewMode('for_you')}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === 'for_you'
+                ? 'bg-[var(--color-signal-dim)] text-[var(--color-signal)]'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            <Sparkles size={13} />
+            For You
+          </button>
+          <button
+            onClick={() => setViewMode('all')}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === 'all'
+                ? 'bg-[var(--color-signal-dim)] text-[var(--color-signal)]'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            All Jobs
+          </button>
         </div>
-        <Button
-          variant="secondary"
-          loading={runSearchMutation.isPending}
-          disabled={runSearchMutation.isPending}
-          onClick={() => runSearchMutation.mutate()}
-        >
-          <RefreshCw size={14} className={runSearchMutation.isPending ? 'animate-spin' : ''} />
-          Run search
-        </Button>
+
+        <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+          <span>
+            {lastSync?.last_synced_at
+              ? `Last synced ${timeAgo(lastSync.last_synced_at)}`
+              : 'Not synced yet'}
+          </span>
+          <Button
+            variant="ghost"
+            className="text-xs"
+            loading={runSearchMutation.isPending}
+            disabled={runSearchMutation.isPending}
+            onClick={() => runSearchMutation.mutate()}
+          >
+            <RefreshCw size={12} className={runSearchMutation.isPending ? 'animate-spin' : ''} />
+            Refresh jobs
+          </Button>
+        </div>
+      </div>
+
+      {viewMode === 'for_you' && !hasPreferences && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+          Add desired roles or skills in Preferences to personalize this view — showing the full database inventory for now.
+        </div>
+      )}
+
+      <div className="flex-1 min-w-[240px]">
+        <p className="text-sm text-[var(--color-text-muted)]">
+          {total > 0
+            ? `${total} ${viewMode === 'for_you' ? 'matching' : ''} job${total === 1 ? '' : 's'} in the database`
+            : 'No jobs found — the background sweep refreshes the database every 6 hours'}
+        </p>
       </div>
 
       {runSearchMutation.isSuccess && !runSearchMutation.isPending && (
         <div className="rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2 text-xs text-[var(--color-signal)]">
           {runSearchMutation.data.status === "already_running"
-            ? "A search is already running for your account - check back shortly."
-            : "Search started - this can take a few minutes. New jobs will appear here once it finishes; refresh or check back shortly."}
+            ? "A sync is already running for your account - check back shortly."
+            : "Sync started - this runs in the background and can take a while; the database updates as it goes."}
         </div>
       )}
-      {runSearchMutation.isError && <ErrorBanner message="Couldn't trigger a search run. Please try again." />}
+      {runSearchMutation.isError && <ErrorBanner message="Couldn't trigger a refresh. Please try again." />}
 
       <Card className="p-4 flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">
@@ -165,7 +246,7 @@ export default function JobDiscovery() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') setAppliedSearch(searchDraft.trim())
               }}
-              placeholder="Search job title, company, skills..."
+              placeholder={viewMode === 'for_you' ? 'Narrow your matches further...' : 'Search job title, company, skills...'}
               className="flex-1 bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none py-2.5"
             />
           </div>
@@ -184,9 +265,9 @@ export default function JobDiscovery() {
           <Button variant="secondary" onClick={() => setAppliedSearch(searchDraft.trim())}>
             Search
           </Button>
-          {hasFilters && (
+          {hasTempFilters && (
             <Button variant="ghost" onClick={clearFilters}>
-              Clear
+              Clear filters
             </Button>
           )}
         </div>
@@ -209,11 +290,13 @@ export default function JobDiscovery() {
         <Card className="p-8">
           <EmptyState
             icon={Briefcase}
-            title={hasFilters ? 'No jobs match these filters' : 'No jobs discovered yet'}
+            title={hasTempFilters ? 'No jobs match these filters' : 'No jobs found'}
             description={
-              hasFilters
+              hasTempFilters
                 ? 'Try widening your filters or clearing them.'
-                : 'Run a search to start discovering roles that match your preferences.'
+                : viewMode === 'for_you'
+                  ? 'No jobs currently match your saved preferences. Try All Jobs, or update your Preferences.'
+                  : 'The background sweep refreshes the database automatically every 6 hours.'
             }
           />
         </Card>
@@ -374,7 +457,7 @@ export default function JobDiscovery() {
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Sources</h4>
                 <div className="flex flex-col gap-1">
                   {selectedJob.sources.map((s) => (
-                      <a
+                      
                       key={s.id}
                       href={s.platform_url}
                       target="_blank"
