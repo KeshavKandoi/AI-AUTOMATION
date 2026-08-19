@@ -48,6 +48,7 @@ def _build_issue_query(
     label: Optional[str],
     unassigned_only: bool,
     search: Optional[str],
+    org: Optional[str] = None,
 ) -> str:
     parts = ["is:issue", "is:open"]
     if unassigned_only:
@@ -57,6 +58,8 @@ def _build_issue_query(
     if label:
         # Quote multi-word labels like "good first issue"
         parts.append(f'label:"{label}"' if " " in label else f"label:{label}")
+    if org:
+        parts.append(f"org:{org}")
     if search:
         parts.append(search)
     return " ".join(parts)
@@ -71,9 +74,10 @@ async def list_issues(
     sort: str = "updated",
     page: int = 1,
     per_page: int = 30,
+    org: Optional[str] = None,
 ) -> dict:
     access_token = _get_token(organization_id)
-    query = _build_issue_query(language, label, unassigned_only, search)
+    query = _build_issue_query(language, label, unassigned_only, search, org)
 
     try:
         result = await gh.search_issues(access_token, query, sort=sort, per_page=per_page, page=page)
@@ -104,12 +108,14 @@ def _repo_summary(repo: dict) -> dict:
     }
 
 
-def _build_repo_query(language: Optional[str], topic: Optional[str], search: Optional[str]) -> str:
+def _build_repo_query(language: Optional[str], topic: Optional[str], search: Optional[str], org: Optional[str] = None) -> str:
     parts = []
     if language:
         parts.append(f"language:{language}")
     if topic:
         parts.append(f"topic:{topic}")
+    if org:
+        parts.append(f"org:{org}")
     if search:
         parts.append(search)
     if not parts:
@@ -127,9 +133,10 @@ async def list_repositories(
     sort: str = "stars",
     page: int = 1,
     per_page: int = 30,
+    org: Optional[str] = None,
 ) -> dict:
     access_token = _get_token(organization_id)
-    query = _build_repo_query(language, topic, search)
+    query = _build_repo_query(language, topic, search, org)
 
     try:
         result = await gh.search_repositories(access_token, query, sort=sort, per_page=per_page, page=page)
