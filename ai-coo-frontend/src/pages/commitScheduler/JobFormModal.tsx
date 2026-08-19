@@ -41,9 +41,14 @@ interface JobFormModalProps {
   job: CommitJob | null
   onClose: () => void
   onSuccess: () => void
+  initialValues?: {
+    repoFullName?: string
+    usePr?: boolean
+    commitMessage?: string
+  }
 }
 
-export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: JobFormModalProps) {
+export default function JobFormModal({ open, orgId, job, onClose, onSuccess, initialValues }: JobFormModalProps) {
   const isEdit = !!job
   const queryClient = useQueryClient()
 
@@ -87,12 +92,12 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
       setUsePr(job.use_pr)
       setStatus(job.status)
     } else {
-      setRepoFullName('')
+      setRepoFullName(initialValues?.repoFullName ?? '')
       setBranch('')
       setFolderPath('')
       setFileName('')
       setFileContent('')
-      setCommitMessage('')
+      setCommitMessage(initialValues?.commitMessage ?? '')
       setStartDate('')
       setEndDate('')
       setFrequency('daily')
@@ -100,10 +105,10 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess }: J
       setExecutionAt('')
       setMode('scheduled')
       setGuardCutoff('23:30:00')
-      setUsePr(false)
+      setUsePr(initialValues?.usePr ?? false)
       setStatus('active')
     }
-  }, [job, open])
+  }, [job, open, initialValues])
 
   const { data: repos, isLoading: reposLoading, isError: reposError } = useQuery({
     queryKey: ['commit-scheduler', 'repos', orgId],
