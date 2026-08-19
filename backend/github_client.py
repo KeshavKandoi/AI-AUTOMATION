@@ -53,7 +53,7 @@ def _check_rate_limit(res: httpx.Response):
 
 async def _request(method: str, url: str, access_token: str, **kwargs) -> httpx.Response:
     try:
-        async with httpx.AsyncClient(timeout=20) as client:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
             res = await client.request(method, url, headers=_headers(access_token), **kwargs)
     except httpx.HTTPError as e:
         raise GitHubAPIError(status_code=502, message=f"Couldn't reach GitHub: {e}")
