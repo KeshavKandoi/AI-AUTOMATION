@@ -16,6 +16,7 @@ export const realOpenSourceService: OpenSourceService = {
           search: filters.search,
           sort: filters.sort,
           org: filters.org,
+          repo: filters.repo,
           page: filters.page,
           per_page: filters.perPage,
         },
