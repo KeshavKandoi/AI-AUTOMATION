@@ -177,3 +177,13 @@ async def merge_pull_request(access_token: str, repo_full_name: str, pr_number: 
 async def close_pull_request(access_token: str, repo_full_name: str, pr_number: int) -> dict:
     res = await _request("PATCH", f"{BASE_URL}/repos/{repo_full_name}/pulls/{pr_number}", access_token, json={"state": "closed"})
     return res.json()
+
+
+async def get_repository(access_token: str, repo_full_name: str) -> dict:
+    res = await get(access_token, f"/repos/{repo_full_name}")
+    return res.json()
+
+
+async def get_issue(access_token: str, repo_full_name: str, issue_number: int) -> dict:
+    res = await get(access_token, f"/repos/{repo_full_name}/issues/{issue_number}")
+    return res.json()
