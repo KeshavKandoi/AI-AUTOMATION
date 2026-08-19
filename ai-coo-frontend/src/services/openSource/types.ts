@@ -82,6 +82,7 @@ export interface IssueFilters {
   search?: string
   sort?: IssueSort
   org?: string
+  repo?: string
   page?: number
   perPage?: number
 }
