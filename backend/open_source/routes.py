@@ -19,8 +19,9 @@ async def list_issues(
     sort: str = "updated",
     page: int = Query(1, ge=1),
     per_page: int = Query(30, ge=1, le=100),
+    org: Optional[str] = None,
 ):
-    return await service.list_issues(org_id, language, label, unassigned_only, search, sort, page, per_page)
+    return await service.list_issues(org_id, language, label, unassigned_only, search, sort, page, per_page, org)
 
 
 @router.get("/issues/{owner}/{repo}/{issue_number}", response_model=OSIssueDetail)
@@ -37,8 +38,9 @@ async def list_repositories(
     sort: str = "stars",
     page: int = Query(1, ge=1),
     per_page: int = Query(30, ge=1, le=100),
+    org: Optional[str] = None,
 ):
-    return await service.list_repositories(org_id, language, topic, search, sort, page, per_page)
+    return await service.list_repositories(org_id, language, topic, search, sort, page, per_page, org)
 
 
 @router.get("/repositories/{owner}/{repo}", response_model=OSRepoDetail)
