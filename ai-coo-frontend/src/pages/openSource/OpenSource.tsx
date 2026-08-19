@@ -65,7 +65,7 @@ export default function OpenSource() {
     enabled: !!orgId && tab === 'issues',
   })
 
-  const { data: repoData, isLoading: reposLoading, isError: reposError } = useQuery({
+  const { data: repoData, isLoading: reposLoading, isFetching: reposFetching, isError: reposError } = useQuery({
     queryKey: ['open-source', 'repositories', orgId, language, org, topic, search, repoSort],
     queryFn: () =>
       openSourceService.listRepositories(orgId!, {
@@ -167,6 +167,9 @@ export default function OpenSource() {
             <option value="forks">Most forks</option>
           </select>
         )}
+        {((tab === 'issues' && issuesFetching && !issuesLoading) || (tab === 'repositories' && reposFetching && !reposLoading)) && (
+          <span className="text-xs text-[var(--color-text-faint)]">Updating...</span>
+        )}
       </div>
 
       {tab === 'issues' && repoFilter && (
@@ -229,7 +232,7 @@ export default function OpenSource() {
             />
           </Card>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className={`flex flex-col gap-3 transition-opacity ${issuesFetching ? 'opacity-50' : ''}`}>
             {issueData.items.map((issue: OSIssueSummary) => (
               <Card key={`${issue.repo_full_name}#${issue.number}`} className="p-5">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -273,7 +276,7 @@ export default function OpenSource() {
           <EmptyState icon={GitFork} title="No repositories match your filters" description="Try a different language, org, or topic." />
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className={`flex flex-col gap-3 transition-opacity ${reposFetching ? 'opacity-50' : ''}`}>
           {repoData.items.map((repo: OSRepoSummary) => (
             <Card key={repo.full_name} className="p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
