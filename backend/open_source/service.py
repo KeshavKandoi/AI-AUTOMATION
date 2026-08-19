@@ -49,6 +49,7 @@ def _build_issue_query(
     unassigned_only: bool,
     search: Optional[str],
     org: Optional[str] = None,
+    repo: Optional[str] = None,
 ) -> str:
     parts = ["is:issue", "is:open"]
     if unassigned_only:
@@ -58,7 +59,11 @@ def _build_issue_query(
     if label:
         # Quote multi-word labels like "good first issue"
         parts.append(f'label:"{label}"' if " " in label else f"label:{label}")
-    if org:
+    if repo:
+        # Scoping to one repo (owner/name) is more specific than org — used
+        # when jumping here from a repository's "View issues" action.
+        parts.append(f"repo:{repo}")
+    elif org:
         parts.append(f"org:{org}")
     if search:
         parts.append(search)
@@ -75,9 +80,10 @@ async def list_issues(
     page: int = 1,
     per_page: int = 30,
     org: Optional[str] = None,
+    repo: Optional[str] = None,
 ) -> dict:
     access_token = _get_token(organization_id)
-    query = _build_issue_query(language, label, unassigned_only, search, org)
+    query = _build_issue_query(language, label, unassigned_only, search, org, repo)
 
     try:
         result = await gh.search_issues(access_token, query, sort=sort, per_page=per_page, page=page)
