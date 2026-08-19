@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, MessageSquare, ListTodo, Workflow, GitBranch, Mail,
   Calendar, GitCommitHorizontal, GitPullRequest, ShieldCheck, ScrollText,
-  Plug, Brain, Bell, BarChart3, Settings, User, Briefcase,
+  Plug, Brain, Bell, BarChart3, Settings, User, Briefcase, GitFork,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -20,6 +20,7 @@ export const navItems: NavItem[] = [
   { label: 'Gmail', path: '/integrations/gmail', icon: Mail },
   { label: 'Google Calendar', path: '/integrations/calendar', icon: Calendar },
   { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal },
+  { label: 'Open Source', path: '/open-source', icon: GitFork },
   { label: 'Pull Requests', path: '/pull-requests', icon: GitPullRequest },
   { label: 'Human Approval', path: '/approvals', icon: ShieldCheck },
   { label: 'Job Hunter', path: '/job-hunter', icon: Briefcase },
