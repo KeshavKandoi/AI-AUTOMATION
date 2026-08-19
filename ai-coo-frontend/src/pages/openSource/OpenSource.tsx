@@ -8,7 +8,6 @@ import Card from '@/components/ui/Card'
 import Skeleton from '@/components/ui/Skeleton'
 import EmptyState from '@/components/ui/EmptyState'
 import Badge from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import OpportunityDetailDrawer from './OpportunityDetailDrawer'
 
 function ErrorBanner({ message }: { message: string }) {
