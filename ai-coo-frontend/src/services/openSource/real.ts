@@ -1,6 +1,6 @@
 import { apiClient } from '@/api/client'
 import type {
-  IssueFilters, OSIssueDetail, OSIssueListResponse, OSRepoDetail, OSRepoListResponse,
+  OSIssueDetail, OSIssueListResponse, OSRepoDetail, OSRepoListResponse,
   OpenSourceService, RepoFilters,
 } from './types'
 
