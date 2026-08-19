@@ -20,8 +20,9 @@ async def list_issues(
     page: int = Query(1, ge=1),
     per_page: int = Query(30, ge=1, le=100),
     org: Optional[str] = None,
+    repo: Optional[str] = None,
 ):
-    return await service.list_issues(org_id, language, label, unassigned_only, search, sort, page, per_page, org)
+    return await service.list_issues(org_id, language, label, unassigned_only, search, sort, page, per_page, org, repo)
 
 
 @router.get("/issues/{owner}/{repo}/{issue_number}", response_model=OSIssueDetail)
