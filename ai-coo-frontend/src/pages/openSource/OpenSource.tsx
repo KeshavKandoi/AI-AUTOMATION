@@ -41,13 +41,22 @@ export default function OpenSource() {
 
   const [selectedIssue, setSelectedIssue] = useState<{ owner: string; repo: string; number: number } | null>(null)
   const [selectedRepo, setSelectedRepo] = useState<{ owner: string; repo: string } | null>(null)
+  const [repoFilter, setRepoFilter] = useState('')
 
-  const { data: issueData, isLoading: issuesLoading, isError: issuesError } = useQuery({
-    queryKey: ['open-source', 'issues', orgId, language, org, quickLabel, unassignedOnly, search, issueSort],
+  const viewIssuesForRepo = (repoFullName: string) => {
+    setRepoFilter(repoFullName)
+    setOrg('')
+    setSearch('')
+    setTab('issues')
+  }
+
+  const { data: issueData, isLoading: issuesLoading, isFetching: issuesFetching, isError: issuesError } = useQuery({
+    queryKey: ['open-source', 'issues', orgId, language, org, repoFilter, quickLabel, unassignedOnly, search, issueSort],
     queryFn: () =>
       openSourceService.listIssues(orgId!, {
         language: language || undefined,
         org: org || undefined,
+        repo: repoFilter || undefined,
         label: quickLabel || undefined,
         unassignedOnly,
         search: search || undefined,
@@ -160,6 +169,18 @@ export default function OpenSource() {
         )}
       </div>
 
+      {tab === 'issues' && repoFilter && (
+        <div className="flex items-center gap-2">
+          <Badge tone="signal">Filtered to {repoFilter}</Badge>
+          <button
+            onClick={() => setRepoFilter('')}
+            className="text-xs text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] underline"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {tab === 'issues' && (
         <div className="flex flex-wrap items-center gap-2">
           {QUICK_LABELS.map((q) => (
@@ -197,7 +218,15 @@ export default function OpenSource() {
           <ErrorBanner message="Couldn't load issues. Check your GitHub connection and try again." />
         ) : !issueData || issueData.items.length === 0 ? (
           <Card className="p-8">
-            <EmptyState icon={MessageSquare} title="No issues match your filters" description="Try a different language, org, or clearing filters." />
+            <EmptyState
+              icon={MessageSquare}
+              title="No issues match your filters"
+              description={
+                unassignedOnly
+                  ? "Try turning off \"Unassigned only\" — popular repos often have their good-first-issues already claimed."
+                  : "Try a different language, org, or clearing filters."
+              }
+            />
           </Card>
         ) : (
           <div className="flex flex-col gap-3">
@@ -269,9 +298,17 @@ export default function OpenSource() {
                     <span>{repo.open_issues_count} open issues</span>
                   </p>
                 </div>
-                <a href={repo.html_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] transition-colors shrink-0" title="Open on GitHub">
-                  <ExternalLink size={14} />
-                </a>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => viewIssuesForRepo(repo.full_name)}
+                    className="text-xs text-[var(--color-signal)] hover:underline"
+                  >
+                    View issues
+                  </button>
+                  <a href={repo.html_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] transition-colors" title="Open on GitHub">
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
               </div>
             </Card>
           ))}
