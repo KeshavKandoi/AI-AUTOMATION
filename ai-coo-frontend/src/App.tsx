@@ -18,6 +18,7 @@ import JobHunter from '@/pages/jobHunter/JobHunter'
 import Integrations from '@/pages/integrations/Integrations'
 import CommitScheduler from '@/pages/commitScheduler/CommitScheduler'
 import PullRequests from '@/pages/pullRequests/PullRequests'
+import OpenSource from '@/pages/openSource/OpenSource'
 import GitHub from '@/pages/github/GitHub'
 import Gmail from '@/pages/gmail/Gmail'
 import CalendarPage from '@/pages/calendar/Calendar'
@@ -73,6 +74,7 @@ function App() {
               <Route path="/integrations/calendar" element={<CalendarPage />} />
               <Route path="/commit-scheduler" element={<CommitScheduler />} />
               <Route path="/pull-requests" element={<PullRequests />} />
+              <Route path="/open-source" element={<OpenSource />} />
               <Route path="/approvals" element={<HumanApproval />} />
               <Route path="/job-hunter" element={<JobHunter />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
