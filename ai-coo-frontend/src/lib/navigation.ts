@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, MessageSquare, ListTodo, Workflow, GitBranch, Mail,
   Calendar, GitCommitHorizontal, GitPullRequest, ShieldCheck, ScrollText,
-  Plug, Brain, Bell, BarChart3, Settings, User, Briefcase, GitFork,
+  Plug, Brain, Bell, BarChart3, Settings, Briefcase, GitFork,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -30,5 +30,4 @@ export const navItems: NavItem[] = [
   { label: 'Notifications', path: '/notifications', icon: Bell },
   { label: 'Analytics', path: '/analytics', icon: BarChart3, comingSoon: true },
   { label: 'Settings', path: '/settings', icon: Settings },
-  { label: 'Profile', path: '/profile', icon: User },
 ]
