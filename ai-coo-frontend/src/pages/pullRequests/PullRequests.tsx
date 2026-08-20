@@ -97,7 +97,7 @@ export default function PullRequests() {
           ))}
         </div>
       ) : isError ? (
-        <ErrorBanner message="Couldn't load pull requests. Check your GitHub connection and try again." />
+        <ErrorBanner message="Couldn't load pull requests. Check your GitHub connection, or try disabling ad blockers/privacy extensions for this site." />
       ) : items.length === 0 ? (
         <Card className="p-8">
           <EmptyState
