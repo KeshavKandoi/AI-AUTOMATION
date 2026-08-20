@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -25,6 +26,7 @@ import { authApi } from '@/api/auth'
 import Card from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import Modal from '@/components/ui/Modal'
 import { getStoredTheme, setStoredTheme, type ThemePreference } from '@/lib/theme'
 import {
   getEmailNotificationsEnabled, setEmailNotificationsEnabled,
@@ -498,21 +500,82 @@ export default function Settings() {
           <div>
             <p className="text-sm text-[var(--color-text-primary)]">Delete account</p>
             <p className="text-xs text-[var(--color-text-faint)] mt-0.5 max-w-md">
-              Account deletion isn't available yet — there's no backend endpoint to permanently and safely remove
-              your account and organization data. Contact support if you need your account removed.
+              Permanently deletes your account and all organization data — tasks, memory, commit jobs, connected
+              integrations, audit logs, and everything else. This cannot be undone.
             </p>
           </div>
-          <Button
-            variant="secondary"
-            disabled
-            title="Account deletion isn't available yet"
-            className="!border-[var(--color-alert)]/30 !text-[var(--color-alert)] opacity-50 cursor-not-allowed shrink-0"
-          >
-            <Trash2 size={14} />
-            Delete account
-          </Button>
+          {isDevAccount ? (
+            <Button
+              variant="secondary"
+              disabled
+              title="Not available for the dev account"
+              className="!border-[var(--color-alert)]/30 !text-[var(--color-alert)] opacity-50 cursor-not-allowed shrink-0"
+            >
+              <Trash2 size={14} />
+              Delete account
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteModalOpen(true)}
+              className="!border-[var(--color-alert)]/30 !text-[var(--color-alert)] hover:!bg-[var(--color-alert-dim)] shrink-0"
+            >
+              <Trash2 size={14} />
+              Delete account
+            </Button>
+          )}
         </div>
       </Card>
+
+      <Modal open={deleteModalOpen} onClose={closeDeleteModal} title="Delete account">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
+            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+            This permanently deletes your account and all organization data. This cannot be undone.
+          </div>
+
+          {deleteAccountMutation.isError && (
+            <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              {(deleteAccountMutation.error as any)?.response?.data?.detail ?? 'Could not delete account. Please try again.'}
+            </div>
+          )}
+
+          <Input
+            label="Confirm your password"
+            type="password"
+            placeholder="••••••••"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+          />
+
+          <Input
+            label='Type "DELETE" to confirm'
+            placeholder="DELETE"
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+          />
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="secondary"
+              className="!border-[var(--color-alert)] !bg-[var(--color-alert)] !text-white hover:brightness-110"
+              disabled={!deletePassword || deleteConfirmText !== 'DELETE'}
+              loading={deleteAccountMutation.isPending}
+              onClick={() => deleteAccountMutation.mutate()}
+            >
+              Permanently delete account
+            </Button>
+            <button
+              type="button"
+              onClick={closeDeleteModal}
+              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
