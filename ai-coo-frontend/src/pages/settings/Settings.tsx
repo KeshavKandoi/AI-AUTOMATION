@@ -7,6 +7,7 @@ import {
   User as UserIcon,
   Mail,
   Building2,
+  Calendar,
   KeyRound,
   AlertCircle,
   CheckCircle2,
@@ -132,6 +133,10 @@ export default function Settings() {
   const user = useAuthStore((s) => s.user)
   const isDevAccount = useAuthStore((s) => s.isDevAccount)
 
+  const memberSince = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+    : '—'
+
   // --- Appearance ---
   const [theme, setTheme] = useState<ThemePreference>(() => getStoredTheme())
   const handleThemeChange = (pref: ThemePreference) => {
@@ -232,6 +237,20 @@ export default function Settings() {
 
       {/* Account Preferences */}
       <Card className="p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-12 w-12 rounded-xl bg-[var(--color-signal-dim)] flex items-center justify-center shrink-0">
+            <span className="text-base font-semibold text-[var(--color-signal)]">
+              {(user?.full_name || user?.email || '?').charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+              {user?.full_name || 'Unnamed account'}
+            </p>
+            <p className="text-xs text-[var(--color-text-faint)] truncate">{user?.email}</p>
+          </div>
+        </div>
+
         <SectionHeader icon={UserIcon} title="Account Preferences" />
         <InfoRow icon={UserIcon} label="Full name" value={user?.full_name || '—'} />
         <InfoRow icon={Mail} label="Email address" value={user?.email || '—'} />
