@@ -255,6 +255,7 @@ export default function Settings() {
         <InfoRow icon={UserIcon} label="Full name" value={user?.full_name || '—'} />
         <InfoRow icon={Mail} label="Email address" value={user?.email || '—'} />
         <InfoRow icon={Building2} label="Organization" value={user?.organization_name || '—'} />
+        <InfoRow icon={Calendar} label="Member since" value={memberSince} />
         <p className="text-xs text-[var(--color-text-faint)] mt-3">
           To change your name or organization, visit your Profile page.
         </p>
