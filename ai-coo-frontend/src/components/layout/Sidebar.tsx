@@ -6,6 +6,7 @@ import { ChevronsLeft, LogOut } from 'lucide-react'
 import { navItems } from '@/lib/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { notificationsService } from '@/services/notifications'
+import { getInAppNotificationsEnabled } from '@/lib/preferences'
 import { cn } from '@/lib/utils'
 
 export default function Sidebar() {
@@ -13,10 +14,12 @@ export default function Sidebar() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
 
+  const inAppNotificationsEnabled = getInAppNotificationsEnabled()
+
   const { data: unreadCount } = useQuery({
     queryKey: ['notifications', 'unread-count', user?.organization_id],
     queryFn: () => notificationsService.list(user!.organization_id, 1, 0).then((r) => r.unread_count),
-    enabled: !!user?.organization_id,
+    enabled: !!user?.organization_id && inAppNotificationsEnabled,
     refetchInterval: 30000,
   })
 
