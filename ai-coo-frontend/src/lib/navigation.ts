@@ -29,6 +29,6 @@ export const navItems: NavItem[] = [
   { label: 'Memory', path: '/memory', icon: Brain },
   { label: 'Notifications', path: '/notifications', icon: Bell },
   { label: 'Analytics', path: '/analytics', icon: BarChart3, comingSoon: true },
-  { label: 'Settings', path: '/settings', icon: Settings, comingSoon: true },
+  { label: 'Settings', path: '/settings', icon: Settings },
   { label: 'Profile', path: '/profile', icon: User },
 ]
