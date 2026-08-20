@@ -87,6 +87,7 @@ from audit_logs.routes import router as audit_logs_router
 from memory.routes import router as memory_router
 from pull_requests.routes import router as pull_requests_router
 from open_source.routes import router as open_source_router
+from account.routes import router as account_router
 from auth.routes import router as auth_router
 from notifications.routes import router as notifications_router
 from job_hunter.routes import router as job_hunter_router
@@ -124,6 +125,7 @@ app.include_router(audit_logs_router)
 app.include_router(memory_router)
 app.include_router(pull_requests_router)
 app.include_router(open_source_router)
+app.include_router(account_router)
 app.include_router(auth_router)
 app.include_router(notifications_router)
 app.include_router(job_hunter_router)
