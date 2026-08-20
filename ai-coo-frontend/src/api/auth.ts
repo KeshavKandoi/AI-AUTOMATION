@@ -35,4 +35,6 @@ export const authApi = {
 
   changePassword: (payload: ChangePasswordPayload) =>
     apiClient.post<{ message: string }>('/auth/change-password', payload),
+  deleteAccount: (password: string) =>
+    apiClient.post<{ message: string }>('/account/delete', { password }),
 }
