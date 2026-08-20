@@ -28,11 +28,6 @@ export default function Sidebar() {
     >
       <div className="flex items-center gap-2 px-4 h-16 border-b border-[var(--color-border)] shrink-0">
         <div className="h-2 w-2 rounded-full bg-[var(--color-signal)] animate-pulse-signal shrink-0" />
-        {!collapsed && (
-          <span className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--color-text-primary)] truncate">
-            AI COO
-          </span>
-        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">
