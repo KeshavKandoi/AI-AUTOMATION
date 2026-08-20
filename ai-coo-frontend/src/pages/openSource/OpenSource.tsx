@@ -218,7 +218,7 @@ export default function OpenSource() {
             {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
           </div>
         ) : issuesError ? (
-          <ErrorBanner message="Couldn't load issues. Check your GitHub connection and try again." />
+          <ErrorBanner message="Couldn't load issues. Check your GitHub connection, or try disabling ad blockers/privacy extensions for this site." />
         ) : !issueData || issueData.items.length === 0 ? (
           <Card className="p-8">
             <EmptyState
@@ -270,7 +270,7 @@ export default function OpenSource() {
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
         </div>
       ) : reposError ? (
-        <ErrorBanner message="Couldn't load repositories. Check your GitHub connection and try again." />
+        <ErrorBanner message="Couldn't load repositories. Check your GitHub connection, or try disabling ad blockers/privacy extensions for this site." />
       ) : !repoData || repoData.items.length === 0 ? (
         <Card className="p-8">
           <EmptyState icon={GitFork} title="No repositories match your filters" description="Try a different language, org, or topic." />
