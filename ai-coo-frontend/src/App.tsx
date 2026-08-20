@@ -24,7 +24,6 @@ import Gmail from '@/pages/gmail/Gmail'
 import CalendarPage from '@/pages/calendar/Calendar'
 import Workflows from '@/pages/workflows/Workflows'
 import AuditLogs from '@/pages/auditLogs/AuditLogs'
-import Profile from '@/pages/profile/Profile'
 import Settings from '@/pages/settings/Settings'
 import Memory from '@/pages/memory/Memory'
 import Notifications from '@/pages/notifications/Notifications'
@@ -84,7 +83,6 @@ function App() {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/analytics" element={<ComingSoon title="Analytics" />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/profile" element={<Profile />} />
             </Route>
           </Route>
 
