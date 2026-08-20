@@ -23,7 +23,31 @@
   --color-text-faint: #55575f;
 }
 
+/* Light theme overrides — applied via data-theme="light" on <html>.
+   Same custom property names as the dark palette above, so every existing
+   component that already references var(--color-*) picks this up with zero
+   component-level changes. */
+:root[data-theme="light"] {
+  --color-void: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f1f2f5;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-hover: rgba(0, 0, 0, 0.16);
+
+  --color-signal: #0d9488;
+  --color-signal-dim: rgba(13, 148, 136, 0.10);
+  --color-alert: #e11d48;
+  --color-alert-dim: rgba(225, 29, 72, 0.10);
+  --color-amber: #b45309;
+  --color-amber-dim: rgba(180, 83, 9, 0.10);
+
+  --color-text-primary: #111318;
+  --color-text-muted: #5b5e68;
+  --color-text-faint: #8a8d97;
+}
+
 body {
+  transition: background-color 0.15s ease, color 0.15s ease;
   background-color: var(--color-void);
   color: var(--color-text-primary);
   font-family: var(--font-body);
