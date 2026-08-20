@@ -15,7 +15,7 @@ export const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'AI COO Chat', path: '/chat', icon: MessageSquare, comingSoon: true },
   { label: 'Tasks', path: '/tasks', icon: ListTodo },
-  { label: 'Workflow Automations', path: '/workflows', icon: Workflow, comingSoon: true },
+  { label: 'Workflow Automations', path: '/workflows', icon: Workflow },
   { label: 'GitHub', path: '/integrations/github', icon: GitBranch },
   { label: 'Gmail', path: '/integrations/gmail', icon: Mail },
   { label: 'Google Calendar', path: '/integrations/calendar', icon: Calendar },
@@ -30,5 +30,5 @@ export const navItems: NavItem[] = [
   { label: 'Notifications', path: '/notifications', icon: Bell },
   { label: 'Analytics', path: '/analytics', icon: BarChart3, comingSoon: true },
   { label: 'Settings', path: '/settings', icon: Settings, comingSoon: true },
-  { label: 'Profile', path: '/profile', icon: User, comingSoon: true },
+  { label: 'Profile', path: '/profile', icon: User },
 ]
