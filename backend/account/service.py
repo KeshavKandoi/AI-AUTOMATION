@@ -53,7 +53,7 @@ def delete_account(user_id: str, email: str, password: str) -> None:
     try:
         auth_client.auth.sign_in_with_password({"email": email, "password": password})
     except Exception:
-        raise HTTPException(status_code=401, detail="Incorrect password")
+        raise HTTPException(status_code=403, detail="Incorrect password")
 
     profile = auth_repository.get_user_profile(user_id)
     if not profile:
