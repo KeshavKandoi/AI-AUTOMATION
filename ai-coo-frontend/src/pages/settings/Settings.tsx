@@ -134,6 +134,8 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }
 export default function Settings() {
   const user = useAuthStore((s) => s.user)
   const isDevAccount = useAuthStore((s) => s.isDevAccount)
+  const logout = useAuthStore((s) => s.logout)
+  const navigate = useNavigate()
 
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
@@ -225,6 +227,25 @@ export default function Settings() {
 
   const onSubmit = (data: ChangePasswordForm) => changePasswordMutation.mutate(data)
   const onOtpSubmit = (data: OtpResetForm) => otpResetMutation.mutate(data)
+
+  // --- Danger zone: delete account ---
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+
+  const closeDeleteModal = () => {
+    setDeleteModalOpen(false)
+    setDeletePassword('')
+    setDeleteConfirmText('')
+  }
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: () => authApi.deleteAccount(deletePassword),
+    onSuccess: () => {
+      logout()
+      navigate('/login', { replace: true })
+    },
+  })
 
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto flex flex-col gap-6">
