@@ -28,6 +28,6 @@ export const navItems: NavItem[] = [
   { label: 'Integrations', path: '/integrations', icon: Plug },
   { label: 'Memory', path: '/memory', icon: Brain },
   { label: 'Notifications', path: '/notifications', icon: Bell },
-  { label: 'Analytics', path: '/analytics', icon: BarChart3, comingSoon: true },
+  { label: 'Analytics', path: '/analytics', icon: BarChart3 },
   { label: 'Settings', path: '/settings', icon: Settings },
 ]
