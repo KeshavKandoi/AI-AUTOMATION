@@ -46,6 +46,10 @@ export interface AnalyticsSummary {
   failed_events: number
   activity_trend: DailyActivityPoint[]
   module_breakdown: BreakdownItem[]
+  // False when this org has more audit log events in range than the backend's
+  // row-fetch cap -- total_events/failed_events stay accurate regardless, but
+  // activity_trend and module_breakdown are based on a partial sample.
+  activity_data_complete: boolean
   tasks: TaskMetrics
   workflows: WorkflowMetrics
   commit_scheduler: CommitSchedulerMetrics
