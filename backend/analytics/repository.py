@@ -17,7 +17,7 @@ from config import supabase_admin
 # here at 5000 rows per range as a sane ceiling — if an org's audit_logs
 # volume in a 90-day window regularly exceeds this, that's worth revisiting
 # with real pagination, but there's no evidence of that scale yet.
-AUDIT_LOG_FETCH_CAP = 5000
+AUDIT_LOG_FETCH_CAP = 10000
 
 
 def get_tasks_in_range(organization_id: str, start_date: str, end_date: str) -> list[dict]:
@@ -134,3 +134,30 @@ def get_audit_logs_in_range(organization_id: str, start_date: str, end_date: str
             break
         offset += page_size
     return all_rows
+
+
+def get_audit_log_counts(organization_id: str, start_date: str, end_date: str) -> tuple[int, int]:
+    """
+    Cheap, always-accurate totals via count='exact' -- unlike get_audit_logs_in_range,
+    this is NOT subject to the row-fetch cap: PostgREST returns the true count
+    regardless of how many rows would be returned (confirmed empirically -- count
+    stayed accurate at 1195 even when only 1000 rows came back). Used for the
+    total_events / failed_events KPIs so those numbers are never truncated,
+    even when activity_trend/module_breakdown (which need actual rows) are.
+    """
+    base = supabase_admin.table("audit_logs").select("id", count="exact").eq("organization_id", organization_id)
+    if start_date:
+        base = base.gte("created_at", start_date)
+    if end_date:
+        base = base.lte("created_at", end_date)
+    total = base.execute().count or 0
+
+    failed_query = supabase_admin.table("audit_logs").select("id", count="exact") \
+        .eq("organization_id", organization_id).eq("status", "failed")
+    if start_date:
+        failed_query = failed_query.gte("created_at", start_date)
+    if end_date:
+        failed_query = failed_query.lte("created_at", end_date)
+    failed = failed_query.execute().count or 0
+
+    return total, failed
