@@ -185,7 +185,14 @@ export default function Analytics() {
           </div>
 
           <Card className="p-5 mb-6">
-            <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-4">Activity trend</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Activity trend</h2>
+              {data && !data.activity_data_complete && (
+                <span className="text-[10px] uppercase tracking-wide text-[var(--color-amber)] bg-[var(--color-amber-dim)] rounded px-2 py-1">
+                  Partial data — narrow the date range for full detail
+                </span>
+              )}
+            </div>
             {isLoading ? (
               <div className="h-64 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
             ) : data && data.total_events > 0 ? (
@@ -225,7 +232,14 @@ export default function Analytics() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <Card className="p-5">
-              <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-4">Activity by module</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Activity by module</h2>
+                {data && !data.activity_data_complete && (
+                  <span className="text-[10px] uppercase tracking-wide text-[var(--color-amber)] bg-[var(--color-amber-dim)] rounded px-2 py-1">
+                    Partial
+                  </span>
+                )}
+              </div>
               {isLoading ? (
                 <div className="space-y-2">
                   {[...Array(4)].map((_, i) => (
