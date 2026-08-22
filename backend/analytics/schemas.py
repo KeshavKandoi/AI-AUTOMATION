@@ -50,6 +50,13 @@ class AnalyticsSummary(BaseModel):
     failed_events: int
     activity_trend: list[DailyActivityPoint]
     module_breakdown: list[BreakdownItem]
+    # False when the org has more audit log events in range than the row-fetch
+    # cap allows us to pull for day/module bucketing -- total_events/failed_events
+    # stay accurate regardless (see get_audit_log_counts), but activity_trend and
+    # module_breakdown are computed only from the rows actually fetched when this
+    # is False, and should be labeled as partial in the UI rather than presented
+    # as complete.
+    activity_data_complete: bool
     tasks: TaskMetrics
     workflows: WorkflowMetrics
     commit_scheduler: CommitSchedulerMetrics
