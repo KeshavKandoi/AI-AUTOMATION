@@ -45,10 +45,18 @@ def get_summary(organization_id: str, start_date: str, end_date: str) -> Analyti
     end_dt = _parse_date(end_date)
 
     # ---- Audit logs: activity trend, module breakdown, totals ----
+    # total_events/failed_events come from a separate count='exact' query that
+    # is never subject to the row-fetch cap below -- those KPI numbers are
+    # always accurate. activity_trend/module_breakdown need actual rows to
+    # bucket by day/module, so they're capped at AUDIT_LOG_FETCH_CAP for
+    # performance; activity_data_complete tells the frontend (and the user)
+    # honestly whether that cap was hit, rather than silently under-showing.
+    true_total_events, true_failed_events = repository.get_audit_log_counts(organization_id, start_date, end_date)
     logs = repository.get_audit_logs_in_range(organization_id, start_date, end_date)
+    activity_data_complete = len(logs) >= true_total_events
+
     day_buckets: dict[str, dict[str, int]] = defaultdict(lambda: {"success": 0, "failed": 0, "warning": 0, "info": 0})
     module_counts: dict[str, int] = defaultdict(int)
-    failed_events = 0
     for row in logs:
         created_at = row.get("created_at")
         status = (row.get("status") or "info").lower()
@@ -57,8 +65,6 @@ def get_summary(organization_id: str, start_date: str, end_date: str) -> Analyti
         module = row.get("module") or "unknown"
         if created_at:
             day_buckets[_day_key(created_at)][status] += 1
-        if status == "failed":
-            failed_events += 1
         module_counts[module] += 1
 
     activity_trend = [
@@ -127,8 +133,9 @@ def get_summary(organization_id: str, start_date: str, end_date: str) -> Analyti
 
     return AnalyticsSummary(
         date_range=DateRangeOut(start_date=start_date, end_date=end_date),
-        total_events=len(logs),
-        failed_events=failed_events,
+        total_events=true_total_events,
+        failed_events=true_failed_events,
+        activity_data_complete=activity_data_complete,
         activity_trend=activity_trend,
         module_breakdown=_breakdown(module_counts),
         tasks=task_metrics,
