@@ -27,6 +27,7 @@ import AuditLogs from '@/pages/auditLogs/AuditLogs'
 import Settings from '@/pages/settings/Settings'
 import Memory from '@/pages/memory/Memory'
 import Notifications from '@/pages/notifications/Notifications'
+import Analytics from '@/pages/analytics/Analytics'
 
 const queryClient = new QueryClient()
 
@@ -81,7 +82,7 @@ function App() {
               <Route path="/integrations" element={<Integrations />} />
               <Route path="/memory" element={<Memory />} />
               <Route path="/notifications" element={<Notifications />} />
-              <Route path="/analytics" element={<ComingSoon title="Analytics" />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>
