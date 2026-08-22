@@ -86,6 +86,7 @@ from calendar_automation.routes import router as lunch_block_router
 from audit_logs.routes import router as audit_logs_router
 from memory.routes import router as memory_router
 from pull_requests.routes import router as pull_requests_router
+from analytics.routes import router as analytics_router
 from open_source.routes import router as open_source_router
 from account.routes import router as account_router
 from auth.routes import router as auth_router
@@ -128,6 +129,7 @@ app.include_router(open_source_router)
 app.include_router(account_router)
 app.include_router(auth_router)
 app.include_router(notifications_router)
+app.include_router(analytics_router)
 app.include_router(job_hunter_router)
 
 
