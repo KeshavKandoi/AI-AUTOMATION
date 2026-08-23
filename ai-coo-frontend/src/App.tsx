@@ -28,6 +28,7 @@ import Settings from '@/pages/settings/Settings'
 import Memory from '@/pages/memory/Memory'
 import Notifications from '@/pages/notifications/Notifications'
 import Analytics from '@/pages/analytics/Analytics'
+import Home from '@/pages/home/Home'
 import PrivacyPolicy from '@/pages/legal/PrivacyPolicy'
 import TermsOfService from '@/pages/legal/TermsOfService'
 
@@ -60,6 +61,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />
@@ -91,7 +93,7 @@ function App() {
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
