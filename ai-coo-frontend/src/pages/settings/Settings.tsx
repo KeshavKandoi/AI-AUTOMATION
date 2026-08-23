@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -20,6 +20,8 @@ import {
   Smartphone,
   ShieldCheck,
   Trash2,
+  FileText,
+  Scale,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api/auth'
@@ -511,6 +513,28 @@ export default function Settings() {
             Connected third-party tokens (e.g. GitHub) are stored encrypted and are only used to act on your
             behalf within AI COO.
           </p>
+        </div>
+      </Card>
+
+      {/* Support & Legal */}
+      <Card className="p-5">
+        <SectionHeader icon={FileText} title="Support & Legal" />
+        <InfoRow icon={Mail} label="Contact / support email" value="testerappp2001@gmail.com" />
+        <div className="flex items-center gap-4 pt-3">
+          <Link
+            to="/privacy"
+            className="flex items-center gap-1.5 text-xs text-[var(--color-signal)] hover:brightness-110 transition-all"
+          >
+            <FileText size={13} />
+            Privacy Policy
+          </Link>
+          <Link
+            to="/terms"
+            className="flex items-center gap-1.5 text-xs text-[var(--color-signal)] hover:brightness-110 transition-all"
+          >
+            <Scale size={13} />
+            Terms of Service
+          </Link>
         </div>
       </Card>
 
