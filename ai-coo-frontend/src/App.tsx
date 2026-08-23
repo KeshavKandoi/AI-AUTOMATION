@@ -28,6 +28,8 @@ import Settings from '@/pages/settings/Settings'
 import Memory from '@/pages/memory/Memory'
 import Notifications from '@/pages/notifications/Notifications'
 import Analytics from '@/pages/analytics/Analytics'
+import PrivacyPolicy from '@/pages/legal/PrivacyPolicy'
+import TermsOfService from '@/pages/legal/TermsOfService'
 
 const queryClient = new QueryClient()
 
@@ -63,6 +65,8 @@ function App() {
           <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
