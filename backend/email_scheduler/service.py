@@ -32,8 +32,9 @@ def _get_gmail_token_for_org(organization_id: str) -> str:
     raise HTTPException(status_code=400, detail=f"No usable Gmail token found for this organization: {last_error}")
 
 
-async def create_scheduled_job(payload: EmailJobCreate) -> dict:
+async def create_scheduled_job(payload: EmailJobCreate, organization_id: str) -> dict:
     job_data = payload.model_dump(mode="json")
+    job_data["organization_id"] = organization_id
     return repository.create_job(job_data)
 
 
