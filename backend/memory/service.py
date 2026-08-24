@@ -17,8 +17,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def create_memory(payload: MemoryCreate) -> dict:
+def create_memory(payload: MemoryCreate, organization_id: str) -> dict:
     row = payload.model_dump()
+    row["organization_id"] = organization_id
     row["status"] = "active"
     row["pinned"] = False
     row["favorited"] = False
@@ -28,7 +29,7 @@ def create_memory(payload: MemoryCreate) -> dict:
     memory = repository.insert_memory(row)
 
     log_event(
-        organization_id=payload.organization_id,
+        organization_id=organization_id,
         module="memory",
         action="memory_created",
         summary=f"Memory created: {payload.title}",
