@@ -5,7 +5,57 @@ import httpx
 from datetime import datetime, timedelta, timezone
 
 import time
+import secrets
 from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token, get_valid_access_token, run_gemini
+
+
+OAUTH_STATE_TTL_MINUTES = 10
+
+
+def _issue_oauth_state(org_id: str, provider: str) -> str:
+    state = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=OAUTH_STATE_TTL_MINUTES)).isoformat()
+    supabase_admin.table("oauth_states").insert({
+        "state": state,
+        "organization_id": org_id,
+        "provider": provider,
+        "expires_at": expires_at,
+    }).execute()
+    return state
+
+
+def _consume_oauth_state(state: str, provider: str) -> str:
+    """Validates and single-use-consumes an OAuth state token. Returns the
+    organization_id it was issued for. Raises HTTPException(400) on any
+    invalid, expired, wrong-provider, or already-used state -- the error
+    message is intentionally generic so it does not reveal which specific
+    check failed (avoids leaking timing/enumeration signal to an attacker
+    probing the callback endpoint)."""
+    row_res = supabase_admin.table("oauth_states").select("*").eq("state", state).execute()
+    if not row_res.data:
+        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
+    row = row_res.data[0]
+
+    if row["provider"] != provider:
+        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
+    if row.get("consumed_at") is not None:
+        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
+    expires_at = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
+    if datetime.now(timezone.utc) >= expires_at:
+        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
+
+    # Atomically claim this state: only succeeds if consumed_at is still
+    # null at the moment of the update, closing the replay race window
+    # between the check above and this write.
+    claim_res = supabase_admin.table("oauth_states") \
+        .update({"consumed_at": datetime.now(timezone.utc).isoformat()}) \
+        .eq("id", row["id"]) \
+        .is_("consumed_at", "null") \
+        .execute()
+    if not claim_res.data:
+        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
+
+    return row["organization_id"]
 
 async def fetch_github_repos_and_issues(access_token: str):
     """Fetches the user's repos and open issues for repos that have any.
@@ -155,7 +205,7 @@ def health_check():
 
 
 
-from auth.dependencies import get_current_user
+from auth.dependencies import get_current_user, get_current_org_id
 
 
 @app.get("/me")
@@ -165,20 +215,21 @@ def get_me(user: dict = Depends(get_current_user)):
 # ---------- GitHub OAuth ----------
 
 @app.get("/github/login")
-def github_login(org_id: str):
+def github_login(org_id: str = Depends(get_current_org_id)):
+    state = _issue_oauth_state(org_id, "github")
     url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={settings.GITHUB_CLIENT_ID}"
         f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
         f"&scope=repo,read:user"
-        f"&state={org_id}"
+        f"&state={state}"
     )
     return RedirectResponse(url)
 
 
 @app.get("/github/callback")
 async def github_callback(code: str, state: str):
-    org_id = state
+    org_id = _consume_oauth_state(state, "github")
     async with httpx.AsyncClient() as client:
         token_res = await client.post(
             "https://github.com/login/oauth/access_token",
@@ -205,7 +256,7 @@ async def github_callback(code: str, state: str):
         "integration_id": integration_id, "access_token": encrypt_token(access_token)
     }).execute()
 
-    return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
+    return {"status": "connected", "integration_id": integration_id}
 
 
 from org_webhooks import register_github_webhook
@@ -240,7 +291,7 @@ async def connect_repo(org_id: str, repo_full_name: str):
 
 
 @app.get("/github/repos")
-async def github_repos(org_id: str):
+async def github_repos(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
     res = await github_get("https://api.github.com/user/repos", access_token)
@@ -248,7 +299,7 @@ async def github_repos(org_id: str):
 
 
 @app.get("/github/summary")
-async def github_summary(org_id: str):
+async def github_summary(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
     repos_res = await github_get("https://api.github.com/user/repos", access_token)
@@ -276,7 +327,7 @@ Keep it under 150 words."""
 
 
 @app.get("/planner/priorities")
-async def planner_priorities(org_id: str):
+async def planner_priorities(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
     issues_data = await fetch_github_repos_and_issues(access_token)
@@ -298,7 +349,7 @@ Keep each line under 20 words. If there are no issues, say so clearly."""
 
 
 @app.get("/tasks/create-from-priorities")
-async def create_tasks_from_priorities(org_id: str):
+async def create_tasks_from_priorities(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
     issues_data = await fetch_github_repos_and_issues(access_token)
@@ -337,13 +388,13 @@ Example format: [{{"title": "...", "description": "...", "priority": "high"}}]""
 
 
 @app.get("/tasks")
-def get_tasks(org_id: str):
+def get_tasks(org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).execute()
     return result.data
 
 
 @app.get("/github/connected-repo")
-def get_connected_repo(org_id: str):
+def get_connected_repo(org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Organization not found")
@@ -351,7 +402,7 @@ def get_connected_repo(org_id: str):
 
 
 @app.post("/github/disconnect-repo")
-def disconnect_repo(org_id: str):
+def disconnect_repo(org_id: str = Depends(get_current_org_id)):
     org_res = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
     if not org_res.data:
         raise HTTPException(status_code=404, detail="Organization not found")
@@ -383,7 +434,7 @@ def disconnect_repo(org_id: str):
 
 
 @app.post("/github/create-issue")
-async def github_create_issue(org_id: str, repo_full_name: str, title: str, body: str = ""):
+async def github_create_issue(repo_full_name: str, title: str, body: str = "", org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
     res = await github_post(
@@ -398,19 +449,18 @@ async def github_create_issue(org_id: str, repo_full_name: str, title: str, body
 
 
 @app.post("/tasks/{task_id}/approve-and-create-issue")
-async def approve_and_create_issue(task_id: str, access_token: str | None = None, repo_full_name: str | None = None, resolution: str = "resolved"):
+async def approve_and_create_issue(task_id: str, repo_full_name: str | None = None, resolution: str = "resolved", user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
     from closeout import run_closeout, _resolve_access_token, parse_source_ref
 
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
-    if not task_res.data:
+    if not task_res.data or task_res.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Task not found")
     task = task_res.data[0]
 
     if task.get("status") != "approved":
         raise HTTPException(status_code=403, detail="Task must be approved before creating a GitHub issue")
 
-    if not access_token:
-        access_token = _resolve_access_token(task["organization_id"], "github")
+    access_token = _resolve_access_token(task["organization_id"], "github")
 
     if not repo_full_name:
         source_type, identifier = parse_source_ref(task.get("source_ref") or "")
@@ -418,12 +468,11 @@ async def approve_and_create_issue(task_id: str, access_token: str | None = None
             raise HTTPException(status_code=400, detail="repo_full_name required — task has no GitHub source_ref to infer it from")
         repo_full_name = identifier.rsplit("#", 1)[0]
 
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            f"https://api.github.com/repos/{repo_full_name}/issues",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={"title": task["title"], "body": task.get("description", "")}
-        )
+    res = await github_post(
+        f"https://api.github.com/repos/{repo_full_name}/issues",
+        access_token,
+        json_body={"title": task["title"], "body": task.get("description", "")}
+    )
     if res.status_code != 201:
         raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
     issue = res.json()
@@ -476,22 +525,23 @@ def _has_stored_refresh_token(org_id: str, provider: str) -> bool:
 
 
 @app.get("/gmail/login")
-def gmail_login(org_id: str):
+def gmail_login(org_id: str = Depends(get_current_org_id)):
     prompt_param = "" if _has_stored_refresh_token(org_id, "gmail") else "&prompt=consent"
+    state = _issue_oauth_state(org_id, "gmail")
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
         f"&redirect_uri={settings.GOOGLE_GMAIL_REDIRECT_URI}"
         f"&response_type=code"
         f"&scope=https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"
-        f"&access_type=offline{prompt_param}&state={org_id}"
+        f"&access_type=offline{prompt_param}&state={state}"
     )
     return RedirectResponse(url)
 
 
 @app.get("/gmail/callback")
 async def gmail_callback(code: str, state: str):
-    org_id = state
+    org_id = _consume_oauth_state(state, "gmail")
     async with httpx.AsyncClient() as client:
         token_res = await client.post(
             "https://oauth2.googleapis.com/token",
@@ -518,11 +568,11 @@ async def gmail_callback(code: str, state: str):
         "refresh_token": encrypt_token(token_data.get("refresh_token")), "expires_at": expires_at
     }).execute()
 
-    return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
+    return {"status": "connected", "integration_id": integration_id}
 
 
 @app.get("/gmail/unread")
-async def gmail_unread(org_id: str):
+async def gmail_unread(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "gmail")
     async with httpx.AsyncClient() as client:
@@ -549,7 +599,7 @@ async def gmail_unread(org_id: str):
 
 
 @app.get("/gmail/summary")
-async def gmail_summary(org_id: str):
+async def gmail_summary(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "gmail")
     async with httpx.AsyncClient() as client:
@@ -590,22 +640,23 @@ Keep it under 150 words."""
 # ---------- Calendar OAuth ----------
 
 @app.get("/calendar/login")
-def calendar_login(org_id: str):
+def calendar_login(org_id: str = Depends(get_current_org_id)):
     prompt_param = "" if _has_stored_refresh_token(org_id, "calendar") else "&prompt=consent"
+    state = _issue_oauth_state(org_id, "calendar")
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
         f"&redirect_uri={settings.GOOGLE_CALENDAR_REDIRECT_URI}"
         f"&response_type=code"
         f"&scope=https://www.googleapis.com/auth/calendar"
-        f"&access_type=offline{prompt_param}&state={org_id}"
+        f"&access_type=offline{prompt_param}&state={state}"
     )
     return RedirectResponse(url)
 
 
 @app.get("/calendar/callback")
 async def calendar_callback(code: str, state: str):
-    org_id = state
+    org_id = _consume_oauth_state(state, "calendar")
     async with httpx.AsyncClient() as client:
         token_res = await client.post(
             "https://oauth2.googleapis.com/token",
@@ -632,11 +683,11 @@ async def calendar_callback(code: str, state: str):
         "refresh_token": encrypt_token(token_data.get("refresh_token")), "expires_at": expires_at
     }).execute()
 
-    return {"status": "connected", "integration_id": integration_id, "access_token": access_token}
+    return {"status": "connected", "integration_id": integration_id}
 
 
 @app.get("/calendar/events")
-async def calendar_events(org_id: str):
+async def calendar_events(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "calendar")
     async with httpx.AsyncClient() as client:
@@ -657,7 +708,7 @@ async def calendar_events(org_id: str):
 
 
 @app.get("/calendar/summary")
-async def calendar_summary(org_id: str):
+async def calendar_summary(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "calendar")
     async with httpx.AsyncClient() as client:
@@ -692,7 +743,7 @@ Keep it under 150 words."""
 
 
 @app.post("/calendar/create-event")
-async def calendar_create_event(org_id: str, summary: str, start_time: str, end_time: str):
+async def calendar_create_event(summary: str, start_time: str, end_time: str, org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "calendar")
     async with httpx.AsyncClient() as client:
@@ -709,11 +760,25 @@ async def calendar_create_event(org_id: str, summary: str, start_time: str, end_
 # ---------- Discord Agent ----------
 
 @app.post("/discord/notify")
-async def discord_notify(message: str):
+async def discord_notify(
+    message: str,
+    user: dict = Depends(get_current_user),
+    org_id: str = Depends(get_current_org_id),
+):
     async with httpx.AsyncClient() as client:
         res = await client.post(settings.DISCORD_WEBHOOK_URL, json={"content": message})
     if res.status_code not in [200, 204]:
         raise HTTPException(status_code=400, detail=f"Discord error: {res.text}")
+    log_event(
+        organization_id=org_id,
+        module="discord",
+        action="discord_notify_sent",
+        summary="Discord notification sent",
+        status="success",
+        user_id=user.get("sub"),
+        actor_type="user",
+        source="backend",
+    )
     return {"status": "sent", "message": message}
 
 
@@ -740,7 +805,11 @@ async def discord_daily_report(github_access_token: str, org_id: str):
 # ---------- Human Approval Layer ----------
 
 @app.post("/tasks/{task_id}/approve")
-def approve_task(task_id: str):
+def approve_task(task_id: str, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
+    existing = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
+    if not existing.data or existing.data[0]["organization_id"] != org_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+
     result = supabase_admin.table("tasks").update({"status": "approved"}).eq("id", task_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -760,8 +829,12 @@ def approve_task(task_id: str):
 
 
 @app.post("/tasks/{task_id}/reject")
-async def reject_task(task_id: str):
+async def reject_task(task_id: str, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
     from closeout import run_closeout
+
+    existing = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
+    if not existing.data or existing.data[0]["organization_id"] != org_id:
+        raise HTTPException(status_code=404, detail="Task not found")
 
     result = supabase_admin.table("tasks").update({"status": "rejected"}).eq("id", task_id).execute()
     if not result.data:
@@ -786,28 +859,27 @@ async def reject_task(task_id: str):
 
 
 @app.get("/tasks/pending-approval")
-def get_pending_tasks(org_id: str):
+def get_pending_tasks(org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).eq("status", "open").execute()
     return result.data
 
 # ---------- Gmail Agent (Write Actions) ----------
 
 @app.post("/tasks/{task_id}/approve-and-send-email")
-async def approve_and_send_email(task_id: str, access_token: str | None = None, to_email: str | None = None, archive: bool = False):
+async def approve_and_send_email(task_id: str, to_email: str | None = None, archive: bool = False, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
     import base64
     from email.mime.text import MIMEText
     from closeout import run_closeout, _resolve_access_token
 
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
-    if not task_res.data:
+    if not task_res.data or task_res.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Task not found")
     task = task_res.data[0]
 
     if task.get("status") != "approved":
         raise HTTPException(status_code=403, detail="Task must be approved before sending an email")
 
-    if not access_token:
-        access_token = _resolve_access_token(task["organization_id"], "gmail")
+    access_token = _resolve_access_token(task["organization_id"], "gmail")
 
     if not to_email:
         profile_res = supabase_admin.table("user_profiles").select("email").eq("organization_id", task["organization_id"]).execute()
@@ -840,19 +912,18 @@ async def approve_and_send_email(task_id: str, access_token: str | None = None, 
 # ---------- Calendar Agent (Write Action, Approval-Gated) ----------
 
 @app.post("/tasks/{task_id}/approve-and-create-event")
-async def approve_and_create_event(task_id: str, start_time: str, end_time: str, access_token: str | None = None):
+async def approve_and_create_event(task_id: str, start_time: str, end_time: str, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
     from closeout import run_closeout, _resolve_access_token
 
     task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
-    if not task_res.data:
+    if not task_res.data or task_res.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Task not found")
     task = task_res.data[0]
 
     if task.get("status") != "approved":
         raise HTTPException(status_code=403, detail="Task must be approved before creating a calendar event")
 
-    if not access_token:
-        access_token = _resolve_access_token(task["organization_id"], "calendar")
+    access_token = _resolve_access_token(task["organization_id"], "calendar")
 
     async with httpx.AsyncClient() as client:
         res = await client.post(
@@ -891,8 +962,9 @@ async def approve_and_create_event(task_id: str, start_time: str, end_time: str,
 # ---------- Scheduled Commits ----------
 
 @app.post("/commits/schedule")
-def schedule_commit(org_id: str, target_date: str, folder_path: str,
-                     file_name: str = None, content: str = None, branch_target: str = "main"):
+def schedule_commit(target_date: str, folder_path: str,
+                     file_name: str = None, content: str = None, branch_target: str = "main",
+                     org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("scheduled_commits").insert({
         "organization_id": org_id,
         "target_date": target_date,
@@ -911,7 +983,7 @@ async def commits_run_now():
 # ---------- Integrations Status (frontend) ----------
 
 @app.get("/integrations")
-def get_integrations_status(org_id: str):
+def get_integrations_status(org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("integrations") \
         .select("*") \
         .eq("organization_id", org_id) \
@@ -934,7 +1006,7 @@ VALID_PROVIDERS = {"github", "gmail", "calendar"}
 
 
 @app.post("/{provider}/disconnect")
-def disconnect_integration(provider: str, org_id: str):
+def disconnect_integration(provider: str, org_id: str = Depends(get_current_org_id)):
     if provider not in VALID_PROVIDERS:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
 
