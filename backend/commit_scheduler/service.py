@@ -57,12 +57,12 @@ async def validate_repo_and_branch(organization_id: str, repo_full_name: str, br
         raise HTTPException(status_code=400, detail=f"Branch '{branch}' not found in '{repo_full_name}'")
 
 
-async def create_scheduled_job(payload: CommitJobCreate) -> dict:
-    await validate_repo_and_branch(payload.organization_id, payload.repo_full_name, payload.branch, payload.provider)
+async def create_scheduled_job(payload: CommitJobCreate, organization_id: str) -> dict:
+    await validate_repo_and_branch(organization_id, payload.repo_full_name, payload.branch, payload.provider)
 
     if payload.folder_path and payload.file_name:
         duplicate = repository.find_duplicate_job(
-            payload.organization_id, payload.repo_full_name, payload.branch,
+            organization_id, payload.repo_full_name, payload.branch,
             payload.folder_path, payload.file_name
         )
         if duplicate:
@@ -72,6 +72,7 @@ async def create_scheduled_job(payload: CommitJobCreate) -> dict:
             )
 
     job_data = payload.model_dump(mode="json", exclude={"files"})
+    job_data["organization_id"] = organization_id
     job = repository.create_job(job_data)
 
     if payload.files:
@@ -80,7 +81,7 @@ async def create_scheduled_job(payload: CommitJobCreate) -> dict:
         job["files"] = repository.get_files_for_job(job["id"])
 
     log_event(
-        organization_id=payload.organization_id,
+        organization_id=organization_id,
         module="commit_scheduler",
         action="commit_job_created",
         summary=f"Scheduled commit job created for {payload.repo_full_name}@{payload.branch}",
