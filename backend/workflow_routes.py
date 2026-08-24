@@ -1,15 +1,17 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone
 from config import supabase_admin
 from workflow_schemas import WorkflowCreate, WorkflowUpdate
 from workflow_engine import execute_workflow, sample_context_for_trigger, _is_past_expiry
+from auth.dependencies import get_current_org_id
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
 @router.post("")
-def create_workflow(payload: WorkflowCreate):
+def create_workflow(payload: WorkflowCreate, org_id: str = Depends(get_current_org_id)):
     data = payload.model_dump()
+    data["organization_id"] = org_id
     if data.get("expires_at"):
         data["expires_at"] = data["expires_at"].isoformat()
     result = supabase_admin.table("workflows").insert(data).execute()
@@ -17,13 +19,13 @@ def create_workflow(payload: WorkflowCreate):
 
 
 @router.get("")
-def list_workflows(org_id: str):
+def list_workflows(org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("workflows").select("*").eq("organization_id", org_id).execute()
     return result.data
 
 
 @router.get("/{workflow_id}")
-def get_workflow(workflow_id: str, org_id: str):
+def get_workflow(workflow_id: str, org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("workflows").select("*").eq("id", workflow_id).execute()
     if not result.data or result.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -36,7 +38,7 @@ def get_workflow(workflow_id: str, org_id: str):
 
 
 @router.patch("/{workflow_id}")
-def update_workflow(workflow_id: str, org_id: str, payload: WorkflowUpdate):
+def update_workflow(workflow_id: str, payload: WorkflowUpdate, org_id: str = Depends(get_current_org_id)):
     existing = supabase_admin.table("workflows").select("*").eq("id", workflow_id).execute()
     if not existing.data or existing.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -70,7 +72,7 @@ def update_workflow(workflow_id: str, org_id: str, payload: WorkflowUpdate):
 
 
 @router.delete("/{workflow_id}")
-def delete_workflow(workflow_id: str, org_id: str):
+def delete_workflow(workflow_id: str, org_id: str = Depends(get_current_org_id)):
     existing = supabase_admin.table("workflows").select("*").eq("id", workflow_id).execute()
     if not existing.data or existing.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -80,7 +82,7 @@ def delete_workflow(workflow_id: str, org_id: str):
 
 
 @router.post("/{workflow_id}/run-now")
-async def run_workflow_now(workflow_id: str, org_id: str, context_override: dict | None = None):
+async def run_workflow_now(workflow_id: str, context_override: dict | None = None, org_id: str = Depends(get_current_org_id)):
     existing = supabase_admin.table("workflows").select("*").eq("id", workflow_id).execute()
     if not existing.data or existing.data[0]["organization_id"] != org_id:
         raise HTTPException(status_code=404, detail="Workflow not found")
