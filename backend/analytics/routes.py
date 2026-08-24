@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from analytics import service
 from analytics.schemas import AnalyticsSummary
+from auth.dependencies import get_current_org_id
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 @router.get("/summary", response_model=AnalyticsSummary)
 def get_analytics_summary(
-    org_id: str,
+    org_id: str = Depends(get_current_org_id),
     start_date: str | None = Query(None, description="ISO date (YYYY-MM-DD). Defaults to 30 days ago."),
     end_date: str | None = Query(None, description="ISO date (YYYY-MM-DD). Defaults to today."),
 ):
