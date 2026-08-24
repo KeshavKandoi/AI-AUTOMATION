@@ -1,14 +1,15 @@
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from audit_logs import service
 from audit_logs.schemas import AuditLogListResponse, AuditLogOut
+from auth.dependencies import get_current_org_id
 
 router = APIRouter(prefix="/audit-logs", tags=["audit-logs"])
 
 
 @router.get("", response_model=AuditLogListResponse)
 def list_audit_logs(
-    org_id: str,
+    org_id: str = Depends(get_current_org_id),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     module: Optional[str] = None,
@@ -39,13 +40,13 @@ def list_audit_logs(
 
 
 @router.get("/filters")
-def get_filter_options(org_id: str):
+def get_filter_options(org_id: str = Depends(get_current_org_id)):
     return service.list_filter_options(org_id)
 
 
 @router.get("/{log_id}", response_model=AuditLogOut)
-def get_audit_log(log_id: str):
+def get_audit_log(log_id: str, org_id: str = Depends(get_current_org_id)):
     log = service.get_event(log_id)
-    if not log:
+    if not log or log.get("organization_id") != org_id:
         raise HTTPException(status_code=404, detail="Audit log not found")
     return log
