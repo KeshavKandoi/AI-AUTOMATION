@@ -67,10 +67,10 @@ def test_github_login_issues_random_state_not_org_id():
             client = TestClient(app)
             res = client.get("/github/login", follow_redirects=False)
 
-            assert res.status_code in (302, 307)
-            location = res.headers["location"]
-            assert "state=org-victim" not in location
-            assert "state=" in location
+            assert res.status_code == 200
+            body = res.json()
+            assert "state=org-victim" not in body["url"]
+            assert "state=" in body["url"]
 
             insert_call = sb.table.return_value.insert.call_args.args[0]
             assert insert_call["organization_id"] == "org-victim"
