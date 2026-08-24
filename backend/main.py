@@ -224,7 +224,7 @@ def github_login(org_id: str = Depends(get_current_org_id)):
         f"&scope=repo,read:user"
         f"&state={state}"
     )
-    return RedirectResponse(url)
+    return {"url": url}
 
 
 @app.get("/github/callback")
@@ -536,7 +536,7 @@ def gmail_login(org_id: str = Depends(get_current_org_id)):
         f"&scope=https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"
         f"&access_type=offline{prompt_param}&state={state}"
     )
-    return RedirectResponse(url)
+    return {"url": url}
 
 
 @app.get("/gmail/callback")
@@ -651,7 +651,7 @@ def calendar_login(org_id: str = Depends(get_current_org_id)):
         f"&scope=https://www.googleapis.com/auth/calendar"
         f"&access_type=offline{prompt_param}&state={state}"
     )
-    return RedirectResponse(url)
+    return {"url": url}
 
 
 @app.get("/calendar/callback")
