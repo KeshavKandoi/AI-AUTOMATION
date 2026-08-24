@@ -10,6 +10,6 @@ export interface Integration {
 
 export interface IntegrationsService {
   list(orgId: string): Promise<Integration[]>
-  loginUrl(provider: IntegrationProvider, orgId: string): string
+  getLoginUrl(provider: IntegrationProvider): Promise<string>
   disconnect(provider: IntegrationProvider, orgId: string): Promise<void>
 }
