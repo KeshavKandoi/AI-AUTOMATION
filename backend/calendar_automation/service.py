@@ -30,8 +30,10 @@ def _get_calendar_token_for_org(organization_id: str) -> str:
     raise HTTPException(status_code=400, detail=f"No usable Calendar token found for this organization: {last_error}")
 
 
-def upsert_settings(payload: LunchBlockSettingsUpsert) -> dict:
-    return repository.upsert_settings(payload.model_dump(mode="json"))
+def upsert_settings(payload: LunchBlockSettingsUpsert, organization_id: str) -> dict:
+    data = payload.model_dump(mode="json")
+    data["organization_id"] = organization_id
+    return repository.upsert_settings(data)
 
 
 def get_settings_or_404(organization_id: str) -> dict:
