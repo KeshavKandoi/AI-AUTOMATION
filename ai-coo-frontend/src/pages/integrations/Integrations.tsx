@@ -48,9 +48,10 @@ export default function Integrations() {
 
   const connectedByProvider = new Map((integrations ?? []).map((i) => [i.provider, i]))
 
-  const handleConnect = (provider: IntegrationProvider) => {
+  const handleConnect = async (provider: IntegrationProvider) => {
     if (!orgId) return
-    window.location.href = integrationsService.loginUrl(provider, orgId)
+    const url = await integrationsService.getLoginUrl(provider)
+    window.location.href = url
   }
 
   const handleDisconnectClick = (provider: IntegrationProvider) => {
