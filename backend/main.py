@@ -59,42 +59,25 @@ def _consume_oauth_state(state: str, provider: str) -> str:
 
 async def fetch_github_repos_and_issues(access_token: str):
     """Fetches the user's repos and open issues for repos that have any.
+    Paginates both the repo list and each repo's issue list so orgs/repos
+    with more than one GitHub API page of results aren't silently truncated.
     Wraps outbound GitHub calls so transient network failures (dropped
     connections, timeouts) return a clean error instead of an unhandled 500."""
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            repos_res = await client.get(
-                "https://api.github.com/user/repos",
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-    except httpx.HTTPError as e:
-        logger.error(f"GitHub repos fetch failed: {e}")
-        raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
-
-    repos = repos_res.json()
-    if not isinstance(repos, list):
-        raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
+    repos = await github_get_paginated("https://api.github.com/user/repos", access_token)
 
     repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
     issues_data = []
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            for r in repos_with_issues:
-                issues_res = await client.get(
-                    f"https://api.github.com/repos/{r['full_name']}/issues",
-                    headers={"Authorization": f"Bearer {access_token}"},
-                    params={"state": "open"}
-                )
-                issues = issues_res.json()
-                if isinstance(issues, list):
-                    for issue in issues:
-                        issues_data.append({
-                            "repo": r["name"], "title": issue.get("title"),
-                            "created_at": issue.get("created_at"), "comments": issue.get("comments"),
-                        })
-    except httpx.HTTPError as e:
-        logger.error(f"GitHub issues fetch failed: {e}")
-        raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
+    for r in repos_with_issues:
+        issues = await github_get_paginated(
+            f"https://api.github.com/repos/{r['full_name']}/issues",
+            access_token,
+            params={"state": "open"},
+        )
+        for issue in issues:
+            issues_data.append({
+                "repo": r["name"], "title": issue.get("title"),
+                "created_at": issue.get("created_at"), "comments": issue.get("comments"),
+            })
 
     return issues_data
 
@@ -127,6 +110,42 @@ async def github_post(url: str, access_token: str, json_body: dict = None):
     except httpx.HTTPError as e:
         logger.error(f"GitHub POST {url} failed: {e}")
         raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
+
+
+GITHUB_MAX_PAGES = 20  # hard ceiling (up to 2000 items at per_page=100) -- safety bound, not expected to be hit
+
+
+async def github_get_paginated(url: str, access_token: str, params: dict = None) -> list:
+    """GETs every page of a GitHub list endpoint (repos, issues, etc.) and
+    returns the concatenated results. Uses per_page=100 and increments page
+    until a page comes back empty or short (fewer than per_page items,
+    meaning it was the last page), or GITHUB_MAX_PAGES is hit as a safety
+    bound. Raises the same clean errors as github_get on network failure or
+    a non-list response (e.g. a GitHub error payload on page 1)."""
+    all_items: list = []
+    page = 1
+    per_page = 100
+    base_params = dict(params or {})
+    base_params["per_page"] = per_page
+
+    while page <= GITHUB_MAX_PAGES:
+        page_params = dict(base_params)
+        page_params["page"] = page
+        res = await github_get(url, access_token, params=page_params)
+        data = res.json()
+
+        if not isinstance(data, list):
+            if page == 1:
+                raise HTTPException(status_code=400, detail=f"GitHub API error: {data}")
+            break
+
+        all_items.extend(data)
+
+        if len(data) < per_page:
+            break
+        page += 1
+
+    return all_items
 import orchestrator
 import scheduler
 from commit_scheduler.routes import router as commit_scheduler_router
@@ -261,8 +280,6 @@ async def github_callback(code: str, state: str):
 
 from org_webhooks import register_github_webhook
 
-RENDER_BASE_URL = "https://ai-automation-d2s2.onrender.com"
-
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
 from audit_logs.service import log_event
 
@@ -280,7 +297,7 @@ async def connect_repo(org_id: str, repo_full_name: str):
         access_token=access_token,
         repo_full_name=repo_full_name,
         org_id=org_id,
-        base_url=RENDER_BASE_URL
+        base_url=settings.RENDER_BASE_URL
     )
     if result is None:
         raise HTTPException(status_code=400, detail="Failed to register webhook on GitHub")
@@ -294,18 +311,14 @@ async def connect_repo(org_id: str, repo_full_name: str):
 async def github_repos(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
-    res = await github_get("https://api.github.com/user/repos", access_token)
-    return res.json()
+    return await github_get_paginated("https://api.github.com/user/repos", access_token)
 
 
 @app.get("/github/summary")
 async def github_summary(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
-    repos_res = await github_get("https://api.github.com/user/repos", access_token)
-    repos = repos_res.json()
-    if not isinstance(repos, list):
-        raise HTTPException(status_code=400, detail=f"GitHub API error: {repos}")
+    repos = await github_get_paginated("https://api.github.com/user/repos", access_token)
 
     repo_info = [
         {"name": r["name"], "language": r.get("language"),
@@ -694,7 +707,7 @@ async def calendar_events(org_id: str = Depends(get_current_org_id)):
         res = await client.get(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
-            params={"timeMin": "2026-08-01T00:00:00Z", "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
+            params={"timeMin": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
         )
     data = res.json()
     events = data.get("items", [])
@@ -715,7 +728,7 @@ async def calendar_summary(org_id: str = Depends(get_current_org_id)):
         res = await client.get(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
-            params={"timeMin": "2026-08-01T00:00:00Z", "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
+            params={"timeMin": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
         )
     data = res.json()
     events = data.get("items", [])
