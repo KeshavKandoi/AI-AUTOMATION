@@ -7,23 +7,64 @@ from audit_logs.service import log_event
 
 
 def _get_org_token(organization_id: str, provider: str):
+    """Returns (access_token, error_reason). access_token is None on any
+    failure; error_reason is a short, specific string safe to surface in
+    workflow_runs.error_message (never includes token material)."""
     integration_res = supabase_admin.table("integrations") \
         .select("id").eq("organization_id", organization_id) \
         .eq("provider", provider).eq("connected", True) \
         .order("created_at", desc=True).execute()
     if not integration_res.data:
-        return None
+        return None, f"No connected {provider} integration for this organization"
     integration_id = integration_res.data[0]["id"]
     try:
-        return get_valid_access_token(integration_id)
+        return get_valid_access_token(integration_id), None
     except ValueError as e:
         logger.error(f"Token unavailable for org {organization_id} provider {provider}: {e}")
-        return None
+        reason = str(e)
+        if "invalid_grant" in reason or "expired or revoked" in reason:
+            return None, f"{provider.capitalize()} authorization expired or was revoked — please reconnect {provider} in Settings"
+        if "No token found" in reason:
+            return None, f"No {provider} token on record — please reconnect {provider} in Settings"
+        return None, f"{provider.capitalize()} token error: {reason}"
 
 
 def _get_org_email(organization_id: str):
-    result = supabase_admin.table("organizations").select("notification_email").eq("id", organization_id).execute()
-    return result.data[0].get("notification_email") if result.data else None
+    """Resolves the recipient for Gmail-based workflow notifications.
+
+    Primary source: the actual email address of the connected Gmail account
+    (fetched live via Google's userinfo endpoint using the org's own valid
+    Gmail access token) -- this is the account the workflow is authorized to
+    send *as*, so it's the correct default recipient with zero extra setup.
+
+    organizations.notification_email remains a supported override for orgs
+    that explicitly want notifications routed to a different address than
+    the connected Gmail account; if set, it takes precedence. As of this
+    change nothing in the product writes this column automatically -- it's
+    purely an opt-in override a future settings UI could expose.
+    """
+    org_res = supabase_admin.table("organizations").select("notification_email").eq("id", organization_id).execute()
+    override_email = org_res.data[0].get("notification_email") if org_res.data else None
+    if override_email:
+        return override_email
+
+    access_token, _token_error = _get_org_token(organization_id, "gmail")
+    if not access_token:
+        return None
+
+    try:
+        res = httpx.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10,
+        )
+        if res.status_code != 200:
+            logger.error(f"Failed to resolve Gmail account email for org {organization_id}: {res.status_code} {res.text}")
+            return None
+        return res.json().get("email")
+    except httpx.HTTPError as e:
+        logger.error(f"Failed to resolve Gmail account email for org {organization_id}: {e}")
+        return None
 
 
 def _match_conditions(conditions: dict, context: dict) -> bool:
@@ -108,10 +149,15 @@ async def _action_create_task(organization_id: str, context: dict) -> dict:
 
 
 async def _action_send_email(organization_id: str, context: dict) -> dict:
-    access_token = _get_org_token(organization_id, "gmail")
+    access_token, token_error = _get_org_token(organization_id, "gmail")
     to_email = _get_org_email(organization_id)
     if not access_token or not to_email:
-        raise RuntimeError("Missing Gmail token or org email")
+        problems = []
+        if not access_token:
+            problems.append(token_error or "Gmail is not connected for this organization")
+        elif not to_email:
+            problems.append("Could not determine a recipient email — please reconnect Gmail in Settings (new permission required)")
+        raise RuntimeError("; ".join(problems))
 
     body = f"{context.get('title', 'Automation triggered')}\n\n{context.get('description', '')}"
     mime_msg = MIMEText(body)
@@ -146,9 +192,9 @@ async def _action_notify_discord(organization_id: str, context: dict) -> dict:
 
 
 async def _action_create_calendar_event(organization_id: str, context: dict) -> dict:
-    access_token = _get_org_token(organization_id, "calendar")
+    access_token, token_error = _get_org_token(organization_id, "calendar")
     if not access_token:
-        raise RuntimeError("Missing Calendar token")
+        raise RuntimeError(token_error or "Calendar is not connected for this organization")
 
     start = datetime.now(timezone.utc) + timedelta(hours=1)
     end = start + timedelta(minutes=30)
