@@ -546,7 +546,7 @@ def gmail_login(org_id: str = Depends(get_current_org_id)):
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
         f"&redirect_uri={settings.GOOGLE_GMAIL_REDIRECT_URI}"
         f"&response_type=code"
-        f"&scope=https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send"
+        f"&scope=https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email"
         f"&access_type=offline{prompt_param}&state={state}"
     )
     return {"url": url}
