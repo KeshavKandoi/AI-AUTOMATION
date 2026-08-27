@@ -366,6 +366,68 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
     return run.data[0]
 
 
+def _record_event_if_new(organization_id: str, repo_full_name: str, event_type: str, event_key: str) -> bool:
+    """Atomically claims this (org, repo, event_type, event_key) combination via
+    the database's own unique constraint on processed_github_events. Returns
+    True if this call successfully claimed it (i.e. this is the first time
+    this exact event has been seen -- proceed with execution). Returns False
+    if it was already claimed by an earlier call (a real GitHub webhook and
+    an internally-dispatched scheduler event for the same commit both resolve
+    here, and only the first one through wins).
+
+    This is a database-level uniqueness check, not an application-level
+    check-then-insert -- the INSERT itself is what enforces atomicity; a
+    conflict here means "someone already processed this," full stop."""
+    try:
+        supabase_admin.table("processed_github_events").insert({
+            "organization_id": organization_id,
+            "repo_full_name": repo_full_name,
+            "event_type": event_type,
+            "event_key": event_key,
+        }).execute()
+        return True
+    except Exception as e:
+        # A unique-constraint violation is the expected "already processed"
+        # case, not an error -- Supabase/PostgREST surfaces this as an
+        # APIError with code 23505. Any other exception is a real problem
+        # and should not be silently swallowed as a dedup hit.
+        if "23505" in str(e) or "duplicate key" in str(e).lower():
+            return False
+        logger.error(f"Unexpected error recording event dedup for org {organization_id}, repo {repo_full_name}, event {event_type}/{event_key}: {e}")
+        raise
+
+
+async def dispatch_workflow_event(organization_id: str, trigger_type: str, context: dict, event_key: str):
+    """Single shared entry point for any GitHub-shaped event that should run
+    through the workflow engine, regardless of whether it originated from a
+    real, signature-verified GitHub webhook delivery or from this
+    application's own internal actions (e.g. Commit Scheduler successfully
+    pushing a commit).
+
+    organization_id must already be trusted by the caller before this is
+    invoked -- for real webhooks that means it was resolved via
+    _resolve_org_for_webhook's signature verification; for internally
+    generated events it means the organization_id the initiating job/action
+    was created under. This function never re-derives or second-guesses
+    organization identity -- that responsibility stays with the caller.
+
+    event_key must uniquely identify this specific occurrence within its
+    (organization, repo, trigger_type) scope -- e.g. a commit SHA for push,
+    or "pr-<number>-<head_sha>" for a pull request -- so that the same real
+    event arriving twice (once as a real webhook, once as an internally
+    dispatched event, or via GitHub's own webhook redelivery) executes the
+    matching workflow(s) at most once.
+    """
+    repo_full_name = context.get("repo", "")
+    if not _record_event_if_new(organization_id, repo_full_name, trigger_type, event_key):
+        logger.info(
+            f"Skipping duplicate {trigger_type} event for org {organization_id}, "
+            f"repo {repo_full_name}, event_key={event_key} -- already processed."
+        )
+        return
+    await run_workflows(organization_id, trigger_type, context)
+
+
 async def run_workflows(organization_id: str, trigger_type: str, context: dict):
     result = supabase_admin.table("workflows") \
         .select("*").eq("organization_id", organization_id) \
