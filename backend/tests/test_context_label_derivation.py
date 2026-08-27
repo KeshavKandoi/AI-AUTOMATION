@@ -70,3 +70,44 @@ def test_save_audit_log_still_uses_real_title_for_issue_context_unchanged():
         run(workflow_engine._action_save_audit_log("org-A", context))
         summary = mock_log_event.call_args.kwargs["summary"]
         assert "Bug: login fails" in summary
+
+
+def test_derive_context_label_prefixes_workflow_name_when_present():
+    context = {"repo": "acme/repo", "branch": "main", "commit_message": "fix typo in README", "_workflow_name": "KK"}
+    assert workflow_engine._derive_context_label(context) == "KK: fix typo in README"
+
+
+def test_derive_context_label_prefixes_workflow_name_for_title_too():
+    context = {"title": "Bug: login fails", "_workflow_name": "High priority alerts"}
+    assert workflow_engine._derive_context_label(context) == "High priority alerts: Bug: login fails"
+
+
+def test_derive_context_label_no_prefix_when_workflow_name_absent():
+    context = {"commit_message": "fix typo in README"}
+    assert workflow_engine._derive_context_label(context) == "fix typo in README"
+
+
+def test_execute_workflow_injects_workflow_name_into_context_for_actions():
+    from unittest.mock import patch, MagicMock, AsyncMock
+
+    workflow = {
+        "id": "wf-1", "organization_id": "org-A", "name": "KK",
+        "trigger_type": "push", "conditions": {}, "actions": ["save_audit_log"],
+        "lifetime_mode": "continuous", "status": "active",
+    }
+    push_context = {"repo": "acme/repo", "branch": "main", "commit_message": "fix typo in README"}
+
+    captured_summary = {}
+
+    def fake_log_event(**kwargs):
+        if kwargs.get("action") == "workflow_audit":
+            captured_summary["summary"] = kwargs.get("summary")
+
+    with patch.object(workflow_engine, "log_event", side_effect=fake_log_event), \
+         patch.object(workflow_engine.supabase_admin, "table") as mock_table:
+        mock_table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"status": "success"}])
+        run(workflow_engine.execute_workflow(workflow, push_context, record_skipped=False))
+
+    assert "KK: fix typo in README" in captured_summary["summary"]
+    # Original caller's dict must be untouched (execute_workflow copies, never mutates)
+    assert "_workflow_name" not in push_context
