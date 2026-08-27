@@ -73,26 +73,40 @@ def _derive_context_label(context: dict) -> str:
     but whose trigger type may not provide one directly.
 
     issue_created and pull_request_opened contexts already carry a real
-    'title' field -- used as-is, unchanged from prior behavior. push
-    contexts have no 'title' at all (they carry commit_message, repo,
-    branch, commit_sha instead), so without this, every push-triggered
-    audit log entry / calendar event silently fell back to a hardcoded
-    generic label ("Untitled" / "Workflow event") regardless of what was
-    actually pushed -- this fixes that by using the real commit message,
-    falling back further to repo@branch if even that is missing."""
+    'title' field -- used as-is (still prefixed with the workflow name
+    below), unchanged in substance from prior behavior. push contexts have
+    no 'title' at all (they carry commit_message, repo, branch, commit_sha
+    instead), so without this, every push-triggered audit log entry /
+    calendar event silently fell back to a hardcoded generic label
+    ("Untitled" / "Workflow event") regardless of what was actually pushed
+    -- this fixes that by using the real commit message, falling back
+    further to repo@branch if even that is missing.
+
+    When execute_workflow has attached the triggering workflow's own name
+    to the context (as "_workflow_name"), it's prefixed onto the label --
+    e.g. "KK: fix typo in README" -- so the entry identifies both which
+    workflow ran and what specifically triggered it."""
     title = context.get("title")
     if title:
-        return title
-    commit_message = context.get("commit_message")
-    if commit_message:
-        return commit_message
-    repo = context.get("repo")
-    branch = context.get("branch")
-    if repo and branch:
-        return f"{repo}@{branch}"
-    if repo:
-        return repo
-    return "Untitled"
+        event_label = title
+    else:
+        commit_message = context.get("commit_message")
+        if commit_message:
+            event_label = commit_message
+        else:
+            repo = context.get("repo")
+            branch = context.get("branch")
+            if repo and branch:
+                event_label = f"{repo}@{branch}"
+            elif repo:
+                event_label = repo
+            else:
+                event_label = "Untitled"
+
+    workflow_name = context.get("_workflow_name")
+    if workflow_name:
+        return f"{workflow_name}: {event_label}"
+    return event_label
 
 
 def _match_conditions(conditions: dict, context: dict) -> bool:
@@ -313,6 +327,11 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
     import time
     organization_id = workflow["organization_id"]
     started = time.monotonic()
+    # Attach the workflow's own name to the context so actions like
+    # save_audit_log / create_calendar_event can show "<workflow name>: <event>"
+    # instead of just the raw event details -- copy, never mutate the
+    # caller's original context dict.
+    context = {**context, "_workflow_name": workflow.get("name")}
 
     if not _match_conditions(workflow.get("conditions", {}), context):
         if not record_skipped:
