@@ -38,6 +38,48 @@ def _extract_priority_from_labels(labels: list) -> str:
     return "medium"
 
 
+def _resolve_org_for_webhook(body: bytes, signature: str, repo_full_name: str) -> dict:
+    """Identifies which single organization a GitHub webhook delivery belongs
+    to, when multiple organizations may have connected the same repository.
+
+    There is currently no GitHub-native identifier (e.g. a stored webhook id)
+    persisted per-org that could unambiguously answer this without touching
+    the request body, so the org is resolved by finding the one candidate
+    organization whose own server-side webhook_secret actually verifies this
+    delivery's HMAC signature. The organization is never taken from the
+    request payload, headers, or any client-suppliable value -- only from
+    which stored secret cryptographically matches.
+
+    Raises HTTPException(401) if zero candidates verify (invalid/forged
+    signature, or repo not connected to any org), and HTTPException(409) if
+    more than one candidate verifies (an organization-secret collision -- not
+    expected in normal operation, but must never be resolved by arbitrarily
+    picking one candidate)."""
+    org_res = supabase_admin.table("organizations").select("*").eq("github_repo", repo_full_name).execute()
+    candidates = org_res.data or []
+    if not candidates:
+        logger.error(f"Webhook received for unregistered repo: {repo_full_name}")
+        raise HTTPException(status_code=404, detail="No organization connected to this repo")
+
+    matches = [
+        org for org in candidates
+        if verify_signature_with_secret(body, signature, org.get("webhook_secret"))
+    ]
+
+    if not matches:
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+    if len(matches) > 1:
+        matched_ids = [m["id"] for m in matches]
+        logger.error(
+            f"Webhook signature matched multiple organizations for repo {repo_full_name}: {matched_ids} "
+            f"-- refusing to arbitrarily select one. This indicates a webhook_secret collision."
+        )
+        raise HTTPException(status_code=409, detail="Ambiguous webhook: matched multiple organizations")
+
+    return matches[0]
+
+
 @router.post("/github")
 async def github_webhook(
     request: Request,
@@ -51,16 +93,7 @@ async def github_webhook(
     if not repo_full_name:
         raise HTTPException(status_code=400, detail="Missing repository in payload")
 
-    org_res = supabase_admin.table("organizations").select("*").eq("github_repo", repo_full_name).execute()
-    if not org_res.data:
-        logger.error(f"Webhook received for unregistered repo: {repo_full_name}")
-        raise HTTPException(status_code=404, detail="No organization connected to this repo")
-
-    org = org_res.data[0]
-    org_secret = org.get("webhook_secret")
-
-    if not verify_signature_with_secret(body, x_hub_signature_256, org_secret):
-        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    org = _resolve_org_for_webhook(body, x_hub_signature_256, repo_full_name)
 
     logger.info(f"GitHub webhook received: event={x_github_event} repo={repo_full_name} org={org['id']}")
 
