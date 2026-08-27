@@ -65,32 +65,22 @@ async def close_github_loop(task: dict, access_token: str, approved: bool, resol
         await _github_comment(access_token, owner_repo, issue_number, body)
 
 
-async def _gmail_modify(access_token: str, message_id: str, add_labels=None, remove_labels=None):
-    payload = {}
-    if add_labels:
-        payload["addLabelIds"] = add_labels
-    if remove_labels:
-        payload["removeLabelIds"] = remove_labels
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}/modify",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json=payload
-        )
-    if res.status_code != 200:
-        raise RuntimeError(f"Gmail modify failed: {res.text}")
-
-
 async def close_gmail_loop(task: dict, access_token: str, approved: bool, archive: bool = False):
+    """Gmail closeout is intentionally a no-op. WorkForge's Gmail OAuth
+    access is read + send only (gmail.readonly, gmail.send) and must never
+    modify a user's mailbox state — no label changes, no marking read,
+    no archiving, no deleting. This still validates the task's
+    source_ref so a malformed Gmail-sourced task surfaces a clear error,
+    then completes successfully without calling the Gmail API.
+
+    `access_token` and `archive` are accepted only to preserve the
+    uniform (task, access_token, approved, **kwargs) signature that
+    run_closeout's CLOSEOUT_HANDLERS dispatch relies on for every source
+    type — they are otherwise unused here by design."""
     source_type, message_id = parse_source_ref(task.get("source_ref", ""))
     if source_type != "gmail" or not message_id:
         raise RuntimeError(f"Cannot close Gmail loop — invalid source_ref: {task.get('source_ref')}")
-
-    remove_labels = ["UNREAD"]
-    if approved and archive:
-        remove_labels.append("INBOX")
-
-    await _gmail_modify(access_token, message_id, remove_labels=remove_labels)
+    # No Gmail API call here — see docstring above.
 
 
 async def _calendar_patch(access_token: str, event_id: str, payload: dict):
