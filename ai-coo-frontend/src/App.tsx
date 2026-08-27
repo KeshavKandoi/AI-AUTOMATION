@@ -31,6 +31,7 @@ import Analytics from '@/pages/analytics/Analytics'
 import Home from '@/pages/home/Home'
 import PrivacyPolicy from '@/pages/legal/PrivacyPolicy'
 import TermsOfService from '@/pages/legal/TermsOfService'
+import Security from '@/pages/legal/Security'
 
 const queryClient = new QueryClient()
 
@@ -69,6 +70,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/security" element={<Security />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
