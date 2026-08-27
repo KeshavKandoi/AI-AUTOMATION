@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, HTTPException, Header
 
 from config import settings, logger, supabase_admin
 from orchestrator import coo_graph
-from workflow_engine import run_workflows
+from workflow_engine import run_workflows, dispatch_workflow_event
 from commit_scheduler import repository as commit_repo, service as commit_service
 from email_scheduler import repository as email_repo, service as email_service
 
@@ -147,7 +147,7 @@ async def github_webhook(
             "commit_count": len(payload.get("commits") or []),
             "timestamp": head_commit.get("timestamp", ""),
         }
-        await run_workflows(org_id, "push", push_context)
+        await dispatch_workflow_event(org_id, "push", push_context, event_key=push_context["commit_sha"] or "")
         logger.info(f"Workflow dispatch complete for push to {push_context['branch']} ({push_context['commit_sha']})")
 
     # --- New: pull_request "opened" actions also go through the configurable
@@ -166,7 +166,8 @@ async def github_webhook(
             "pr_number": pr.get("number"),
             "pr_url": pr.get("html_url"),
         }
-        await run_workflows(org_id, "pull_request_opened", pr_context)
+        pr_event_key = f"pr-{pr_context['pr_number']}-{(pr.get('head') or {}).get('sha', '')}"
+        await dispatch_workflow_event(org_id, "pull_request_opened", pr_context, event_key=pr_event_key)
         logger.info(f"Workflow dispatch complete for PR #{pr_context['pr_number']} opened")
 
     # --- Existing behavior: push / pull_request / other issue actions still run the orchestrator ---
