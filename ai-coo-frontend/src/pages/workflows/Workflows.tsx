@@ -211,14 +211,16 @@ export default function Workflows() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="ghost"
-                    loading={runNowMutation.isPending && runNowMutation.variables === workflow.id}
-                    onClick={() => runNowMutation.mutate(workflow.id)}
-                  >
-                    <Play size={13} />
-                    Run now
-                  </Button>
+                  {workflow.status !== 'completed' && workflow.status !== 'expired' && (
+                    <Button
+                      variant="ghost"
+                      loading={runNowMutation.isPending && runNowMutation.variables === workflow.id}
+                      onClick={() => runNowMutation.mutate(workflow.id)}
+                    >
+                      <Play size={13} />
+                      Run now
+                    </Button>
+                  )}
                   <Button variant="ghost" onClick={() => setDetailWorkflowId(workflow.id)}>
                     <Clock size={13} />
                     Details
