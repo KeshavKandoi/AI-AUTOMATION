@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle, ShieldCheck } from 'lucide-react'
 import { integrationsService, type IntegrationProvider } from '@/services/integrations'
 import { useAuthStore } from '@/store/authStore'
 import Card from '@/components/ui/Card'
 import Skeleton from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 
-const PROVIDER_META: Record<IntegrationProvider, { label: string; description: string; icon: typeof GitBranch }> = {
+const PROVIDER_META: Record<IntegrationProvider, { label: string; description: string; icon: typeof GitBranch; dataUseNote?: string }> = {
   github: {
     label: 'GitHub',
     description: 'Sync issues, create commits, and manage repositories.',
@@ -15,13 +16,15 @@ const PROVIDER_META: Record<IntegrationProvider, { label: string; description: s
   },
   gmail: {
     label: 'Gmail',
-    description: 'Read unread mail and send emails on your behalf.',
+    description: 'Scans recent mail to detect job-application replies and unread messages, and sends emails you configure in workflows.',
     icon: Mail,
+    dataUseNote: 'Used only for Job Hunter tracking, AI task suggestions, and workflow emails you set up — never sold or used for ads.',
   },
   calendar: {
     label: 'Google Calendar',
-    description: 'View events and schedule new ones automatically.',
+    description: 'Views upcoming events and creates events for interviews and workflows you configure.',
     icon: CalendarIcon,
+    dataUseNote: 'Used only to show upcoming events and create events you or your workflows request — never sold or used for ads.',
   },
 }
 
@@ -106,6 +109,18 @@ export default function Integrations() {
                 <h3 className="text-sm font-medium text-[var(--color-text-primary)]">{meta.label}</h3>
                 <p className="mt-1 text-xs text-[var(--color-text-faint)]">{meta.description}</p>
               </div>
+
+              {meta.dataUseNote && !isConnected && (
+                <div className="flex items-start gap-1.5 text-[11px] text-[var(--color-text-faint)] leading-relaxed">
+                  <ShieldCheck size={12} className="shrink-0 mt-0.5" />
+                  <span>
+                    {meta.dataUseNote}{' '}
+                    <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110 underline underline-offset-2">
+                      Privacy Policy
+                    </Link>
+                  </span>
+                </div>
+              )}
 
               <div className="mt-auto flex gap-2">
                 <Button
