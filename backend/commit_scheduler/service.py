@@ -9,8 +9,9 @@ from fastapi import HTTPException
 
 from commit_scheduler import repository, git_ops
 from commit_scheduler.schemas import CommitJobCreate, CommitJobUpdate
-from config import supabase_admin, decrypt_token
+from config import supabase_admin, decrypt_token, logger
 from audit_logs.service import log_event
+from workflow_engine import dispatch_workflow_event
 
 
 def _get_github_token_for_org(organization_id: str) -> str:
@@ -178,6 +179,74 @@ async def _resolve_files_for_run(job: dict, run_date: str) -> list[dict]:
     return []
 
 
+async def _dispatch_push_workflow_event(job: dict, run: dict) -> None:
+    """After a successful Commit Scheduler commit, generates the same
+    normalized push context a real GitHub webhook would produce and sends it
+    through the shared dispatch_workflow_event entry point -- so any
+    Push-triggered workflow (send_email, create_task, notify_discord,
+    create_calendar_event, save_audit_log, or any combination) fires exactly
+    as it would for a real external push, with the same idempotency
+    protection against a real GitHub webhook for this same commit arriving
+    separately.
+
+    organization_id here is the job's own trusted organization_id, set once
+    at job-creation time via the authenticated org context -- never
+    re-derived from anything client-suppliable, and never a webhook
+    signature lookup, since there is no ambiguity to resolve: this event
+    originates from an action this specific organization's own job took.
+
+    A failure here is logged but never re-raised -- the commit itself already
+    succeeded and that is this job's actual contract; a workflow-dispatch
+    problem must not be reported as a commit-job failure."""
+    commit_sha = run.get("commit_sha") or ""
+    push_context = {
+        "repo": job["repo_full_name"],
+        "branch": job["branch"],
+        "author": "AI COO Commit Scheduler",
+        "commit_message": job.get("commit_message", ""),
+        "commit_sha": commit_sha,
+        "files_changed": [],
+        "commit_count": 1,
+        "timestamp": run.get("executed_at", ""),
+    }
+    try:
+        await dispatch_workflow_event(
+            job["organization_id"], "push", push_context, event_key=commit_sha
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to dispatch push workflow event for commit job {job['id']} "
+            f"(org {job['organization_id']}, repo {job.get('repo_full_name')}): {e}"
+        )
+
+
+async def _dispatch_pull_request_workflow_event(job: dict, pr: dict, head_sha: str) -> None:
+    """Mirrors the webhook path's pull_request_opened dispatch for Commit
+    Scheduler's use_pr mode, after the PR has actually been created."""
+    pr_number = pr.get("number")
+    pr_context = {
+        "repo": job["repo_full_name"],
+        "title": job.get("commit_message", "Automated PR"),
+        "author": "AI COO Commit Scheduler",
+        "source_branch": pr.get("head_branch", ""),
+        "target_branch": job["branch"],
+        "draft": False,
+        "labels": [],
+        "pr_number": pr_number,
+        "pr_url": pr.get("html_url"),
+    }
+    event_key = f"pr-{pr_number}-{head_sha}"
+    try:
+        await dispatch_workflow_event(
+            job["organization_id"], "pull_request_opened", pr_context, event_key=event_key
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to dispatch pull_request_opened workflow event for commit job {job['id']} "
+            f"(org {job['organization_id']}, repo {job.get('repo_full_name')}): {e}"
+        )
+
+
 async def execute_job(job: dict) -> dict:
     """Performs the actual Git commit(s) for a due job. Returns the run record.
     For one-time 'scheduled' jobs, marks the job 'completed' after a successful run
@@ -265,12 +334,17 @@ async def execute_job(job: dict) -> dict:
                 "commit_sha": last_result["sha"] if last_result else None,
                 "commit_url": pr.get("html_url")
             })
+            await _dispatch_pull_request_workflow_event(
+                job, {**pr, "head_branch": target_branch},
+                last_result["sha"] if last_result else ""
+            )
         else:
             run = repository.create_run({
                 "job_id": job["id"], "run_date": run_date, "status": "success",
                 "commit_sha": last_result["sha"] if last_result else None,
                 "commit_url": last_result["commit_url"] if last_result else None
             })
+            await _dispatch_push_workflow_event(job, run)
 
     except Exception as e:
         log_event(
