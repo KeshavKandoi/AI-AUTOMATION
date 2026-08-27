@@ -3,7 +3,7 @@ import LegalPageLayout from './LegalPageLayout'
 import LegalSection from './LegalSection'
 
 const CONTACT_EMAIL = 'testerappp2001@gmail.com'
-const LAST_UPDATED = 'August 27, 2026'
+const LAST_UPDATED = 'August 28, 2026'
 
 export default function PrivacyPolicy() {
   return (
@@ -41,19 +41,32 @@ export default function PrivacyPolicy() {
         <p className="text-[var(--color-text-primary)] font-medium mt-2">Gmail</p>
         <ul className="list-disc list-inside flex flex-col gap-1.5">
           <li>
-            <strong>Reading your inbox</strong> — WorkForge scans recent messages (up to the last 14 days,
-            up to 50 messages per scan) to provide exactly two features: (1) <em>Job Hunter</em>, which
-            detects recruitment-related emails (interview invitations, assessments, offers, rejections,
-            rescheduling) so it can keep your job-application tracker up to date; and (2) the <em>AI
-            planner</em>, which reads the sender, subject, and short snippet of your unread messages to
-            suggest tasks for your approval. This access exists only to power these two features and is
-            not used for any other purpose.
+            <strong>Job Hunter:</strong> scans recent messages (up to the last 14 days, up to 50 messages
+            per scan), reading message headers, full body content, and attachment metadata, to detect
+            recruitment-related emails (interview invitations, assessments, offers, rejections,
+            rescheduling) and keep your job-application tracker up to date. Full message body access is
+            required for this feature because classification depends on the wording of the email body, not
+            just its subject line.
+          </li>
+          <li>
+            <strong>AI planner:</strong> reads the sender, subject, and short snippet of your unread
+            messages to suggest tasks for your approval.
+          </li>
+          <li>
+            <strong>Gmail unread mail view:</strong> the Gmail page in WorkForge displays your unread
+            messages (sender, subject, snippet) directly in the app so you can see them at a glance. This
+            view does not involve any AI processing.
+          </li>
+          <li>
+            <strong>Gmail AI summary:</strong> when you click "Load AI summary" on the Gmail page, WorkForge
+            sends the same limited data (sender, subject, and snippet of your unread messages) to Google
+            Gemini to generate a short natural-language summary, described further in Section 5.
           </li>
           <li>
             <strong>Sending email</strong> — used only to provide the workflow-automation feature, when you
-            configure a workflow action to send an email (for example, "GitHub push → send an email").
-            WorkForge never sends email on its own initiative; it only sends what a workflow you configured
-            specifies.
+            configure a workflow action to send an email (for example, "GitHub push → send an email"), or
+            when you explicitly approve a task that sends an email. WorkForge never sends email on its own
+            initiative.
           </li>
           <li>
             <strong>Your Google account email address</strong> — used solely to identify your account
@@ -63,15 +76,36 @@ export default function PrivacyPolicy() {
         <p className="text-[var(--color-text-primary)] font-medium mt-2">Google Calendar</p>
         <ul className="list-disc list-inside flex flex-col gap-1.5">
           <li>
-            <strong>Creating, reading, and updating calendar events</strong> — used solely to provide: the
-            Job Hunter feature (creating an interview event when an interview invitation is detected in
-            your Gmail, and updating or cancelling that event if a reschedule or withdrawal email is later
-            detected); the workflow-automation feature (creating events as part of workflows you configure);
-            the optional lunch-block feature (automatically creating one daily event at times you set); and
-            the AI planner feature (reading the title/start time of your next few upcoming events to factor
-            them into suggested tasks). Calendar data is not read or used outside these four features.
+            <strong>Job Hunter interview events:</strong> creates a calendar event when an interview
+            invitation is detected in your Gmail, and updates or cancels that event if a reschedule or
+            withdrawal email is later detected.
+          </li>
+          <li>
+            <strong>Workflow automation:</strong> creates events as part of workflows you configure.
+          </li>
+          <li>
+            <strong>Lunch block:</strong> if you enable it, automatically creates one daily event at times
+            you set.
+          </li>
+          <li>
+            <strong>AI planner:</strong> reads the title and start time of your next few upcoming events to
+            factor them into suggested tasks.
+          </li>
+          <li>
+            <strong>Calendar page:</strong> displays your upcoming events, and lets you manually create a
+            new event directly in WorkForge.
+          </li>
+          <li>
+            <strong>Calendar AI summary:</strong> when you click "Load AI summary" on the Calendar page,
+            WorkForge sends limited event information (event title/summary and start/end time) to Google
+            Gemini to generate a short natural-language summary, described further in Section 5.
           </li>
         </ul>
+        <p>
+          All Calendar operations described above act on individual calendar events only. WorkForge does
+          not read or modify your calendar list, calendar sharing settings, or any calendar other than your
+          primary calendar.
+        </p>
       </LegalSection>
 
       <LegalSection number="4" title="How Google User Data Is Used">
@@ -84,17 +118,19 @@ export default function PrivacyPolicy() {
           <li><strong>Workflow automation:</strong> a GitHub event you configure (push, issue, or pull request) → a Gmail send-email action and/or a Calendar create-event action you configured for that workflow.</li>
           <li><strong>Lunch block:</strong> a daily schedule you configure → WorkForge checks and, if needed, creates one Calendar event for that window.</li>
           <li><strong>AI planner:</strong> your unread email metadata and upcoming calendar events → a suggested task list you review and approve before anything happens.</li>
+          <li><strong>Gmail unread mail view / Calendar page:</strong> your unread messages or upcoming events → displayed directly to you in WorkForge, so you can see them without leaving the app.</li>
+          <li><strong>Gmail AI summary / Calendar AI summary:</strong> the same limited data shown above → a short natural-language summary generated on your explicit request and shown only to you.</li>
         </ul>
         <p>
           WorkForge never independently decides to send an email or create a calendar event outside of
-          these user-configured features, and Google user data is never repurposed beyond providing or
-          improving the features listed above.
+          these user-configured or user-initiated features, and Google user data is never repurposed beyond
+          providing or improving the features listed above.
         </p>
       </LegalSection>
 
       <LegalSection number="5" title="AI Processing of Google User Data">
         <p>
-          WorkForge uses Google's Gemini API solely as a service provider to help deliver two specific,
+          WorkForge uses Google's Gemini API solely as a service provider to help deliver specific,
           user-facing WorkForge features. Only the specific Google data described below — and nothing else
           — is sent to Gemini, strictly to generate the outputs those features require:
         </p>
@@ -104,21 +140,29 @@ export default function PrivacyPolicy() {
             interview-related email, it first looks for a structured calendar invite (a .ics attachment or
             calendar MIME part) in that email. Only if no structured invite is found does it send the
             email's subject and a portion of its body (up to roughly 3,000 characters) to Gemini, solely to
-            extract a likely interview date and time for that feature. A low-confidence or unparseable
-            result is discarded and no calendar event is created from it.
+            extract a likely interview date and time. A low-confidence or unparseable result is discarded
+            and no calendar event is created from it.
           </li>
           <li>
             <strong>AI planner task suggestions:</strong> the sender, subject, and short snippet of your
             unread Gmail messages, and the title/time of your upcoming Calendar events, are sent to Gemini
-            solely to generate suggested task titles and priorities for your review as part of the AI
-            planner feature.
+            solely to generate suggested task titles and priorities for your review.
+          </li>
+          <li>
+            <strong>Gmail AI summary:</strong> when you explicitly request it, only the sender, subject, and
+            short snippet of your unread messages are sent to Gemini to generate the requested summary.
+          </li>
+          <li>
+            <strong>Calendar AI summary:</strong> when you explicitly request it, only the title/summary and
+            start/end time of your upcoming events are sent to Gemini to generate the requested summary.
           </li>
         </ul>
         <p>
-          Gemini processes this data only to produce the specific, immediate outputs described above for
-          the corresponding feature. Google user data sent to Gemini is not used to train any
-          general-purpose AI/ML model, and is not used for any research or model-improvement purpose
-          unrelated to generating these feature outputs.
+          Gemini processes this data only to produce the specific, immediate output described above for the
+          corresponding feature, and each response is returned to you and is not used for any other
+          purpose. Google user data sent to Gemini is not used to train any general-purpose AI/ML model,
+          and is not used for any research or model-improvement purpose unrelated to generating these
+          feature outputs.
         </p>
       </LegalSection>
 
@@ -128,6 +172,7 @@ export default function PrivacyPolicy() {
           <li>Google user data is never used for advertising or targeted advertising.</li>
           <li>Google user data is never sold.</li>
           <li>Google user data is never used for unrelated profiling, creditworthiness, or lending decisions.</li>
+          <li>Google user data is never used to train generalized or foundational AI models.</li>
           <li>Google user data is never used for any purpose outside the functionality explicitly described in this Privacy Policy.</li>
         </ul>
       </LegalSection>
@@ -174,7 +219,7 @@ export default function PrivacyPolicy() {
           organization's stored token. GitHub webhook deliveries are verified using a per-organization
           HMAC signature before any workflow is triggered; a delivery that doesn't match a stored secret is
           rejected. We do not currently hold SOC 2, ISO 27001, or similar independent security
-          certifications.
+          certifications, and we have not undergone independent third-party penetration testing.
         </p>
       </LegalSection>
 
@@ -182,7 +227,9 @@ export default function PrivacyPolicy() {
         <p>
           Google user data and OAuth tokens are retained only while the corresponding integration remains
           connected. Job Hunter records (application status, detected Gmail event metadata, matched
-          calendar events) are retained while your account is active, to keep your tracker functional.
+          calendar events) are retained while your account is active, to keep your tracker functional. AI
+          summary responses (Gmail and Calendar) are returned to you at request time and are not separately
+          stored.
         </p>
       </LegalSection>
 
