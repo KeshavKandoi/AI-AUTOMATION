@@ -101,10 +101,10 @@ export default function TermsOfService() {
       </LegalSection>
 
       <LegalSection number="13" title="Governing Law">
-        <p className="text-[var(--color-amber)]">
-          [Placeholder — governing law jurisdiction to be completed by the project owner. Google's OAuth
-          verification policies do not require a specific jurisdiction; this should reflect the jurisdiction
-          you or your organization operates under.]
+        <p>
+          These Terms are governed by the laws applicable to WorkForge's place of operation, without regard
+          to conflict-of-law principles. This section will be updated to name a specific jurisdiction once
+          WorkForge's operating entity and location are finalized.
         </p>
       </LegalSection>
 
