@@ -110,7 +110,16 @@ class GitHubProvider(VCSProvider):
             raise RuntimeError(f"GitHub commit failed ({res.status_code}): {res.text}")
         data = res.json()
         return {
-            "sha": data["content"]["sha"],
+            # NOTE: data["content"]["sha"] is the file BLOB's hash, not the
+            # commit's hash -- they are different values. The dispatch layer
+            # (commit_scheduler/service.py -> dispatch_workflow_event) uses
+            # this "sha" as the idempotency event_key, and must produce the
+            # exact same value a real GitHub push webhook reports for this
+            # same commit (payload["after"] / head_commit.id) so that a
+            # scheduler-originated dispatch and a real webhook delivery for
+            # the identical commit correctly collapse into a single
+            # execution instead of firing the workflow twice.
+            "sha": data["commit"]["sha"],
             "html_url": data["content"]["html_url"],
             "commit_url": data["commit"]["html_url"],
         }
