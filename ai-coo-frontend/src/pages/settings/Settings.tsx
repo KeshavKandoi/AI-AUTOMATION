@@ -510,8 +510,11 @@ export default function Settings() {
             organization can review.
           </p>
           <p>
-            Connected third-party tokens (e.g. GitHub) are stored encrypted and are only used to act on your
-            behalf within AI COO.
+            Connected third-party tokens (GitHub, Gmail, Google Calendar) are stored encrypted and are only
+            used to act on your behalf within AI COO — Google user data is never sold or used for
+            advertising. See our{' '}
+            <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110">Privacy Policy</Link>{' '}
+            for exactly what's accessed and why.
           </p>
         </div>
       </Card>
@@ -527,6 +530,13 @@ export default function Settings() {
           >
             <FileText size={13} />
             Privacy Policy
+          </Link>
+          <Link
+            to="/security"
+            className="flex items-center gap-1.5 text-xs text-[var(--color-signal)] hover:brightness-110 transition-all"
+          >
+            <ShieldCheck size={13} />
+            Security
           </Link>
           <Link
             to="/terms"
