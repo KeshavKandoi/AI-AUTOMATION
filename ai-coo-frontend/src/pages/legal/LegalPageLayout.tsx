@@ -43,6 +43,7 @@ export default function LegalPageLayout({ title, lastUpdated, children }: LegalP
         <div className="max-w-4xl mx-auto px-6 py-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[var(--color-text-faint)]">
           <span>© {new Date().getFullYear()} WorkForge</span>
           <Link to="/privacy" className="hover:text-[var(--color-text-primary)] transition-colors">Privacy Policy</Link>
+          <Link to="/security" className="hover:text-[var(--color-text-primary)] transition-colors">Security</Link>
           <Link to="/terms" className="hover:text-[var(--color-text-primary)] transition-colors">Terms of Service</Link>
         </div>
       </footer>
