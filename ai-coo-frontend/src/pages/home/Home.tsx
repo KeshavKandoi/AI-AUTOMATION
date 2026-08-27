@@ -11,8 +11,8 @@ const FEATURES = [
   { icon: GitBranch, title: 'GitHub', description: 'Connect repositories so WorkForge can react to pushes, issues, and pull requests.' },
   { icon: GitCommitHorizontal, title: 'Commit Scheduler', description: 'Schedule and automate commits on a recurring basis.' },
   { icon: GitPullRequest, title: 'Pull Requests', description: 'Review, approve, and manage PRs from one place.' },
-  { icon: Mail, title: 'Gmail', description: 'Detects job-application replies (interview, offer, rejection) in your inbox to update Job Hunter, and sends emails for workflows you configure.' },
-  { icon: Calendar, title: 'Google Calendar', description: 'Creates interview events detected from Gmail, runs workflow-triggered event creation, and can optionally auto-block your lunch hour.' },
+  { icon: Mail, title: 'Gmail', description: 'Detects job-application replies to update Job Hunter, shows your unread mail, generates an on-demand AI summary of it, and sends emails for workflows you configure.' },
+  { icon: Calendar, title: 'Google Calendar', description: 'Shows your upcoming events with an on-demand AI summary, creates interview events detected from Gmail, runs workflow-triggered event creation, and can optionally auto-block your lunch hour.' },
   { icon: ShieldCheck, title: 'Human Approval', description: 'Keep a human in the loop before automation takes action.' },
   { icon: ScrollText, title: 'Audit Logs', description: 'A full record of every automated and manual action.' },
   { icon: BarChart3, title: 'Analytics', description: 'Operational visibility into activity across your organization.' },
@@ -137,6 +137,10 @@ export default function Home() {
               <li className="flex gap-2.5">
                 <span className="text-[var(--color-signal)]">→</span>
                 <span>Connecting <strong className="text-[var(--color-text-primary)]">Google Calendar</strong> lets WorkForge create interview events detected from Gmail, create events as part of workflows you configure, and optionally auto-block a daily lunch window you set.</span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="text-[var(--color-signal)]">→</span>
+                <span>Both integrations also power optional, on-request <strong className="text-[var(--color-text-primary)]">AI summaries</strong> — Google's Gemini API turns your unread mail or upcoming events into a short summary, only when you click to request it. Google data is never sold or used to train general-purpose AI models.</span>
               </li>
             </ul>
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
