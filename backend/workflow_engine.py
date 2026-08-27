@@ -67,6 +67,34 @@ def _get_org_email(organization_id: str):
         return None
 
 
+def _derive_context_label(context: dict) -> str:
+    """Derives a meaningful, human-readable label for a triggering event,
+    for actions (save_audit_log, create_calendar_event) that need a title
+    but whose trigger type may not provide one directly.
+
+    issue_created and pull_request_opened contexts already carry a real
+    'title' field -- used as-is, unchanged from prior behavior. push
+    contexts have no 'title' at all (they carry commit_message, repo,
+    branch, commit_sha instead), so without this, every push-triggered
+    audit log entry / calendar event silently fell back to a hardcoded
+    generic label ("Untitled" / "Workflow event") regardless of what was
+    actually pushed -- this fixes that by using the real commit message,
+    falling back further to repo@branch if even that is missing."""
+    title = context.get("title")
+    if title:
+        return title
+    commit_message = context.get("commit_message")
+    if commit_message:
+        return commit_message
+    repo = context.get("repo")
+    branch = context.get("branch")
+    if repo and branch:
+        return f"{repo}@{branch}"
+    if repo:
+        return repo
+    return "Untitled"
+
+
 def _match_conditions(conditions: dict, context: dict) -> bool:
     if not conditions:
         return True
@@ -204,7 +232,7 @@ async def _action_create_calendar_event(organization_id: str, context: dict) -> 
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
             json={
-                "summary": context.get("title", "Workflow event"),
+                "summary": _derive_context_label(context),
                 "description": context.get("description", ""),
                 "start": {"dateTime": start.isoformat()},
                 "end": {"dateTime": end.isoformat()},
@@ -220,7 +248,7 @@ async def _action_save_audit_log(organization_id: str, context: dict) -> dict:
         organization_id=organization_id,
         module="workflows",
         action="workflow_audit",
-        summary=f"Workflow audit action: {context.get('title', 'Untitled')}".strip(),
+        summary=f"Workflow audit action: {_derive_context_label(context)}".strip(),
         status="info",
         metadata=context,
         source="backend",
