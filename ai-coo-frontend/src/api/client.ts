@@ -57,11 +57,8 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
-    const { isDevAccount } = useAuthStore.getState()
 
-    // Dev Account never has a real session or refresh cookie — don't attempt
-    // refresh for it, just fall through to the existing 401 -> logout/redirect.
-    if (error.response?.status === 401 && !original?._retried && !isDevAccount) {
+    if (error.response?.status === 401 && !original?._retried) {
       original._retried = true
       const newToken = await refreshAccessToken()
       if (newToken) {
