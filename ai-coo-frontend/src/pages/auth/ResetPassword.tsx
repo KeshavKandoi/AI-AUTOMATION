@@ -165,6 +165,7 @@ export default function ResetPassword() {
               label="New password"
               type="password"
               placeholder="At least 8 characters"
+              autoComplete="new-password"
               error={errors.new_password?.message}
               {...register('new_password')}
             />
