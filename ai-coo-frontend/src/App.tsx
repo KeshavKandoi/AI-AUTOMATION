@@ -37,17 +37,10 @@ const queryClient = new QueryClient()
 
 function App() {
   const [bootstrapped, setBootstrapped] = useState(false)
-  const isDevAccount = useAuthStore((s) => s.isDevAccount)
   const setAuth = useAuthStore((s) => s.setAuth)
   const logout = useAuthStore((s) => s.logout)
 
   useEffect(() => {
-    // Dev Account has no real session/refresh cookie — skip the silent
-    // refresh attempt entirely and just render immediately.
-    if (isDevAccount) {
-      setBootstrapped(true)
-      return
-    }
     apiClient
       .post('/auth/refresh')
       .then((res) => setAuth(res.data.user, res.data.access_token))
