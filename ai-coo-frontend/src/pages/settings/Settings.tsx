@@ -135,7 +135,6 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }
 
 export default function Settings() {
   const user = useAuthStore((s) => s.user)
-  const isDevAccount = useAuthStore((s) => s.isDevAccount)
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
 
@@ -342,39 +341,33 @@ export default function Settings() {
             <KeyRound size={16} className="text-[var(--color-text-muted)]" />
             <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Security</h2>
           </div>
-          {!isDevAccount && (
-            <div className="flex rounded-md border border-[var(--color-border)] overflow-hidden text-xs">
-              <button
-                type="button"
-                onClick={() => setMode('password')}
-                className={
-                  mode === 'password'
-                    ? 'px-2.5 py-1 bg-[var(--color-signal)] text-white'
-                    : 'px-2.5 py-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]'
-                }
-              >
-                Current password
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('otp')}
-                className={
-                  mode === 'otp'
-                    ? 'px-2.5 py-1 bg-[var(--color-signal)] text-white'
-                    : 'px-2.5 py-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]'
-                }
-              >
-                Email code
-              </button>
-            </div>
-          )}
+          <div className="flex rounded-md border border-[var(--color-border)] overflow-hidden text-xs">
+            <button
+              type="button"
+              onClick={() => setMode('password')}
+              className={
+                mode === 'password'
+                  ? 'px-2.5 py-1 bg-[var(--color-signal)] text-white'
+                  : 'px-2.5 py-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]'
+              }
+            >
+              Current password
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('otp')}
+              className={
+                mode === 'otp'
+                  ? 'px-2.5 py-1 bg-[var(--color-signal)] text-white'
+                  : 'px-2.5 py-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]'
+              }
+            >
+              Email code
+            </button>
+          </div>
         </div>
 
-        {isDevAccount ? (
-          <p className="text-xs text-[var(--color-text-faint)]">
-            Password management isn't available for the dev account.
-          </p>
-        ) : mode === 'password' ? (
+        {mode === 'password' ? (
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             {success && (
               <div className="flex items-center gap-2 rounded-lg bg-[var(--color-signal-dim)] border border-[var(--color-signal)]/30 px-3 py-2 text-xs text-[var(--color-signal)]">
@@ -559,26 +552,14 @@ export default function Settings() {
               integrations, audit logs, and everything else. This cannot be undone.
             </p>
           </div>
-          {isDevAccount ? (
-            <Button
-              variant="secondary"
-              disabled
-              title="Not available for the dev account"
-              className="!border-[var(--color-alert)]/30 !text-[var(--color-alert)] opacity-50 cursor-not-allowed shrink-0"
-            >
-              <Trash2 size={14} />
-              Delete account
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              onClick={() => setDeleteModalOpen(true)}
-              className="!border-[var(--color-alert)]/30 !text-[var(--color-alert)] hover:!bg-[var(--color-alert-dim)] shrink-0"
-            >
-              <Trash2 size={14} />
-              Delete account
-            </Button>
-          )}
+          <Button
+            variant="secondary"
+            onClick={() => setDeleteModalOpen(true)}
+            className="!border-[var(--color-alert)]/30 !text-[var(--color-alert)] hover:!bg-[var(--color-alert-dim)] shrink-0"
+          >
+            <Trash2 size={14} />
+            Delete account
+          </Button>
         </div>
       </Card>
 
