@@ -80,7 +80,7 @@ async def sync_interview_event(
         description_parts.append(f"Meeting link: {extracted.meeting_link}")
     if extracted.interviewer:
         description_parts.append(f"Interviewer: {extracted.interviewer}")
-    description_parts.append(f"Auto-created from Gmail by AI COO Job Hunter (extraction: {extracted.source}, confidence: {extracted.confidence:.0f}%)")
+    description_parts.append(f"Auto-created from Gmail by Workforge Job Hunter (extraction: {extracted.source}, confidence: {extracted.confidence:.0f}%)")
     description = "\n".join(description_parts)
 
     event_body = {
