@@ -25,8 +25,14 @@ export default function Login() {
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
+
+  const handleForgotPassword = () => {
+    const email = getValues('email')
+    navigate('/forgot-password', { state: email ? { email } : undefined })
+  }
 
   const onSubmit = async (data: LoginForm) => {
     setServerError(null)
@@ -99,12 +105,13 @@ export default function Login() {
               />
               Remember me
             </label>
-            <Link
-              to="/forgot-password"
+            <button
+              type="button"
+              onClick={handleForgotPassword}
               className="text-[var(--color-signal)] hover:brightness-110 transition-all"
             >
               Forgot password?
-            </Link>
+            </button>
           </div>
 
           <Button type="submit" loading={loading} className="w-full mt-1">
