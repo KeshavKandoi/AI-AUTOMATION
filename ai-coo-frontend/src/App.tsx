@@ -68,7 +68,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/chat" element={<ComingSoon title="AI COO Chat" />} />
+              <Route path="/chat" element={<ComingSoon title="Workforge Chat" />} />
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/workflows" element={<Workflows />} />
               <Route path="/integrations/github" element={<GitHub />} />
