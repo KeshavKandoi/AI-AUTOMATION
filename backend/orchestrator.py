@@ -248,9 +248,9 @@ async def node_notify_discord(state: COOState) -> COOState:
     tasks = state.get("tasks", [])
 
     if not tasks:
-        report = "**🤖 AI COO Run Complete**\n\nNothing found across GitHub, Gmail, or Calendar. All clear."
+        report = "**Workforge Run Complete**\n\nNothing found across GitHub, Gmail, or Calendar. All clear."
     else:
-        report = "**🤖 AI COO Run Complete**\n\n**Tasks awaiting your approval:**\n"
+        report = "**Workforge Run Complete**\n\n**Tasks awaiting your approval:**\n"
         for t in tasks:
             report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')} (source: {t.get('source')}, id: {t.get('id')[:8]})\n"
         report += "\nApprove via /tasks/{id}/approve"
