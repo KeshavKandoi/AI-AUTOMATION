@@ -162,7 +162,7 @@ from auth.routes import router as auth_router
 from notifications.routes import router as notifications_router
 from job_hunter.routes import router as job_hunter_router
 
-app = FastAPI(title="AI COO Backend")
+app = FastAPI(title="Workforge Backend")
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -802,7 +802,7 @@ async def discord_daily_report(github_access_token: str, org_id: str):
     open_tasks = [t for t in tasks if t.get("status") == "open"]
     done_tasks = [t for t in tasks if t.get("status") == "issue_created"]
 
-    report = f"**📊 Daily AI COO Report**\n\n**Open Tasks:** {len(open_tasks)}\n**Issues Created:** {len(done_tasks)}\n\n**Top Priorities:**\n"
+    report = f"**Daily Workforge Report**\n\n**Open Tasks:** {len(open_tasks)}\n**Issues Created:** {len(done_tasks)}\n\n**Top Priorities:**\n"
     for t in open_tasks[:5]:
         report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')}\n"
 
