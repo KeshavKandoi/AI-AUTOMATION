@@ -13,7 +13,7 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'AI COO Chat', path: '/chat', icon: MessageSquare, comingSoon: true },
+  { label: 'Workforge Chat', path: '/chat', icon: MessageSquare, comingSoon: true },
   { label: 'Tasks', path: '/tasks', icon: ListTodo },
   { label: 'Workflow Automations', path: '/workflows', icon: Workflow },
   { label: 'GitHub', path: '/integrations/github', icon: GitBranch },
