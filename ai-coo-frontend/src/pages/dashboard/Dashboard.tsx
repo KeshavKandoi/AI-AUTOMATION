@@ -66,7 +66,7 @@ export default function Dashboard() {
           Dashboard
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Live status across your AI COO
+          Live status across your Workforge
         </p>
       </div>
 
