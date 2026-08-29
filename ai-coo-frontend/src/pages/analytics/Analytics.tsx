@@ -104,7 +104,7 @@ export default function Analytics() {
             Analytics
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Operational overview of AI COO activity and performance
+            Operational overview of Workforge activity and performance
           </p>
         </div>
 
