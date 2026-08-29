@@ -321,7 +321,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
                 />
                 <p className="text-xs text-[var(--color-text-faint)] -mt-2">
                   On each due day: if a real commit already landed before {guardCutoff.slice(0, 5)}, nothing happens.
-                  Otherwise AI COO commits automatically right at the cutoff.
+                  Otherwise Workforge commits automatically right at the cutoff.
                 </p>
               </>
             )}
