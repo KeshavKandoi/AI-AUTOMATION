@@ -116,7 +116,7 @@ export default function Notifications() {
             Notifications
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Everything AI COO wants you to know, in one place
+            Everything Workforge wants you to know, in one place
           </p>
         </div>
         <Button
@@ -169,7 +169,7 @@ export default function Notifications() {
             description={
               unreadOnly || module
                 ? 'Try adjusting your filters.'
-                : "You're all caught up — new activity across AI COO will show up here."
+                : "You're all caught up — new activity across Workforge will show up here."
             }
           />
         ) : (
