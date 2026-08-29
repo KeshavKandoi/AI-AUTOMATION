@@ -289,7 +289,7 @@ export default function Settings() {
       <Card className="p-5">
         <SectionHeader icon={Sun} title="Appearance" />
         <p className="text-xs text-[var(--color-text-muted)] mb-3">
-          Choose how AI COO looks on this device.
+          Choose how Workforge looks on this device.
         </p>
         <div className="grid grid-cols-3 gap-2">
           {THEME_OPTIONS.map((opt) => (
@@ -504,7 +504,7 @@ export default function Settings() {
           </p>
           <p>
             Connected third-party tokens (GitHub, Gmail, Google Calendar) are stored encrypted and are only
-            used to act on your behalf within AI COO — Google user data is never sold or used for
+            used to act on your behalf within Workforge — Google user data is never sold or used for
             advertising. See our{' '}
             <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110">Privacy Policy</Link>{' '}
             for exactly what's accessed and why.
