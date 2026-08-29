@@ -63,7 +63,7 @@ export default function Login() {
         <div className="mb-8 text-center">
           <div className="inline-flex h-2 w-2 rounded-full bg-[var(--color-signal)] animate-pulse-signal mb-4" />
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
-            Sign in to AI COO
+            Sign in to Workforge
           </h1>
           <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
             Your automation runs while you're away
