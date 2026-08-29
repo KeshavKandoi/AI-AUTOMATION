@@ -72,7 +72,7 @@ export default function Integrations() {
           Integrations
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Connect services so your AI COO can act on your behalf
+          Connect services so your Workforge can act on your behalf
         </p>
       </div>
 
