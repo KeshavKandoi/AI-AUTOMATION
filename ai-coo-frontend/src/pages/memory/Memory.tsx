@@ -194,7 +194,7 @@ export default function Memory() {
             Memory
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            What AI COO remembers about your users, projects, and preferences
+            What Workforge remembers about your users, projects, and preferences
           </p>
         </div>
         <Button onClick={openCreate}>
@@ -363,7 +363,7 @@ export default function Memory() {
                     ? 'Try adjusting your filters or search.'
                     : statusTab === 'archived'
                     ? 'Memories you archive will show up here.'
-                    : 'Create your first memory so AI COO can start remembering context.'
+                    : 'Create your first memory so Workforge can start remembering context.'
                 }
                 action={
                   !search && !hasActiveFilters && statusTab === 'active' ? (
