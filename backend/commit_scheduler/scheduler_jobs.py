@@ -76,11 +76,6 @@ async def run_due_commit_jobs():
     if not active_jobs:
         return
 
-    # Catches recurring/guard jobs whose end_date has already passed without
-    # ever being marked terminal — e.g. the scheduler was down on the exact
-    # end_date, so the normal "just processed the last day" completion path
-    # below never ran for them. Without this, such jobs stay active forever,
-    # never due again, but never marked completed either.
     for job in active_jobs:
         if job.get("mode") in ("recurring", "guard") and job.get("end_date"):
             end_date = date.fromisoformat(job["end_date"])
