@@ -41,8 +41,9 @@ CATEGORY_PATTERNS: dict[str, list[str]] = {
     ],
     "rejection": [
         r"not moving forward", r"decided not to proceed",
-        r"other candidates", r"will not be moving forward",
-        r"unfortunately", r"not selected", r"pursue other candidates",
+        r"will not be moving forward", r"not selected", r"pursue other candidates",
+        r"(move|moving|proceed|proceeding) forward with (other|another) (candidate|applicant)s?",
+        r"unfortunately,? .{0,80}(not (be )?(moving|proceeding|selected|successful)|decided not|unable to offer)",
         r"position has been filled", r"unable to offer you",
     ],
     "interview_invite": [
