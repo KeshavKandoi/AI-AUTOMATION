@@ -539,7 +539,7 @@ def _has_stored_refresh_token(org_id: str, provider: str) -> bool:
 
 @app.get("/gmail/login")
 def gmail_login(org_id: str = Depends(get_current_org_id)):
-    prompt_param = "" if _has_stored_refresh_token(org_id, "gmail") else "&prompt=consent"
+    prompt_param = "&prompt=consent"
     state = _issue_oauth_state(org_id, "gmail")
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
@@ -588,7 +588,7 @@ async def gmail_callback(code: str, state: str):
 
 @app.get("/calendar/login")
 def calendar_login(org_id: str = Depends(get_current_org_id)):
-    prompt_param = "" if _has_stored_refresh_token(org_id, "calendar") else "&prompt=consent"
+    prompt_param = "&prompt=consent"
     state = _issue_oauth_state(org_id, "calendar")
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
