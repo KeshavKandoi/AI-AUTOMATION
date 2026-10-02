@@ -52,9 +52,9 @@ export default function Gmail() {
           <ShieldCheck size={14} />
           <span>Only the text you paste here is processed. Gmail access is used only to send emails for workflows you configure.</span>
         </div>
-        <input className={inputClass} placeholder="Sender (optional)" value={sender} onChange={(e) => setSender(e.target.value)} />
-        <input className={inputClass} placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-        <textarea className={inputClass} rows={12} placeholder="Paste the email body" value={body} onChange={(e) => setBody(e.target.value)} />
+        <input className={inputClass} placeholder="Sender (optional)" maxLength={320} value={sender} onChange={(e) => setSender(e.target.value)} />
+        <input className={inputClass} placeholder="Subject" maxLength={500} value={subject} onChange={(e) => setSubject(e.target.value)} />
+        <textarea className={inputClass} rows={12} placeholder="Paste the email body" maxLength={20000} value={body} onChange={(e) => setBody(e.target.value)} />
         <div>
           <Button onClick={() => mutation.mutate()} disabled={!body.trim() || mutation.isPending}>
             <Mail size={14} className="mr-2" />
