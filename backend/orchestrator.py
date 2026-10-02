@@ -245,28 +245,3 @@ workflow.add_edge("create_tasks", "notify_discord")
 workflow.add_edge("notify_discord", END)
 
 coo_graph = workflow.compile()
-
-
-@router.post("/orchestrator/run")
-async def run_orchestrator(github_token: str, org_id: str, gmail_token: str = None, calendar_token: str = None):
-    initial_state = {
-        "github_token": github_token,
-        "gmail_token": gmail_token,
-        "calendar_token": calendar_token,
-        "org_id": org_id,
-        "issues_data": [],
-        "emails_data": [],
-        "events_data": [],
-        "tasks": [],
-        "report": ""
-    }
-
-    final_state = await coo_graph.ainvoke(initial_state)
-
-    return {
-        "issues_found": len(final_state["issues_data"]),
-        "emails_found": len(final_state["emails_data"]),
-        "events_found": len(final_state["events_data"]),
-        "tasks_created": len(final_state["tasks"]),
-        "report": final_state["report"]
-    }
