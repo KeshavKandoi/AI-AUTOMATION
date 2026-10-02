@@ -7,7 +7,7 @@ from job_hunter import repository, service
 from job_hunter.gmail_classifier import classify_email
 from job_hunter.gmail_matcher import find_best_match
 from job_hunter.interview_datetime_extractor import extract_interview_datetime, ExtractionUnavailable
-from job_hunter.calendar_integration import sync_interview_event, update_interview_event, cancel_interview_event
+from job_hunter.calendar_integration import sync_interview_event, update_interview_event, cancel_interview_event, CalendarUpdateFailed
 from audit_logs.service import log_event
 
 MODULE = "job_hunter"
@@ -167,16 +167,20 @@ async def process_imported_email(
             extracted, extraction_failed = _extract_or_flag(subject, body)
             calendar_failed = calendar_failed or extraction_failed
             if extracted:
-                updated_event = await update_interview_event(
-                    organization_id=organization_id,
-                    application_id=application_id,
-                    gmail_message_id=message_id,
-                    gmail_history_id=None,
-                    extracted=extracted,
-                )
+                try:
+                    updated_event = await update_interview_event(
+                        organization_id=organization_id,
+                        application_id=application_id,
+                        gmail_message_id=message_id,
+                        gmail_history_id=None,
+                        extracted=extracted,
+                    )
+                except CalendarUpdateFailed:
+                    updated_event = None
+                    calendar_failed = True
                 if updated_event is not None:
                     calendar_action = "update"
-                elif job_for_app:
+                elif job_for_app and not calendar_failed:
                     sync_row = await sync_interview_event(
                         organization_id=organization_id,
                         application_id=application_id,
@@ -189,8 +193,11 @@ async def process_imported_email(
                     calendar_action = "create" if (sync_row or {}).get("sync_status") == "created" else None
                     calendar_failed = (sync_row or {}).get("sync_status") == "failed"
         elif category in ("withdrawal", "rejection"):
-            if await cancel_interview_event(organization_id, application_id):
-                calendar_action = "cancel"
+            try:
+                if await cancel_interview_event(organization_id, application_id):
+                    calendar_action = "cancel"
+            except CalendarUpdateFailed:
+                calendar_failed = True
     elif category == "unmatched" or match_result:
         final_category = "unmatched"
 
