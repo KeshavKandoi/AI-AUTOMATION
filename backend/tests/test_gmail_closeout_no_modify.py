@@ -215,7 +215,7 @@ def test_calendar_login_scope_unchanged(monkeypatch):
 def _llm_result(monkeypatch, link):
     import json
     from job_hunter import interview_datetime_extractor as ex
-    payload = {"date": "2030-01-01", "start_time": "10:00", "end_time": "11:00", "timezone": "UTC", "meeting_link": link, "interviewer": "A", "company": "Acme", "confidence": 90, "explanation": "x"}
+    payload = {"date": _soon(), "start_time": "10:00", "end_time": "11:00", "timezone": "UTC", "meeting_link": link, "interviewer": "A", "company": "Acme", "confidence": 90, "explanation": "x"}
     fake = SimpleNamespace(models=SimpleNamespace(generate_content=lambda model, contents: SimpleNamespace(text=json.dumps(payload))))
     monkeypatch.setattr(ex, "gemini_client", fake)
     return ex.extract_via_llm("Interview", "body")
@@ -378,7 +378,7 @@ def test_import_flow_makes_no_http_calls_at_all(monkeypatch):
 def _llm(monkeypatch, raw=None, **over):
     import json
     from job_hunter import interview_datetime_extractor as ex
-    payload = {"date": "2030-01-01", "start_time": "10:00", "end_time": "11:00", "timezone": "UTC", "meeting_link": None, "interviewer": "Bob", "company": "Acme", "confidence": 90, "explanation": "x"}
+    payload = {"date": _soon(), "start_time": "10:00", "end_time": "11:00", "timezone": "UTC", "meeting_link": None, "interviewer": "Bob", "company": "Acme", "confidence": 90, "explanation": "x"}
     payload.update(over)
     text = raw if raw is not None else json.dumps(payload)
     fake = SimpleNamespace(models=SimpleNamespace(generate_content=lambda model, contents: SimpleNamespace(text=text)))
@@ -544,3 +544,110 @@ def test_calendar_cancel_without_existing_event_is_noop(monkeypatch):
     ci, state = _cal_setup(monkeypatch, existing=None)
     assert asyncio.run(ci.cancel_interview_event("org1", "app1")) is False
     assert state["http"] == []
+
+
+import json as _p3_json
+from datetime import datetime as _p3_dt, timedelta as _p3_td, timezone as _p3_tz
+from unittest.mock import MagicMock as _p3_mm, patch as _p3_patch
+
+
+def _p3_llm(date, end=None, tz="Asia/Kolkata", conf=90):
+    m = _p3_mm()
+    m.models.generate_content.return_value.text = _p3_json.dumps({
+        "date": date, "start_time": "10:00", "end_time": end, "timezone": tz,
+        "meeting_link": None, "interviewer": None, "company": None,
+        "confidence": conf, "explanation": "x",
+    })
+    return m
+
+
+def _p3_day(offset):
+    return (_p3_dt.now(_p3_tz.utc) + _p3_td(days=offset)).strftime("%Y-%m-%d")
+
+
+def test_llm_extraction_rejects_past_date():
+    from job_hunter import interview_datetime_extractor as ex
+    with _p3_patch.object(ex, "gemini_client", _p3_llm(_p3_day(-30))):
+        assert ex.extract_via_llm("s", "b") is None
+
+
+def test_llm_extraction_rejects_date_beyond_400_days():
+    from job_hunter import interview_datetime_extractor as ex
+    with _p3_patch.object(ex, "gemini_client", _p3_llm(_p3_day(500))):
+        assert ex.extract_via_llm("s", "b") is None
+
+
+def test_llm_extraction_defaults_end_to_one_hour_after_start():
+    from job_hunter import interview_datetime_extractor as ex
+    with _p3_patch.object(ex, "gemini_client", _p3_llm(_p3_day(10))):
+        result = ex.extract_via_llm("s", "b")
+    assert result is not None
+    assert result.end_time - result.start_time == _p3_td(hours=1)
+
+
+def test_llm_extraction_without_timezone_is_skipped():
+    from job_hunter import interview_datetime_extractor as ex
+    with _p3_patch.object(ex, "gemini_client", _p3_llm(_p3_day(10), tz=None)):
+        assert ex.extract_via_llm("s", "b") is None
+
+
+def _soon():
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d")
+
+
+def test_calendar_failed_row_is_retried_with_deterministic_event_id(monkeypatch):
+    import asyncio
+    ci, state = _cal_setup(monkeypatch, payload={"id": "ev1", "status": "confirmed"})
+    monkeypatch.setattr(ci.repository, "get_calendar_event_by_gmail_message", lambda o, m: {"id": "row1", "sync_status": "failed"})
+    res = asyncio.run(ci.sync_interview_event("org1", "app1", JOB, "manual:x", None, None, _extracted()))
+    kind, url, body = state["http"][0]
+    assert kind == "post" and body["id"] == "row1"
+    assert res["sync_status"] == "created"
+
+
+def test_calendar_conflict_on_deterministic_id_counts_as_created(monkeypatch):
+    import asyncio
+    ci, state = _cal_setup(monkeypatch, status=409)
+    res = asyncio.run(ci.sync_interview_event("org1", "app1", JOB, "manual:x", None, None, _extracted()))
+    assert res["sync_status"] == "created"
+
+
+def _p3_import_with_sync(monkeypatch, sync_status):
+    import asyncio
+    from types import SimpleNamespace
+    from job_hunter import email_import as ei
+    app = {"id": "a1", "job_id": "j1", "status": "applied"}
+    job = {"id": "j1", "company_name": "Acme", "job_title": "Engineer"}
+    recorded = []
+    repo = ei.repository
+    monkeypatch.setattr(repo, "list_applications", lambda org, status=None: [app])
+    monkeypatch.setattr(repo, "gmail_message_already_processed", lambda o, m: False)
+    monkeypatch.setattr(repo, "get_preferences", lambda o: {})
+    monkeypatch.setattr(repo, "get_job", lambda j, o: job)
+    monkeypatch.setattr(repo, "get_active_calendar_event_for_application", lambda o, a: None)
+    monkeypatch.setattr(repo, "create_gmail_event", lambda row: recorded.append(row))
+    monkeypatch.setattr(ei.service, "update_application_status", lambda o, a, st: app)
+    monkeypatch.setattr(ei, "_get_verified_domain_for_job", lambda j: None)
+    monkeypatch.setattr(ei, "find_best_match", lambda **kw: SimpleNamespace(is_confident=True, application_id="a1", score=90, signals={}))
+    monkeypatch.setattr(ei, "extract_interview_datetime", lambda msg, s, b: SimpleNamespace(start_time=1))
+    monkeypatch.setattr(ei, "log_event", lambda **kw: None)
+
+    async def fake_sync(**kw):
+        return {"sync_status": sync_status}
+
+    monkeypatch.setattr(ei, "sync_interview_event", fake_sync)
+    result = asyncio.run(ei.process_imported_email("org1", "Interview invitation for Engineer at Acme", "We would like to schedule an interview with Acme for the Engineer role."))
+    return result, recorded
+
+
+def test_failed_calendar_sync_does_not_mark_import_processed(monkeypatch):
+    result, recorded = _p3_import_with_sync(monkeypatch, "failed")
+    assert result["calendar_failed"] is True and result["calendar_action"] is None
+    assert recorded == []
+
+
+def test_successful_calendar_sync_marks_import_processed(monkeypatch):
+    result, recorded = _p3_import_with_sync(monkeypatch, "created")
+    assert result["calendar_failed"] is False and result["calendar_action"] == "create"
+    assert len(recorded) == 1
