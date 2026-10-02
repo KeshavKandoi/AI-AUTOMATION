@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from email_scheduler import repository
 from email_scheduler.schemas import EmailJobCreate, EmailJobUpdate
-from config import supabase_admin, decrypt_token, get_valid_access_token, logger, single_line
+from config import supabase_admin, decrypt_token, get_valid_access_token, logger, single_line, reserve_gmail_send, GmailSendLimitExceeded
 
 MAX_ACTIVE_EMAIL_JOBS_PER_ORG = 20
 
@@ -31,7 +31,8 @@ def _get_gmail_token_for_org(organization_id: str) -> str:
             last_error = e
             continue
 
-    raise HTTPException(status_code=400, detail=f"No usable Gmail token found for this organization: {last_error}")
+    logger.error(f"No usable Gmail token for org {organization_id}: {type(last_error).__name__}")
+    raise HTTPException(status_code=400, detail="No usable Gmail token found for this organization; please reconnect Gmail")
 
 
 async def create_scheduled_job(payload: EmailJobCreate, organization_id: str) -> dict:
@@ -85,6 +86,7 @@ async def execute_job(job: dict) -> dict:
         })
 
     try:
+        reserve_gmail_send(job["organization_id"], "email_job")
         access_token = _get_gmail_token_for_org(job["organization_id"])
 
         mime_msg = MIMEText(job["body"])
@@ -92,7 +94,7 @@ async def execute_job(job: dict) -> dict:
         mime_msg["subject"] = single_line(job["subject"])
         raw = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode()
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=20) as client:
             res = await client.post(
                 "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
                 headers={"Authorization": f"Bearer {access_token}"},
@@ -110,12 +112,12 @@ async def execute_job(job: dict) -> dict:
                 resource_type="email_job",
                 resource_id=job["id"],
                 metadata={"to_email": job.get("to_email")},
-                error_message=f"Gmail API error {res.status_code}: {res.text}",
+                error_message=f"Gmail API error {res.status_code}",
                 source="scheduler",
             )
             return repository.create_run({
                 "job_id": job["id"], "run_date": run_date, "status": "failed",
-                "error_message": f"Gmail API error {res.status_code}: {res.text}"
+                "error_message": f"Gmail API error {res.status_code}"
             })
 
         message_id = res.json().get("id")
@@ -138,7 +140,14 @@ async def execute_job(job: dict) -> dict:
         })
 
     except Exception as e:
+        logger.error(f"Scheduled email job {job['id']} failed: {type(e).__name__}")
+        if isinstance(e, GmailSendLimitExceeded):
+            safe_error = str(e)
+        elif isinstance(e, HTTPException):
+            safe_error = str(e.detail)
+        else:
+            safe_error = "Unexpected error while sending email"
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "failed",
-            "error_message": str(e)
+            "error_message": safe_error
         })
