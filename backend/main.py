@@ -136,7 +136,7 @@ async def github_get_paginated(url: str, access_token: str, params: dict = None)
 
         if not isinstance(data, list):
             if page == 1:
-                raise HTTPException(status_code=400, detail=f"GitHub API error: {data}")
+                raise HTTPException(status_code=400, detail="GitHub API error")
             break
 
         all_items.extend(data)
@@ -305,6 +305,7 @@ async def github_repos(org_id: str = Depends(get_current_org_id)):
 @app.get("/github/summary")
 async def github_summary(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
+    _rate_limit(org_id, "ai_call", "AI_CALLS_MAX_PER_ORG_PER_HOUR")
     access_token = _resolve_access_token(org_id, "github")
     repos = await github_get_paginated("https://api.github.com/user/repos", access_token)
 
@@ -330,6 +331,7 @@ Keep it under 150 words."""
 @app.get("/planner/priorities")
 async def planner_priorities(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
+    _rate_limit(org_id, "ai_call", "AI_CALLS_MAX_PER_ORG_PER_HOUR")
     access_token = _resolve_access_token(org_id, "github")
     issues_data = await fetch_github_repos_and_issues(access_token)
 
@@ -349,9 +351,14 @@ Keep each line under 20 words. If there are no issues, say so clearly."""
     return {"priorities": response.text}
 
 
-@app.get("/tasks/create-from-priorities")
+@app.post("/tasks/create-from-priorities")
 async def create_tasks_from_priorities(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
+    cooldown_cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+    recent = supabase_admin.table("tasks").select("id").eq("organization_id", org_id).eq("source", "github_planner").gte("created_at", cooldown_cutoff).limit(1).execute()
+    if recent.data:
+        raise HTTPException(status_code=429, detail="Tasks were just generated; please wait a minute before trying again")
+    _rate_limit(org_id, "ai_call", "AI_CALLS_MAX_PER_ORG_PER_HOUR")
     access_token = _resolve_access_token(org_id, "github")
     issues_data = await fetch_github_repos_and_issues(access_token)
     issues_data = [{"repo": i["repo"], "title": i["title"], "comments": i.get("comments")} for i in issues_data]
@@ -440,6 +447,9 @@ def disconnect_repo(org_id: str = Depends(get_current_org_id)):
 @app.post("/github/create-issue")
 async def github_create_issue(repo_full_name: str, title: str, body: str = "", org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
+    _valid_repo(repo_full_name)
+    if not title.strip() or len(title) > 256 or len(body) > 20000:
+        raise HTTPException(status_code=422, detail="Invalid issue fields")
     access_token = _resolve_access_token(org_id, "github")
     res = await github_post(
         f"https://api.github.com/repos/{repo_full_name}/issues",
@@ -447,7 +457,7 @@ async def github_create_issue(repo_full_name: str, title: str, body: str = "", o
         json_body={"title": title, "body": body}
     )
     if res.status_code != 201:
-        raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
+        raise HTTPException(status_code=400, detail=f"GitHub request failed with status {res.status_code}")
     issue = res.json()
     return {"status": "created", "issue_number": issue["number"], "url": issue["html_url"]}
 
@@ -456,32 +466,43 @@ async def github_create_issue(repo_full_name: str, title: str, body: str = "", o
 async def approve_and_create_issue(task_id: str, repo_full_name: str | None = None, resolution: str = "resolved", user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
     from closeout import run_closeout, _resolve_access_token, parse_source_ref
 
-    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
-    if not task_res.data or task_res.data[0]["organization_id"] != org_id:
+    if len(resolution) > 50:
+        raise HTTPException(status_code=422, detail="Invalid resolution")
+
+    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).eq("organization_id", org_id).execute()
+    if not task_res.data:
         raise HTTPException(status_code=404, detail="Task not found")
     task = task_res.data[0]
 
     if task.get("status") != "approved":
         raise HTTPException(status_code=403, detail="Task must be approved before creating a GitHub issue")
 
-    access_token = _resolve_access_token(task["organization_id"], "github")
-
     if not repo_full_name:
         source_type, identifier = parse_source_ref(task.get("source_ref") or "")
         if source_type != "github" or not identifier or "#" not in identifier:
             raise HTTPException(status_code=400, detail="repo_full_name required — task has no GitHub source_ref to infer it from")
         repo_full_name = identifier.rsplit("#", 1)[0]
+    _valid_repo(repo_full_name)
 
-    res = await github_post(
-        f"https://api.github.com/repos/{repo_full_name}/issues",
-        access_token,
-        json_body={"title": task["title"], "body": task.get("description", "")}
-    )
-    if res.status_code != 201:
-        raise HTTPException(status_code=400, detail=f"GitHub error: {res.json()}")
-    issue = res.json()
+    access_token = _resolve_access_token(task["organization_id"], "github")
 
-    supabase_admin.table("tasks").update({"status": "issue_created", "resolution": resolution}).eq("id", task_id).execute()
+    if not _claim_task(task_id, org_id, "approved", "issue_created"):
+        raise HTTPException(status_code=409, detail="Task is already being processed or completed")
+
+    try:
+        res = await github_post(
+            f"https://api.github.com/repos/{repo_full_name}/issues",
+            access_token,
+            json_body={"title": task["title"], "body": task.get("description", "")}
+        )
+        if res.status_code != 201:
+            raise HTTPException(status_code=400, detail=f"GitHub request failed with status {res.status_code}")
+        issue = res.json()
+    except Exception:
+        _release_task(task_id, org_id, "issue_created", "approved")
+        raise
+
+    supabase_admin.table("tasks").update({"resolution": resolution}).eq("id", task_id).eq("organization_id", org_id).execute()
     log_event(
         organization_id=task["organization_id"],
         module="github",
@@ -498,6 +519,7 @@ async def approve_and_create_issue(task_id: str, repo_full_name: str | None = No
         await run_closeout(task, approved=True, access_token=access_token, resolution=resolution, pr_url=issue.get("html_url"))
 
     return {"status": "issue_created", "issue_url": issue["html_url"], "task_id": task_id}
+
 
 # ---------- Gmail OAuth ----------
 
@@ -636,6 +658,8 @@ async def calendar_events(org_id: str = Depends(get_current_org_id)):
             headers={"Authorization": f"Bearer {access_token}"},
             params={"timeMin": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
         )
+    if res.status_code != 200:
+        raise HTTPException(status_code=502, detail="Could not load calendar events")
     data = res.json()
     events = data.get("items", [])
     formatted = [
@@ -650,6 +674,7 @@ async def calendar_events(org_id: str = Depends(get_current_org_id)):
 @app.get("/calendar/summary")
 async def calendar_summary(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
+    _rate_limit(org_id, "ai_call", "AI_CALLS_MAX_PER_ORG_PER_HOUR")
     access_token = _resolve_access_token(org_id, "calendar")
     async with httpx.AsyncClient() as client:
         res = await client.get(
@@ -657,6 +682,8 @@ async def calendar_summary(org_id: str = Depends(get_current_org_id)):
             headers={"Authorization": f"Bearer {access_token}"},
             params={"timeMin": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
         )
+    if res.status_code != 200:
+        raise HTTPException(status_code=502, detail="Could not load calendar events")
     data = res.json()
     events = data.get("items", [])
     if not events:
@@ -686,6 +713,9 @@ Keep it under 150 words."""
 async def calendar_create_event(summary: str, start_time: str, end_time: str, org_id: str = Depends(get_current_org_id)):
     if not summary.strip() or len(summary) > 500 or len(start_time) > 64 or len(end_time) > 64:
         raise HTTPException(status_code=422, detail="Invalid event fields")
+    _parse_event_time(start_time)
+    _parse_event_time(end_time)
+    _rate_limit(org_id, "calendar_create", "CALENDAR_CREATES_MAX_PER_ORG_PER_HOUR")
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "calendar")
     async with httpx.AsyncClient(timeout=20) as client:
@@ -729,6 +759,7 @@ async def discord_notify(
 ):
     if not message.strip() or len(message) > 1900:
         raise HTTPException(status_code=422, detail="Message must be between 1 and 1900 characters")
+    _rate_limit(org_id, "discord_post", "DISCORD_POSTS_MAX_PER_ORG_PER_HOUR")
     await _post_discord(_org_discord_webhook(org_id), message)
     log_event(
         organization_id=org_id,
@@ -745,6 +776,7 @@ async def discord_notify(
 
 @app.post("/discord/daily-report")
 async def discord_daily_report(org_id: str = Depends(get_current_org_id)):
+    _rate_limit(org_id, "discord_post", "DISCORD_POSTS_MAX_PER_ORG_PER_HOUR")
     tasks_res = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).execute()
     tasks = tasks_res.data
     open_tasks = [t for t in tasks if t.get("status") == "open"]
@@ -762,16 +794,60 @@ async def discord_daily_report(org_id: str = Depends(get_current_org_id)):
 
 # ---------- Human Approval Layer ----------
 
+import re as _re
+
+
+def _rate_limit(org_id: str, action: str, setting_name: str):
+    from config import reserve_org_action, ActionRateLimited
+    try:
+        reserve_org_action(org_id, action, getattr(settings, setting_name))
+    except ActionRateLimited as e:
+        raise HTTPException(status_code=429, detail=str(e))
+
+_REPO_RE = _re.compile(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}")
+
+
+def _valid_repo(name):
+    if not name or not _REPO_RE.fullmatch(name) or any(p in (".", "..") for p in name.split("/")):
+        raise HTTPException(status_code=422, detail="Invalid repository name")
+    return name
+
+
+def _parse_event_time(value: str) -> datetime:
+    if not value or len(value) > 64:
+        raise HTTPException(status_code=422, detail="Invalid event time")
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid event time")
+
+
+def _claim_task(task_id: str, org_id: str, from_status: str, to_status: str):
+    res = supabase_admin.table("tasks").update({"status": to_status}) \
+        .eq("id", task_id).eq("organization_id", org_id).eq("status", from_status).execute()
+    return res.data[0] if res.data else None
+
+
+def _release_task(task_id: str, org_id: str, claimed_status: str, restore_status: str):
+    try:
+        supabase_admin.table("tasks").update({"status": restore_status}) \
+            .eq("id", task_id).eq("organization_id", org_id).eq("status", claimed_status).execute()
+    except Exception as e:
+        logger.error(f"Failed to release task {task_id}: {e}")
+
+
+def _task_conflict(task_id: str, org_id: str):
+    res = supabase_admin.table("tasks").select("id").eq("id", task_id).eq("organization_id", org_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    raise HTTPException(status_code=409, detail="Task is not in a state that allows this action")
+
+
 @app.post("/tasks/{task_id}/approve")
 def approve_task(task_id: str, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
-    existing = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
-    if not existing.data or existing.data[0]["organization_id"] != org_id:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    result = supabase_admin.table("tasks").update({"status": "approved"}).eq("id", task_id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Task not found")
-    task = result.data[0]
+    task = _claim_task(task_id, org_id, "open", "approved")
+    if not task:
+        _task_conflict(task_id, org_id)
     log_event(
         organization_id=task["organization_id"],
         module="tasks",
@@ -790,14 +866,9 @@ def approve_task(task_id: str, user: dict = Depends(get_current_user), org_id: s
 async def reject_task(task_id: str, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
     from closeout import run_closeout
 
-    existing = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
-    if not existing.data or existing.data[0]["organization_id"] != org_id:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    result = supabase_admin.table("tasks").update({"status": "rejected"}).eq("id", task_id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Task not found")
-    task = result.data[0]
+    task = _claim_task(task_id, org_id, "open", "rejected") or _claim_task(task_id, org_id, "approved", "rejected")
+    if not task:
+        _task_conflict(task_id, org_id)
     log_event(
         organization_id=task["organization_id"],
         module="tasks",
@@ -828,9 +899,10 @@ async def approve_and_send_email(task_id: str, to_email: str | None = None, arch
     import base64
     from email.mime.text import MIMEText
     from closeout import run_closeout, _resolve_access_token
+    from config import single_line, validate_recipient, reserve_gmail_send, GmailSendLimitExceeded
 
-    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
-    if not task_res.data or task_res.data[0]["organization_id"] != org_id:
+    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).eq("organization_id", org_id).execute()
+    if not task_res.data:
         raise HTTPException(status_code=404, detail="Task not found")
     task = task_res.data[0]
 
@@ -845,32 +917,37 @@ async def approve_and_send_email(task_id: str, to_email: str | None = None, arch
             raise HTTPException(status_code=400, detail="to_email required — no email on file for this organization")
         to_email = profile_res.data[0]["email"]
 
-    from config import single_line, validate_recipient
     try:
         to_email = validate_recipient(to_email)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid recipient email")
-    from config import reserve_gmail_send, GmailSendLimitExceeded
+
+    if not _claim_task(task_id, org_id, "approved", "email_sent"):
+        raise HTTPException(status_code=409, detail="Task is already being processed or completed")
+
     try:
         reserve_gmail_send(org_id, "task_approval")
+        message = MIMEText(task.get("description", ""))
+        message["to"] = to_email
+        message["subject"] = single_line(task["title"])
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        async with httpx.AsyncClient(timeout=20) as client:
+            res = await client.post(
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+                headers={"Authorization": f"Bearer {access_token}"},
+                json={"raw": raw}
+            )
+        if res.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Gmail send failed with status {res.status_code}")
     except GmailSendLimitExceeded as e:
+        _release_task(task_id, org_id, "email_sent", "approved")
         raise HTTPException(status_code=429, detail=str(e))
-    message = MIMEText(task.get("description", ""))
-    message["to"] = to_email
-    message["subject"] = single_line(task["title"])
-    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-
-    async with httpx.AsyncClient(timeout=20) as client:
-        res = await client.post(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={"raw": raw}
-        )
-
-    if res.status_code != 200:
-        raise HTTPException(status_code=400, detail=f"Gmail send failed with status {res.status_code}")
-
-    supabase_admin.table("tasks").update({"status": "email_sent"}).eq("id", task_id).execute()
+    except httpx.HTTPError:
+        _release_task(task_id, org_id, "email_sent", "approved")
+        raise HTTPException(status_code=502, detail="Could not reach Gmail")
+    except Exception:
+        _release_task(task_id, org_id, "email_sent", "approved")
+        raise
 
     if task.get("source_ref"):
         await run_closeout(task, approved=True, access_token=access_token, archive=archive)
@@ -883,8 +960,11 @@ async def approve_and_send_email(task_id: str, to_email: str | None = None, arch
 async def approve_and_create_event(task_id: str, start_time: str, end_time: str, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
     from closeout import run_closeout, _resolve_access_token
 
-    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).execute()
-    if not task_res.data or task_res.data[0]["organization_id"] != org_id:
+    _parse_event_time(start_time)
+    _parse_event_time(end_time)
+
+    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).eq("organization_id", org_id).execute()
+    if not task_res.data:
         raise HTTPException(status_code=404, detail="Task not found")
     task = task_res.data[0]
 
@@ -893,23 +973,31 @@ async def approve_and_create_event(task_id: str, start_time: str, end_time: str,
 
     access_token = _resolve_access_token(task["organization_id"], "calendar")
 
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={
-                "summary": task["title"],
-                "description": task.get("description", ""),
-                "start": {"dateTime": start_time},
-                "end": {"dateTime": end_time},
-            }
-        )
+    if not _claim_task(task_id, org_id, "approved", "event_created"):
+        raise HTTPException(status_code=409, detail="Task is already being processed or completed")
 
-    if res.status_code != 200:
-        raise HTTPException(status_code=400, detail=f"Calendar request failed with status {res.status_code}")
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            res = await client.post(
+                "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                headers={"Authorization": f"Bearer {access_token}"},
+                json={
+                    "summary": task["title"],
+                    "description": task.get("description", ""),
+                    "start": {"dateTime": start_time},
+                    "end": {"dateTime": end_time},
+                }
+            )
+        if res.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"Calendar request failed with status {res.status_code}")
+        event = res.json()
+    except httpx.HTTPError:
+        _release_task(task_id, org_id, "event_created", "approved")
+        raise HTTPException(status_code=502, detail="Could not reach Google Calendar")
+    except Exception:
+        _release_task(task_id, org_id, "event_created", "approved")
+        raise
 
-    event = res.json()
-    supabase_admin.table("tasks").update({"status": "event_created"}).eq("id", task_id).execute()
     log_event(
         organization_id=task["organization_id"],
         module="calendar",

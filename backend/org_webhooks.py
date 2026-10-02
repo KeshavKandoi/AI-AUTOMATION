@@ -48,7 +48,7 @@ async def register_github_webhook(access_token: str, repo_full_name: str, org_id
 
     already_exists = res.status_code == 422 and "already exists" in res.text.lower()
     if not already_exists:
-        logger.error(f"Failed to auto-register webhook for {repo_full_name}: {res.text}")
+        logger.error(f"Failed to auto-register webhook for {repo_full_name}: status {res.status_code}")
         return None
 
     try:
