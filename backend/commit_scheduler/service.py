@@ -96,11 +96,11 @@ async def create_scheduled_job(payload: CommitJobCreate, organization_id: str) -
     return job
 
 
-def get_job_or_404(job_id: str, organization_id: Optional[str] = None) -> dict:
+def get_job_or_404(job_id: str, organization_id: str) -> dict:
     job = repository.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Scheduled commit job not found")
-    if organization_id and job["organization_id"] != organization_id:
+    if job["organization_id"] != organization_id:
         raise HTTPException(status_code=403, detail="You do not have access to this job")
     return job
 
