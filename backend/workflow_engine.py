@@ -1,8 +1,9 @@
+import asyncio
 import base64
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta, timezone
 import httpx
-from config import supabase_admin, logger, decrypt_token, get_valid_access_token, single_line
+from config import supabase_admin, logger, decrypt_token, get_valid_access_token, single_line, pick_discord_webhook, settings, reserve_gmail_send
 from audit_logs.service import log_event
 
 
@@ -177,6 +178,33 @@ async def sweep_expired_workflows():
     return expired_count
 
 
+class WorkflowRateLimited(Exception):
+    pass
+
+
+def _org_run_budget_exceeded(organization_id: str) -> bool:
+    try:
+        rows = supabase_admin.table("workflows").select("id").eq("organization_id", organization_id).execute().data
+        ids = [w["id"] for w in rows]
+        if not ids:
+            return False
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        count = supabase_admin.table("workflow_runs").select("id", count="exact") \
+            .in_("workflow_id", ids).gte("executed_at", cutoff).execute().count
+        return isinstance(count, int) and count >= settings.WORKFLOW_MAX_RUNS_PER_ORG_PER_HOUR
+    except Exception as e:
+        logger.warning(f"Workflow run budget check unavailable for org {organization_id}: {type(e).__name__}")
+        return False
+
+
+def _safe_action_error(e: Exception) -> str:
+    if isinstance(e, (asyncio.TimeoutError, TimeoutError)):
+        return "Action timed out"
+    if isinstance(e, RuntimeError):
+        return single_line(str(e))[:300]
+    return "Action failed unexpectedly"
+
+
 async def _action_create_task(organization_id: str, context: dict) -> dict:
     result = supabase_admin.table("tasks").insert({
         "organization_id": organization_id,
@@ -202,34 +230,38 @@ async def _action_send_email(organization_id: str, context: dict) -> dict:
         raise RuntimeError("; ".join(problems))
 
     body = f"{context.get('title', 'Automation triggered')}\n\n{context.get('description', '')}"
+    reserve_gmail_send(organization_id, "workflow")
     mime_msg = MIMEText(body)
     mime_msg["to"] = to_email
     mime_msg["subject"] = single_line(context.get("title", "Workflow notification"))
     raw = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode()
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         res = await client.post(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
             headers={"Authorization": f"Bearer {access_token}"},
             json={"raw": raw}
         )
     if res.status_code != 200:
-        raise RuntimeError(f"Gmail send failed: {res.text}")
+        raise RuntimeError(f"Gmail send failed with status {res.status_code}")
     return {"message_id": res.json().get("id")}
 
 
 async def _action_notify_discord(organization_id: str, context: dict) -> dict:
     org_res = supabase_admin.table("organizations").select("discord_webhook_url").eq("id", organization_id).execute()
-    webhook_url = org_res.data[0].get("discord_webhook_url") if org_res.data else None
+    org_webhook = org_res.data[0].get("discord_webhook_url") if org_res.data else None
+    webhook_url = pick_discord_webhook(organization_id, org_webhook)
     if not webhook_url:
-        from config import settings
-        webhook_url = settings.DISCORD_WEBHOOK_URL
+        raise RuntimeError("Discord webhook is not configured for this organization")
 
-    message = f"**Workflow triggered**\n{context.get('title', '')}"
-    async with httpx.AsyncClient() as client:
-        res = await client.post(webhook_url, json={"content": message})
+    message = f"**Workflow triggered**\n{single_line(context.get('title', ''))[:500]}"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.post(webhook_url, json={"content": message})
+    except httpx.HTTPError:
+        raise RuntimeError("Discord notify failed: network error")
     if res.status_code not in (200, 204):
-        raise RuntimeError(f"Discord notify failed: {res.text}")
+        raise RuntimeError(f"Discord notify failed with status {res.status_code}")
     return {"status": "sent"}
 
 
@@ -241,7 +273,7 @@ async def _action_create_calendar_event(organization_id: str, context: dict) -> 
     start = datetime.now(timezone.utc) + timedelta(hours=1)
     end = start + timedelta(minutes=30)
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         res = await client.post(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -253,7 +285,7 @@ async def _action_create_calendar_event(organization_id: str, context: dict) -> 
             }
         )
     if res.status_code != 200:
-        raise RuntimeError(f"Calendar event failed: {res.text}")
+        raise RuntimeError(f"Calendar event failed with status {res.status_code}")
     return {"event_link": res.json().get("htmlLink")}
 
 
@@ -359,22 +391,27 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
         )
         return run.data[0]
 
+    if _org_run_budget_exceeded(organization_id):
+        logger.warning(f"Workflow run limit reached for org {organization_id}; workflow {workflow['id']} not executed")
+        raise WorkflowRateLimited("Workflow run limit reached for this organization")
+
     executed = []
     run_status = "success"
     error_message = None
-    for action_name in workflow.get("actions", []):
+    for action_name in list(workflow.get("actions", []))[:settings.WORKFLOW_MAX_ACTIONS]:
         handler = ACTION_REGISTRY.get(action_name)
         if not handler:
             logger.error(f"Unknown workflow action '{action_name}' in workflow {workflow['id']}")
             continue
         try:
-            action_result = await handler(organization_id, context)
+            action_result = await asyncio.wait_for(handler(organization_id, context), timeout=settings.WORKFLOW_ACTION_TIMEOUT_SECONDS)
             executed.append({"action": action_name, "result": action_result})
         except Exception as e:
             logger.error(f"Workflow action '{action_name}' failed for workflow {workflow['id']}: {e}")
-            executed.append({"action": action_name, "error": str(e)})
+            safe_error = _safe_action_error(e)
+            executed.append({"action": action_name, "error": safe_error})
             run_status = "partial_failure"
-            error_message = str(e)
+            error_message = safe_error
 
     duration_ms = int((time.monotonic() - started) * 1000)
     run = supabase_admin.table("workflow_runs").insert({
@@ -486,4 +523,7 @@ async def run_workflows(organization_id: str, trigger_type: str, context: dict):
         if _is_past_expiry(workflow):
             supabase_admin.table("workflows").update({"status": "expired"}).eq("id", workflow["id"]).execute()
             continue
-        await execute_workflow(workflow, context, record_skipped=False)
+        try:
+            await execute_workflow(workflow, context, record_skipped=False)
+        except WorkflowRateLimited:
+            break
