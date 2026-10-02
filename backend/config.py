@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     TEST_ORG_ID: str
     GITHUB_WEBHOOK_SECRET: str
     GENERIC_WEBHOOK_SECRET: str
+    ALLOW_QUERY_WEBHOOK_SECRET: bool = True
+    GMAIL_SEND_MAX_PER_HOUR: int = 30
+    WORKFLOW_MAX_RUNS_PER_ORG_PER_HOUR: int = 300
+    WORKFLOW_ACTION_TIMEOUT_SECONDS: int = 30
+    WORKFLOW_MAX_ACTIONS: int = 10
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str
     OTP_EXPIRY_MINUTES: int = 10
@@ -55,10 +60,32 @@ def single_line(value) -> str:
 
 
 def validate_recipient(email: str) -> str:
-    cleaned = (email or "").strip()
-    if not cleaned or "\r" in cleaned or "\n" in cleaned or cleaned.count("@") != 1:
+    raw = email or ""
+    if "\r" in raw or "\n" in raw:
+        raise ValueError("Invalid recipient email")
+    cleaned = raw.strip()
+    if not cleaned or cleaned.count("@") != 1:
         raise ValueError("Invalid recipient email")
     return cleaned
+
+
+def is_valid_discord_webhook(url) -> bool:
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(str(url or ""))
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    allowed = host in ("discord.com", "discordapp.com") or host.endswith(".discord.com") or host.endswith(".discordapp.com")
+    return parsed.scheme == "https" and allowed and parsed.path.startswith("/api/webhooks/")
+
+
+def pick_discord_webhook(organization_id: str, org_webhook):
+    if org_webhook and is_valid_discord_webhook(org_webhook):
+        return org_webhook
+    if organization_id == settings.TEST_ORG_ID and is_valid_discord_webhook(settings.DISCORD_WEBHOOK_URL):
+        return settings.DISCORD_WEBHOOK_URL
+    return None
 
 
 logging.basicConfig(
@@ -121,7 +148,8 @@ def get_valid_access_token(integration_id: str) -> str:
             "client_secret": settings.GOOGLE_CLIENT_SECRET,
             "refresh_token": refresh_token,
             "grant_type": "refresh_token"
-        }
+        },
+        timeout=15,
     )
     token_data = response.json()
     new_access_token = token_data.get("access_token")
@@ -162,3 +190,24 @@ def run_gemini(prompt: str):
     except Exception as e:
         logger.error(f"Unexpected error calling Gemini: {e}")
         raise HTTPException(status_code=503, detail="AI service is temporarily unavailable. Please try again shortly.")
+
+
+class GmailSendLimitExceeded(RuntimeError):
+    pass
+
+
+def reserve_gmail_send(organization_id: str, source: str) -> None:
+    from datetime import timedelta
+    from audit_logs.service import log_event
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    result = supabase_admin.table("audit_logs").select("id", count="exact") \
+        .eq("organization_id", organization_id).eq("module", "gmail") \
+        .eq("action", "email_send_attempt").gte("created_at", cutoff).execute()
+    used = result.count if isinstance(result.count, int) else 0
+    if used >= settings.GMAIL_SEND_MAX_PER_HOUR:
+        raise GmailSendLimitExceeded("Gmail send limit reached for this organization; try again later")
+    log_event(
+        organization_id=organization_id, module="gmail", action="email_send_attempt",
+        summary=f"Gmail send attempt ({source})", status="info",
+        metadata={"source": source}, source="backend",
+    )
