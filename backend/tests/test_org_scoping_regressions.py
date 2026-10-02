@@ -85,3 +85,17 @@ def test_upsert_lunch_block_settings_uses_trusted_org_id_not_body():
             assert mock_upsert.call_args.kwargs.get("organization_id") == "org-real"
     finally:
         _clear(app)
+
+
+def test_orchestrator_run_endpoint_is_not_exposed():
+    from main import app
+    paths = {getattr(r, "path", "") for r in app.routes}
+    assert "/orchestrator/run" not in paths
+
+
+def test_scheduler_control_routes_removed_and_status_requires_auth():
+    from fastapi.testclient import TestClient
+    from main import app
+    paths = {getattr(r, "path", "") for r in app.routes}
+    assert "/scheduler/pause" not in paths and "/scheduler/resume" not in paths
+    assert TestClient(app).get("/scheduler/status").status_code == 401
