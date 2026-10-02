@@ -60,7 +60,7 @@ def _get_org_email(organization_id: str):
             timeout=10,
         )
         if res.status_code != 200:
-            logger.error(f"Failed to resolve Gmail account email for org {organization_id}: {res.status_code} {res.text}")
+            logger.error(f"Failed to resolve Gmail account email for org {organization_id}: {res.status_code}")
             return None
         return res.json().get("email")
     except httpx.HTTPError as e:

@@ -1,5 +1,6 @@
 """All Supabase access for the auth module lives here."""
 from typing import Optional
+from datetime import datetime, timezone
 from config import supabase_admin
 
 
@@ -40,9 +41,14 @@ def get_latest_otp(email: str, purpose: str) -> Optional[dict]:
     return result.data[0] if result.data else None
 
 
-def mark_otp_consumed(otp_id: str):
-    supabase_admin.table("auth_otps").update({"consumed_at": "now()"}).eq("id", otp_id).execute()
+def mark_otp_consumed(otp_id: str) -> bool:
+    res = supabase_admin.table("auth_otps") \
+        .update({"consumed_at": datetime.now(timezone.utc).isoformat()}) \
+        .eq("id", otp_id).is_("consumed_at", "null").execute()
+    return bool(res.data)
 
 
-def increment_otp_attempts(otp_id: str, attempts: int):
-    supabase_admin.table("auth_otps").update({"attempts": attempts}).eq("id", otp_id).execute()
+def increment_otp_attempts(otp_id: str, attempts: int) -> bool:
+    res = supabase_admin.table("auth_otps").update({"attempts": attempts}) \
+        .eq("id", otp_id).eq("attempts", attempts - 1).execute()
+    return bool(res.data)
