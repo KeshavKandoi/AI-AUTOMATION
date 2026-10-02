@@ -2,7 +2,7 @@ import base64
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta, timezone
 import httpx
-from config import supabase_admin, logger, decrypt_token, get_valid_access_token
+from config import supabase_admin, logger, decrypt_token, get_valid_access_token, single_line
 from audit_logs.service import log_event
 
 
@@ -204,7 +204,7 @@ async def _action_send_email(organization_id: str, context: dict) -> dict:
     body = f"{context.get('title', 'Automation triggered')}\n\n{context.get('description', '')}"
     mime_msg = MIMEText(body)
     mime_msg["to"] = to_email
-    mime_msg["subject"] = context.get("title", "Workflow notification")
+    mime_msg["subject"] = single_line(context.get("title", "Workflow notification"))
     raw = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode()
 
     async with httpx.AsyncClient() as client:
