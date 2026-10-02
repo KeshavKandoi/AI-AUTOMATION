@@ -46,11 +46,11 @@ async def sync_interview_event(
     only when extraction succeeded (structured or high-confidence LLM) —
     callers must check for None from the extractor before calling this."""
     existing = repository.get_calendar_event_by_gmail_message(organization_id, gmail_message_id)
-    if existing:
+    if existing and existing.get("sync_status") != "failed":
         logger.info(f"[job_hunter] Calendar event already exists for gmail_message_id={gmail_message_id} — skipping duplicate creation")
         return existing
 
-    row = repository.create_calendar_event_row({
+    row_fields = {
         "organization_id": organization_id,
         "application_id": application_id,
         "gmail_message_id": gmail_message_id,
@@ -64,7 +64,11 @@ async def sync_interview_event(
         "extraction_confidence": extracted.confidence,
         "extraction_explanation": extracted.explanation,
         "sync_status": "pending",
-    })
+    }
+    if existing:
+        row = repository.update_calendar_event_row(existing["id"], row_fields)
+    else:
+        row = repository.create_calendar_event_row(row_fields)
 
     try:
         access_token = _get_calendar_token_for_org(organization_id)
@@ -83,6 +87,7 @@ async def sync_interview_event(
     description = "\n".join(description_parts)
 
     event_body = {
+        "id": str(row["id"]).replace("-", "").lower(),
         "summary": summary,
         "description": description,
         "start": {"dateTime": extracted.start_time.isoformat()},
@@ -98,10 +103,12 @@ async def sync_interview_event(
                 headers={"Authorization": f"Bearer {access_token}"},
                 json=event_body,
             )
-        if res.status_code not in (200, 201):
+        if res.status_code == 409:
+            event = {"id": event_body["id"], "status": "confirmed"}
+        elif res.status_code not in (200, 201):
             raise RuntimeError(f"Calendar API error {res.status_code}: {res.text[:200]}")
-
-        event = res.json()
+        else:
+            event = res.json()
         updated_row = repository.update_calendar_event_row(row["id"], {
             "google_calendar_event_id": event.get("id"),
             "google_calendar_status": event.get("status"),
