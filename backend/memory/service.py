@@ -43,11 +43,11 @@ def create_memory(payload: MemoryCreate, organization_id: str) -> dict:
     return memory
 
 
-def get_memory_or_404(memory_id: str, organization_id: Optional[str] = None) -> dict:
+def get_memory_or_404(memory_id: str, organization_id: str) -> dict:
     memory = repository.get_memory(memory_id)
     if not memory or memory.get("status") == "deleted":
         raise HTTPException(status_code=404, detail="Memory not found")
-    if organization_id and memory["organization_id"] != organization_id:
+    if memory["organization_id"] != organization_id:
         raise HTTPException(status_code=403, detail="You do not have access to this memory")
     return memory
 
