@@ -1,6 +1,6 @@
 """
 Google Calendar sync for Job Hunter interviews. Creates, updates, or
-cancels calendar events based on Gmail-detected interview invitations,
+cancels calendar events based on interview invitations,
 reschedules, and cancellations.
 
 Reuses calendar_automation.service._get_calendar_token_for_org() exactly
@@ -17,8 +17,7 @@ Idempotency guarantee: enforced at two levels —
 2. Runtime check: sync_interview_event() checks
    get_calendar_event_by_gmail_message() before doing anything, so even
    if called twice for the same message (e.g. overlapping scheduler
-   runs, though the Gmail poll concurrency lock should already prevent
-   that), the second call is a safe no-op.
+   runs or repeated imports), the second call is a safe no-op.
 """
 import httpx
 from datetime import datetime, timezone
