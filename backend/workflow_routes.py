@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone
 from config import supabase_admin
 from workflow_schemas import WorkflowCreate, WorkflowUpdate
-from workflow_engine import execute_workflow, sample_context_for_trigger, _is_past_expiry
+from workflow_engine import execute_workflow, sample_context_for_trigger, _is_past_expiry, WorkflowRateLimited
 from auth.dependencies import get_current_org_id
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -95,8 +95,14 @@ async def run_workflow_now(workflow_id: str, context_override: dict | None = Non
         supabase_admin.table("workflows").update({"status": "expired"}).eq("id", workflow_id).execute()
         raise HTTPException(status_code=409, detail="Workflow has expired and can no longer run")
 
+    if context_override and len(str(context_override)) > 20000:
+        raise HTTPException(status_code=422, detail="context_override is too large")
+
     context = sample_context_for_trigger(workflow["trigger_type"])
     if context_override:
         context.update(context_override)
-    run = await execute_workflow(workflow, context, record_skipped=True)
+    try:
+        run = await execute_workflow(workflow, context, record_skipped=True)
+    except WorkflowRateLimited:
+        raise HTTPException(status_code=429, detail="Workflow run limit reached for this organization; try again later")
     return {"status": "triggered", "run": run}
