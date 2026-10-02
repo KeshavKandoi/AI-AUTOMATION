@@ -109,6 +109,7 @@ async def process_imported_email(
     final_category = category
     applications_updated = 0
     calendar_action = None
+    calendar_failed = False
 
     if category != "not_recruitment":
         if hinted:
@@ -152,6 +153,7 @@ async def process_imported_email(
                     extracted=extracted,
                 )
                 calendar_action = "create" if (sync_row or {}).get("sync_status") == "created" else None
+                calendar_failed = (sync_row or {}).get("sync_status") == "failed"
         elif category == "reschedule":
             extracted = extract_interview_datetime({}, subject, body)
             if extracted:
@@ -175,29 +177,31 @@ async def process_imported_email(
                         extracted=extracted,
                     )
                     calendar_action = "create" if (sync_row or {}).get("sync_status") == "created" else None
+                    calendar_failed = (sync_row or {}).get("sync_status") == "failed"
         elif category in ("withdrawal", "rejection"):
             if await cancel_interview_event(organization_id, application_id):
                 calendar_action = "cancel"
     elif category == "unmatched" or match_result:
         final_category = "unmatched"
 
-    repository.create_gmail_event({
-        "organization_id": organization_id,
-        "gmail_message_id": message_id,
-        "gmail_thread_id": None,
-        "gmail_history_id": None,
-        "application_id": application_id,
-        "category": final_category,
-        "match_score": match_result.score if match_result else None,
-        "match_signals": match_result.signals if match_result else {},
-        "raw_subject": subject,
-        "raw_sender": sender,
-        "recipient_email": recipient,
-        "has_attachments": False,
-        "attachment_count": 0,
-        "attachment_metadata": [],
-        "extracted_metadata": classification.extracted_metadata,
-    })
+    if not calendar_failed:
+        repository.create_gmail_event({
+            "organization_id": organization_id,
+            "gmail_message_id": message_id,
+            "gmail_thread_id": None,
+            "gmail_history_id": None,
+            "application_id": application_id,
+            "category": final_category,
+            "match_score": match_result.score if match_result else None,
+            "match_signals": match_result.signals if match_result else {},
+            "raw_subject": subject,
+            "raw_sender": sender,
+            "recipient_email": recipient,
+            "has_attachments": False,
+            "attachment_count": 0,
+            "attachment_metadata": [],
+            "extracted_metadata": classification.extracted_metadata,
+        })
 
     if application_id:
         log_event(
@@ -219,5 +223,6 @@ async def process_imported_email(
         "application_id": application_id,
         "applications_updated": applications_updated,
         "calendar_action": calendar_action,
+        "calendar_failed": calendar_failed,
         "match_score": match_result.score if match_result else None,
     }
