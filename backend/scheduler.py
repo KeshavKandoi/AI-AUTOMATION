@@ -1,6 +1,7 @@
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from auth.dependencies import get_current_user
 
 from config import settings, supabase_admin, logger, get_valid_access_token
 from commit_scheduler.scheduler_jobs import run_due_commit_jobs
@@ -88,7 +89,7 @@ def start_scheduler():
 
 
 @router.get("/scheduler/status")
-def scheduler_status():
+def scheduler_status(user: dict = Depends(get_current_user)):
     jobs = scheduler.get_jobs()
     return {
         "running": scheduler.running,
@@ -96,16 +97,6 @@ def scheduler_status():
     }
 
 
-@router.post("/scheduler/pause")
-def pause_scheduler():
-    scheduler.pause_job("orchestrator_job")
-    return {"status": "paused"}
-
-
-@router.post("/scheduler/resume")
-def resume_scheduler():
-    scheduler.resume_job("orchestrator_job")
-    return {"status": "resumed"}
 
 import base64
 from datetime import date
