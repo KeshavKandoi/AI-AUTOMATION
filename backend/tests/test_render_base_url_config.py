@@ -32,7 +32,11 @@ def test_connect_repo_uses_configured_base_url():
         sb.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
 
         client = TestClient(app)
-        res = client.post("/github/connect-repo", params={"org_id": "org-1", "repo_full_name": "acme/repo"})
+        app.dependency_overrides[get_current_org_id] = lambda: "org-1"
+        try:
+            res = client.post("/github/connect-repo", params={"repo_full_name": "acme/repo"})
+        finally:
+            app.dependency_overrides.clear()
 
         assert res.status_code == 200
         called_kwargs = mock_register.call_args.kwargs

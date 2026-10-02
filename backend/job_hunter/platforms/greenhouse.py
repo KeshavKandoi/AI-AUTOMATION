@@ -60,7 +60,6 @@ class GreenhouseProvider(BaseJobProvider):
 
         async with httpx.AsyncClient(timeout=20) as client:
             for company in companies:
-                await self._rate_limiter.wait()
                 try:
                     jobs = await retry_with_backoff(
                         lambda c=company: self._fetch_company_jobs(client, c),
@@ -103,6 +102,7 @@ class GreenhouseProvider(BaseJobProvider):
         return results
 
     async def _fetch_company_jobs(self, client: httpx.AsyncClient, company: dict) -> list[dict]:
+        await self._rate_limiter.wait()
         url = f"https://boards-api.greenhouse.io/v1/boards/{company['board_token']}/jobs"
         res = await client.get(url, params={"content": "true"})
         if res.status_code == 404:

@@ -19,6 +19,9 @@ Verified live (2026-08-08) against real career pages:
 import re
 from urllib.parse import urlparse
 from playwright.async_api import Page
+from job_hunter.platforms.base import RateLimiter
+
+_nav_limiter = RateLimiter(min_interval_seconds=2.5)
 
 # (regex pattern to find the URL, board-token group index in the match)
 ATS_PATTERNS: dict[str, re.Pattern] = {
@@ -42,6 +45,7 @@ async def detect_ats(page: Page, career_page_url: str) -> DetectionResult:
     """Navigates to the career page and scans its HTML for known ATS
     link patterns. Returns the first match found — companies that split
     postings across multiple ATSes are rare enough not to special-case."""
+    await _nav_limiter.wait()
     await page.goto(career_page_url, timeout=20000, wait_until="domcontentloaded")
     await page.wait_for_timeout(2000)
 
