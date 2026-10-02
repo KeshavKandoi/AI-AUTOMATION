@@ -142,7 +142,7 @@ async def process_imported_email(
             if extracted and job_for_app and existing_event and _same_start(existing_event, extracted.start_time):
                 pass
             elif extracted and job_for_app:
-                await sync_interview_event(
+                sync_row = await sync_interview_event(
                     organization_id=organization_id,
                     application_id=application_id,
                     job=job_for_app,
@@ -151,7 +151,7 @@ async def process_imported_email(
                     gmail_history_id=None,
                     extracted=extracted,
                 )
-                calendar_action = "create"
+                calendar_action = "create" if (sync_row or {}).get("sync_status") == "created" else None
         elif category == "reschedule":
             extracted = extract_interview_datetime({}, subject, body)
             if extracted:
@@ -165,7 +165,7 @@ async def process_imported_email(
                 if updated_event is not None:
                     calendar_action = "update"
                 elif job_for_app:
-                    await sync_interview_event(
+                    sync_row = await sync_interview_event(
                         organization_id=organization_id,
                         application_id=application_id,
                         job=job_for_app,
@@ -174,7 +174,7 @@ async def process_imported_email(
                         gmail_history_id=None,
                         extracted=extracted,
                     )
-                    calendar_action = "create"
+                    calendar_action = "create" if (sync_row or {}).get("sync_status") == "created" else None
         elif category in ("withdrawal", "rejection"):
             if await cancel_interview_event(organization_id, application_id):
                 calendar_action = "cancel"
