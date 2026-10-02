@@ -11,6 +11,8 @@ from email_scheduler import repository as email_repo, service as email_service
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
+MAX_WEBHOOK_BODY_BYTES = 1_000_000
+
 
 def verify_signature_with_secret(payload_body: bytes, signature_header: str, secret: str) -> bool:
     if not signature_header or not secret:
@@ -86,7 +88,12 @@ async def github_webhook(
     x_hub_signature_256: str = Header(None),
     x_github_event: str = Header(None),
 ):
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_WEBHOOK_BODY_BYTES:
+        raise HTTPException(status_code=413, detail="Payload too large")
     body = await request.body()
+    if len(body) > MAX_WEBHOOK_BODY_BYTES:
+        raise HTTPException(status_code=413, detail="Payload too large")
     try:
         payload = json.loads(body)
     except ValueError:

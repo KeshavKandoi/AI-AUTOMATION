@@ -33,7 +33,7 @@ def _issue_otp(email: str, purpose: str) -> str:
     repository.create_otp(email, _hash_otp(otp), purpose, expires_at)
     sent = send_otp_email(email, otp, purpose)
     if not sent:
-        logger.error(f"Failed to send OTP email to {email} (purpose={purpose})")
+        logger.error(f"Failed to send OTP email (purpose={purpose})")
     return otp
 
 
@@ -49,10 +49,17 @@ def _verify_otp(email: str, otp: str, purpose: str) -> bool:
         return False
 
     if not secrets.compare_digest(record["otp_hash"], _hash_otp(otp)):
-        repository.increment_otp_attempts(record["id"], record["attempts"] + 1)
+        current = record
+        for _ in range(3):
+            if repository.increment_otp_attempts(current["id"], current["attempts"] + 1):
+                break
+            current = repository.get_latest_otp(email, purpose)
+            if not current:
+                break
         return False
 
-    repository.mark_otp_consumed(record["id"])
+    if not repository.mark_otp_consumed(record["id"]):
+        return False
     return True
 
 
