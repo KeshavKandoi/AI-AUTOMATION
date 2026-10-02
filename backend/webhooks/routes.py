@@ -1,9 +1,9 @@
 import hmac
 import hashlib
 import json
-from fastapi import APIRouter, Request, HTTPException, Header
+from fastapi import APIRouter, Request, HTTPException, Header, Query
 
-from config import settings, logger, supabase_admin
+from config import settings, logger, supabase_admin, decrypt_token
 from orchestrator import coo_graph
 from workflow_engine import run_workflows, dispatch_workflow_event
 from commit_scheduler import repository as commit_repo, service as commit_service
@@ -87,7 +87,12 @@ async def github_webhook(
     x_github_event: str = Header(None),
 ):
     body = await request.body()
-    payload = json.loads(body)
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     repo_full_name = payload.get("repository", {}).get("full_name")
     if not repo_full_name:
@@ -178,7 +183,7 @@ async def github_webhook(
     oauth_res = supabase_admin.table("oauth_tokens").select("access_token").in_("integration_id", integration_ids).order("created_at", desc=True).execute()
     if not oauth_res.data:
         raise HTTPException(status_code=400, detail="No GitHub token found for this org")
-    access_token = oauth_res.data[0]["access_token"]
+    access_token = decrypt_token(oauth_res.data[0]["access_token"])
 
     initial_state = {
         "github_token": access_token,
@@ -202,14 +207,22 @@ async def github_webhook(
     }
 
 
-def verify_generic_secret(secret: str):
-    if not secret or not hmac.compare_digest(secret, settings.GENERIC_WEBHOOK_SECRET):
+def verify_generic_secret(secret):
+    if not secret or not hmac.compare_digest(secret.encode(), settings.GENERIC_WEBHOOK_SECRET.encode()):
         raise HTTPException(status_code=401, detail="Invalid or missing webhook secret")
 
 
+def _resolve_generic_secret(header_value, query_value):
+    if header_value:
+        return header_value
+    if settings.ALLOW_QUERY_WEBHOOK_SECRET and query_value:
+        return query_value
+    return None
+
+
 @router.post("/commit-jobs/{job_id}")
-async def trigger_commit_job(job_id: str, secret: str):
-    verify_generic_secret(secret)
+async def trigger_commit_job(job_id: str, x_webhook_secret: str = Header(None), secret: str = Query(None)):
+    verify_generic_secret(_resolve_generic_secret(x_webhook_secret, secret))
     job = commit_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Commit job not found")
@@ -219,8 +232,8 @@ async def trigger_commit_job(job_id: str, secret: str):
 
 
 @router.post("/email-jobs/{job_id}")
-async def trigger_email_job(job_id: str, secret: str):
-    verify_generic_secret(secret)
+async def trigger_email_job(job_id: str, x_webhook_secret: str = Header(None), secret: str = Query(None)):
+    verify_generic_secret(_resolve_generic_secret(x_webhook_secret, secret))
     job = email_repo.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Email job not found")
