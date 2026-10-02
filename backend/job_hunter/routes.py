@@ -188,3 +188,31 @@ def get_provider_health(org_id: str = Depends(get_current_org_id)):
         "unhealthy_count": len(unhealthy),
         "unhealthy_platforms": [p["platform"] for p in unhealthy],
     }
+
+
+from pydantic import BaseModel, Field
+
+
+class ImportEmailPayload(BaseModel):
+    subject: str = Field(default="", max_length=500)
+    body: str = Field(min_length=1, max_length=20000)
+    sender: str = Field(default="", max_length=320)
+    recipient: str = Field(default="", max_length=320)
+    application_id: str | None = None
+
+
+@router.post("/import-email")
+async def import_email(payload: ImportEmailPayload, org_id: str = Depends(get_current_org_id)):
+    from fastapi import HTTPException
+    from job_hunter.email_import import process_imported_email
+    try:
+        return await process_imported_email(
+            organization_id=org_id,
+            subject=payload.subject,
+            body=payload.body,
+            sender=payload.sender,
+            recipient=payload.recipient,
+            application_id_hint=payload.application_id,
+        )
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Application not found")

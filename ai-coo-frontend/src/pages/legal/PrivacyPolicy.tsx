@@ -41,27 +41,8 @@ export default function PrivacyPolicy() {
         <p className="text-[var(--color-text-primary)] font-medium mt-2">Gmail</p>
         <ul className="list-disc list-inside flex flex-col gap-1.5">
           <li>
-            <strong>Job Hunter:</strong> scans recent messages (up to the last 14 days, up to 50 messages
-            per scan), reading message headers, full body content, and attachment metadata, to detect
-            recruitment-related emails (interview invitations, assessments, offers, rejections,
-            rescheduling) and keep your job-application tracker up to date. Full message body access is
-            required for this feature because classification depends on the wording of the email body, not
-            just its subject line.
-          </li>
-          <li>
-            <strong>AI planner:</strong> reads the sender, subject, and short snippet of your unread
-            messages to suggest tasks for your approval.
-          </li>
-          <li>
-            <strong>Gmail unread mail view:</strong> the Gmail page in WorkForge displays your unread
-            messages (sender, subject, snippet) directly in the app so you can see them at a glance. This
-            view does not involve any AI processing.
-          </li>
-          <li>
-            <strong>Gmail AI summary:</strong> when you click "Load AI summary" on the Gmail page, WorkForge
-            sends the same limited data (sender, subject, and snippet of your unread messages) to Google
-            Gemini to generate a short natural-language summary, described further in Section 5.
-          </li>
+<strong>Job Hunter:</strong> does not access or read your Gmail inbox. It only processes the recruiter or job email text that you paste into the Import Email page.
+</li>
           <li>
             <strong>Sending email</strong> — used only to provide the workflow-automation feature, when you
             configure a workflow action to send an email (for example, "GitHub push → send an email"), or
@@ -77,8 +58,7 @@ export default function PrivacyPolicy() {
         <ul className="list-disc list-inside flex flex-col gap-1.5">
           <li>
             <strong>Job Hunter interview events:</strong> creates a calendar event when an interview
-            invitation is detected in your Gmail, and updates or cancels that event if a reschedule or
-            withdrawal email is later detected.
+            invitation appears in an email you import, and updates or cancels that event if a reschedule or withdrawal email you import contains that information.
           </li>
           <li>
             <strong>Workflow automation:</strong> creates events as part of workflows you configure.
@@ -114,12 +94,12 @@ export default function PrivacyPolicy() {
           enabled or configured — never for any purpose beyond delivering these features. Concretely:
         </p>
         <ul className="list-disc list-inside flex flex-col gap-1.5">
-          <li><strong>Job Hunter:</strong> Gmail data → automatically detect application status changes → update your tracked applications and, where an interview is detected, create/update/cancel the corresponding Calendar event.</li>
+          <li><strong>Job Hunter:</strong> Email text you paste into Import Email → detect application status changes → update your tracked applications and, where an interview is detected, create/update/cancel the corresponding Calendar event.</li>
           <li><strong>Workflow automation:</strong> a GitHub event you configure (push, issue, or pull request) → a Gmail send-email action and/or a Calendar create-event action you configured for that workflow.</li>
           <li><strong>Lunch block:</strong> a daily schedule you configure → WorkForge checks and, if needed, creates one Calendar event for that window.</li>
-          <li><strong>AI planner:</strong> your unread email metadata and upcoming calendar events → a suggested task list you review and approve before anything happens.</li>
-          <li><strong>Gmail unread mail view / Calendar page:</strong> your unread messages or upcoming events → displayed directly to you in WorkForge, so you can see them without leaving the app.</li>
-          <li><strong>Gmail AI summary / Calendar AI summary:</strong> the same limited data shown above → a short natural-language summary generated on your explicit request and shown only to you.</li>
+          <li><strong>AI planner:</strong> your upcoming calendar events → a suggested task list you review and approve before anything happens.</li>
+          <li><strong>Calendar page:</strong> your upcoming events → displayed directly to you in WorkForge.</li>
+          <li><strong>Calendar AI summary:</strong> the same limited data shown above → a short natural-language summary generated on your explicit request and shown only to you.</li>
         </ul>
         <p>
           WorkForge never independently decides to send an email or create a calendar event outside of
@@ -136,22 +116,11 @@ export default function PrivacyPolicy() {
         </p>
         <ul className="list-disc list-inside flex flex-col gap-1.5">
           <li>
-            <strong>Interview date/time extraction (part of Job Hunter):</strong> when Job Hunter detects an
-            interview-related email, it first looks for a structured calendar invite (a .ics attachment or
-            calendar MIME part) in that email. Only if no structured invite is found does it send the
-            email's subject and a portion of its body (up to roughly 3,000 characters) to Gemini, solely to
-            extract a likely interview date and time. A low-confidence or unparseable result is discarded
-            and no calendar event is created from it.
-          </li>
+<strong>Interview date/time extraction (part of Job Hunter):</strong> when you import an email that looks like an interview invitation or reschedule, WorkForge sends the email's subject and a portion of its body (up to roughly 3,000 characters) to Gemini, solely to extract a likely interview date and time. A low-confidence or unparseable result is discarded and no calendar event is created from it.
+</li>
           <li>
-            <strong>AI planner task suggestions:</strong> the sender, subject, and short snippet of your
-            unread Gmail messages, and the title/time of your upcoming Calendar events, are sent to Gemini
-            solely to generate suggested task titles and priorities for your review.
-          </li>
-          <li>
-            <strong>Gmail AI summary:</strong> when you explicitly request it, only the sender, subject, and
-            short snippet of your unread messages are sent to Gemini to generate the requested summary.
-          </li>
+<strong>AI planner task suggestions:</strong> the title/time of your upcoming Calendar events is sent to Gemini solely to generate suggested task titles and priorities for your review.
+</li>
           <li>
             <strong>Calendar AI summary:</strong> when you explicitly request it, only the title/summary and
             start/end time of your upcoming events are sent to Gemini to generate the requested summary.
@@ -198,9 +167,9 @@ export default function PrivacyPolicy() {
           WorkForge feature you use, and only to the following:
         </p>
         <ul className="list-disc list-inside flex flex-col gap-1.5">
-          <li><span className="text-[var(--color-text-primary)]">Google's own APIs</span> — used to access or act on your Google account: Gmail and Calendar API calls are made directly to Google to read or act on your account, as described in Section 3.</li>
+          <li><span className="text-[var(--color-text-primary)]">Google's own APIs</span> — used to access or act on your Google account: Gmail (send only) and Calendar API calls are made directly to Google to act on your account, as described in Section 3.</li>
           <li><span className="text-[var(--color-text-primary)]">Google Gemini API</span> — receives only the specific Google data described in Section 5, solely to generate the outputs required for the AI-powered features described there.</li>
-          <li><span className="text-[var(--color-text-primary)]">Supabase</span> — our database provider, which stores encrypted OAuth tokens and limited Gmail metadata (sender, subject, and attachment names — not full message bodies) needed to avoid reprocessing the same email twice, solely to support the features described above.</li>
+          <li><span className="text-[var(--color-text-primary)]">Supabase</span> — our database provider, which stores encrypted OAuth tokens and limited metadata of emails you import (sender, recipient, subject, and detected category — not message bodies) needed to avoid reprocessing the same email twice, solely to support the features described above.</li>
         </ul>
         <p>
           Each of these is used only as necessary to provide or improve the corresponding WorkForge
@@ -226,9 +195,9 @@ export default function PrivacyPolicy() {
       <LegalSection number="10" title="Data Retention">
         <p>
           Google user data and OAuth tokens are retained only while the corresponding integration remains
-          connected. Job Hunter records (application status, detected Gmail event metadata, matched
+          connected. Job Hunter records (application status, imported-email event metadata, matched
           calendar events) are retained while your account is active, to keep your tracker functional. AI
-          summary responses (Gmail and Calendar) are returned to you at request time and are not separately
+          summary responses (Calendar) are returned to you at request time and are not separately
           stored.
         </p>
       </LegalSection>

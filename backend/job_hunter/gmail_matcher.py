@@ -80,7 +80,7 @@ def score_application_match(
 ) -> MatchResult:
     """
     Scores a single (application, job) pair against one email. Caller
-    (gmail_integration.match_to_application) runs this against every open
+    (email_import.match_to_application) runs this against every open
     application for the org and picks the highest-scoring one, only
     accepting it if score >= MATCH_THRESHOLD.
     """

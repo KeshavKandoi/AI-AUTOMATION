@@ -17,7 +17,7 @@ export const navItems: NavItem[] = [
   { label: 'Tasks', path: '/tasks', icon: ListTodo },
   { label: 'Workflow Automations', path: '/workflows', icon: Workflow },
   { label: 'GitHub', path: '/integrations/github', icon: GitBranch },
-  { label: 'Gmail', path: '/integrations/gmail', icon: Mail },
+  { label: 'Import Email', path: '/integrations/gmail', icon: Mail },
   { label: 'Google Calendar', path: '/integrations/calendar', icon: Calendar },
   { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal },
   { label: 'Open Source', path: '/open-source', icon: GitFork },

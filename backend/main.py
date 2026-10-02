@@ -546,7 +546,7 @@ def gmail_login(org_id: str = Depends(get_current_org_id)):
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
         f"&redirect_uri={settings.GOOGLE_GMAIL_REDIRECT_URI}"
         f"&response_type=code"
-        f"&scope=https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email"
+        f"&scope=https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email"
         f"&access_type=offline{prompt_param}&state={state}"
     )
     return {"url": url}
@@ -583,72 +583,6 @@ async def gmail_callback(code: str, state: str):
 
     return {"status": "connected", "integration_id": integration_id}
 
-
-@app.get("/gmail/unread")
-async def gmail_unread(org_id: str = Depends(get_current_org_id)):
-    from closeout import _resolve_access_token
-    access_token = _resolve_access_token(org_id, "gmail")
-    async with httpx.AsyncClient() as client:
-        list_res = await client.get(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-            headers={"Authorization": f"Bearer {access_token}"},
-            params={"q": "is:unread", "maxResults": 10}
-        )
-    messages = list_res.json().get("messages", [])
-
-    emails = []
-    async with httpx.AsyncClient() as client:
-        for m in messages:
-            msg_res = await client.get(
-                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{m['id']}",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params={"format": "metadata", "metadataHeaders": ["From", "Subject"]}
-            )
-            msg = msg_res.json()
-            headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
-            emails.append({"from": headers.get("From"), "subject": headers.get("Subject"), "snippet": msg.get("snippet")})
-
-    return {"unread_count": len(emails), "emails": emails}
-
-
-@app.get("/gmail/summary")
-async def gmail_summary(org_id: str = Depends(get_current_org_id)):
-    from closeout import _resolve_access_token
-    access_token = _resolve_access_token(org_id, "gmail")
-    async with httpx.AsyncClient() as client:
-        list_res = await client.get(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-            headers={"Authorization": f"Bearer {access_token}"},
-            params={"q": "is:unread", "maxResults": 10}
-        )
-    messages = list_res.json().get("messages", [])
-
-    emails = []
-    async with httpx.AsyncClient() as client:
-        for m in messages:
-            msg_res = await client.get(
-                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{m['id']}",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params={"format": "metadata", "metadataHeaders": ["From", "Subject"]}
-            )
-            msg = msg_res.json()
-            headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
-            emails.append({"from": headers.get("From"), "subject": headers.get("Subject"), "snippet": msg.get("snippet")})
-
-    if not emails:
-        return {"summary": "No unread emails. Inbox is clear."}
-
-    prompt = f"""You are an AI assistant summarizing unread emails for a busy founder.
-Here is the email data: {emails}
-
-Give a short summary covering:
-- How many unread emails
-- Which ones seem urgent or need a reply
-- Any patterns (spam, newsletters, real messages)
-Keep it under 150 words."""
-
-    response = run_gemini(prompt)
-    return {"summary": response.text}
 
 # ---------- Calendar OAuth ----------
 

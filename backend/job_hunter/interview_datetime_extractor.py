@@ -40,8 +40,8 @@ class ExtractedInterview:
 def _walk_mime_parts(payload: dict) -> list[dict]:
     """Flattens a Gmail message payload's MIME tree into a list of parts,
     reusing the same recursive-walk shape as _extract_attachments in
-    gmail_integration.py (kept separate here rather than imported, since
-    this module has no other dependency on gmail_integration and importing
+    email_import.py (kept separate here rather than imported, since
+    this module has no other dependency on email_import and importing
     it would create a needless coupling — the traversal logic itself is
     intentionally identical, not reinvented differently)."""
     parts = []
@@ -139,7 +139,7 @@ def extract_from_structured_sources(msg: dict) -> Optional[ExtractedInterview]:
         # Inline text/calendar parts have body data directly on the part.
         # .ics attachments referenced by attachmentId require a separate
         # Gmail API fetch — not handled here since it needs an HTTP client;
-        # see gmail_integration.py's caller for the attachment-fetch step.
+        # see email_import.py's caller for the attachment-fetch step.
         ics_bytes = _decode_part_body(part)
         if not ics_bytes:
             continue
@@ -243,7 +243,7 @@ def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[st
 def extract_interview_datetime(msg: dict, subject: str, body_text: str) -> Optional[ExtractedInterview]:
     """Single entry point: tries structured sources first, only falls
     back to the LLM if nothing structured was found. This is the only
-    function callers (gmail_integration.py) should use."""
+    function callers (email_import.py) should use."""
     structured = extract_from_structured_sources(msg)
     if structured:
         return structured

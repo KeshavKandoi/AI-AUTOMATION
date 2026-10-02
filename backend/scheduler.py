@@ -7,7 +7,7 @@ from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from email_scheduler.scheduler_jobs import run_due_email_jobs
 from calendar_automation.scheduler_jobs import run_daily_lunch_block_check
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
-from job_hunter.scheduler_jobs import run_search_for_all_orgs, run_due_reminders, run_gmail_poll_for_all_orgs, run_stale_job_cleanup
+from job_hunter.scheduler_jobs import run_search_for_all_orgs, run_due_reminders, run_stale_job_cleanup
 from workflow_engine import sweep_expired_workflows
 from orchestrator import coo_graph
 
@@ -77,7 +77,6 @@ def start_scheduler():
     scheduler.add_job(run_daily_lunch_block_check, "cron", hour=8, minute=0, timezone="Asia/Kolkata", id="lunch_block_job")
     scheduler.add_job(run_search_for_all_orgs, "interval", hours=6, id="job_hunter_search_job")
     scheduler.add_job(run_due_reminders, "interval", minutes=15, id="job_hunter_reminders_job")
-    scheduler.add_job(run_gmail_poll_for_all_orgs, "interval", hours=1, id="job_hunter_gmail_poll_job")
     # Lightweight daily soft-expiration sweep -- entirely separate from
     # the 6-hour job_hunter_search_job scrape interval above, which is
     # unchanged. This only flips is_active on already-ingested rows

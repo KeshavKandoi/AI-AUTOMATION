@@ -67,7 +67,7 @@ async def close_github_loop(task: dict, access_token: str, approved: bool, resol
 
 async def close_gmail_loop(task: dict, access_token: str, approved: bool, archive: bool = False):
     """Gmail closeout is intentionally a no-op. WorkForge's Gmail OAuth
-    access is read + send only (gmail.readonly, gmail.send) and must never
+    access is send only (gmail.send) and must never
     modify a user's mailbox state — no label changes, no marking read,
     no archiving, no deleting. This still validates the task's
     source_ref so a malformed Gmail-sourced task surfaces a clear error,
