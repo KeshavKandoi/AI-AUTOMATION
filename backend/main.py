@@ -207,15 +207,6 @@ async def on_startup():
     scheduler.start_scheduler()
 
 
-@app.get("/tokens/{integration_id}/valid")
-def get_valid_token(integration_id: str):
-    try:
-        token = get_valid_access_token(integration_id)
-        return {"status": "ok", "access_token": token}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
@@ -249,7 +240,7 @@ def github_login(org_id: str = Depends(get_current_org_id)):
 @app.get("/github/callback")
 async def github_callback(code: str, state: str):
     org_id = _consume_oauth_state(state, "github")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         token_res = await client.post(
             "https://github.com/login/oauth/access_token",
             headers={"Accept": "application/json"},
@@ -283,14 +274,11 @@ from org_webhooks import register_github_webhook
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
 from audit_logs.service import log_event
 
-@app.post("/missed-events/run-now")
-async def trigger_missed_event_recovery():
-    await run_missed_event_recovery()
-    return {"status": "triggered"}
-
-
 @app.post("/github/connect-repo")
-async def connect_repo(org_id: str, repo_full_name: str):
+async def connect_repo(repo_full_name: str, org_id: str = Depends(get_current_org_id)):
+    import re
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}", repo_full_name):
+        raise HTTPException(status_code=422, detail="Invalid repository name")
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
     result = await register_github_webhook(
@@ -387,10 +375,13 @@ Example format: [{{"title": "...", "description": "...", "priority": "high"}}]""
     try:
         tasks = json.loads(raw_text)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail=f"Failed to parse AI response: {raw_text}")
+        logger.error("Planner returned unparseable AI response")
+        raise HTTPException(status_code=502, detail="Failed to parse AI response")
 
+    if not isinstance(tasks, list):
+        raise HTTPException(status_code=502, detail="Failed to parse AI response")
     created = []
-    for t in tasks:
+    for t in [x for x in tasks if isinstance(x, dict)][:5]:
         result = supabase_admin.table("tasks").insert({
             "organization_id": org_id, "title": t.get("title"), "description": t.get("description"),
             "priority": t.get("priority", "medium"), "source": "github_planner"
@@ -428,7 +419,7 @@ def disconnect_repo(org_id: str = Depends(get_current_org_id)):
         supabase_admin.table("organizations").update({"github_repo": None}).eq("id", org_id).execute()
     except Exception as e:
         logger.error(f"Failed to disconnect repo for org {org_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to disconnect repository: {e}")
+        raise HTTPException(status_code=500, detail="Failed to disconnect repository")
 
     logger.info(f"Disconnected repo {current_repo} for org {org_id}")
     log_event(
@@ -555,7 +546,7 @@ def gmail_login(org_id: str = Depends(get_current_org_id)):
 @app.get("/gmail/callback")
 async def gmail_callback(code: str, state: str):
     org_id = _consume_oauth_state(state, "gmail")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         token_res = await client.post(
             "https://oauth2.googleapis.com/token",
             data={
@@ -567,7 +558,8 @@ async def gmail_callback(code: str, state: str):
 
     access_token = token_data.get("access_token")
     if not access_token:
-        raise HTTPException(status_code=400, detail=f"Gmail auth failed: {token_data}")
+        logger.error(f"Gmail OAuth exchange failed: {token_data.get('error', 'unknown')}")
+        raise HTTPException(status_code=400, detail="Gmail authorization failed")
 
     integration = supabase_admin.table("integrations").insert({
         "organization_id": org_id, "provider": "gmail", "connected": True
@@ -604,7 +596,7 @@ def calendar_login(org_id: str = Depends(get_current_org_id)):
 @app.get("/calendar/callback")
 async def calendar_callback(code: str, state: str):
     org_id = _consume_oauth_state(state, "calendar")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         token_res = await client.post(
             "https://oauth2.googleapis.com/token",
             data={
@@ -616,7 +608,8 @@ async def calendar_callback(code: str, state: str):
 
     access_token = token_data.get("access_token")
     if not access_token:
-        raise HTTPException(status_code=400, detail=f"Calendar auth failed: {token_data}")
+        logger.error(f"Calendar OAuth exchange failed: {token_data.get('error', 'unknown')}")
+        raise HTTPException(status_code=400, detail="Calendar authorization failed")
 
     integration = supabase_admin.table("integrations").insert({
         "organization_id": org_id, "provider": "calendar", "connected": True
@@ -691,20 +684,42 @@ Keep it under 150 words."""
 
 @app.post("/calendar/create-event")
 async def calendar_create_event(summary: str, start_time: str, end_time: str, org_id: str = Depends(get_current_org_id)):
+    if not summary.strip() or len(summary) > 500 or len(start_time) > 64 or len(end_time) > 64:
+        raise HTTPException(status_code=422, detail="Invalid event fields")
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "calendar")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         res = await client.post(
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
             json={"summary": summary, "start": {"dateTime": start_time}, "end": {"dateTime": end_time}}
         )
     if res.status_code != 200:
-        raise HTTPException(status_code=400, detail=f"Calendar error: {res.json()}")
+        raise HTTPException(status_code=400, detail=f"Calendar request failed with status {res.status_code}")
     event = res.json()
     return {"status": "created", "event_link": event.get("htmlLink")}
 
 # ---------- Discord Agent ----------
+
+def _org_discord_webhook(org_id: str):
+    from config import pick_discord_webhook
+    org_res = supabase_admin.table("organizations").select("discord_webhook_url").eq("id", org_id).execute()
+    org_webhook = org_res.data[0].get("discord_webhook_url") if org_res.data else None
+    webhook_url = pick_discord_webhook(org_id, org_webhook)
+    if not webhook_url:
+        raise HTTPException(status_code=400, detail="Discord webhook is not configured for this organization")
+    return webhook_url
+
+
+async def _post_discord(webhook_url: str, content: str):
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.post(webhook_url, json={"content": content})
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="Could not reach Discord")
+    if res.status_code not in (200, 204):
+        raise HTTPException(status_code=400, detail=f"Discord rejected the message (status {res.status_code})")
+
 
 @app.post("/discord/notify")
 async def discord_notify(
@@ -712,10 +727,9 @@ async def discord_notify(
     user: dict = Depends(get_current_user),
     org_id: str = Depends(get_current_org_id),
 ):
-    async with httpx.AsyncClient() as client:
-        res = await client.post(settings.DISCORD_WEBHOOK_URL, json={"content": message})
-    if res.status_code not in [200, 204]:
-        raise HTTPException(status_code=400, detail=f"Discord error: {res.text}")
+    if not message.strip() or len(message) > 1900:
+        raise HTTPException(status_code=422, detail="Message must be between 1 and 1900 characters")
+    await _post_discord(_org_discord_webhook(org_id), message)
     log_event(
         organization_id=org_id,
         module="discord",
@@ -730,7 +744,7 @@ async def discord_notify(
 
 
 @app.post("/discord/daily-report")
-async def discord_daily_report(github_access_token: str, org_id: str):
+async def discord_daily_report(org_id: str = Depends(get_current_org_id)):
     tasks_res = supabase_admin.table("tasks").select("*").eq("organization_id", org_id).execute()
     tasks = tasks_res.data
     open_tasks = [t for t in tasks if t.get("status") == "open"]
@@ -740,10 +754,7 @@ async def discord_daily_report(github_access_token: str, org_id: str):
     for t in open_tasks[:5]:
         report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')}\n"
 
-    async with httpx.AsyncClient() as client:
-        res = await client.post(settings.DISCORD_WEBHOOK_URL, json={"content": report})
-    if res.status_code not in [200, 204]:
-        raise HTTPException(status_code=400, detail=f"Discord error: {res.text}")
+    await _post_discord(_org_discord_webhook(org_id), report[:1900])
 
     return {"status": "sent", "report": report}
 
@@ -839,12 +850,17 @@ async def approve_and_send_email(task_id: str, to_email: str | None = None, arch
         to_email = validate_recipient(to_email)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid recipient email")
+    from config import reserve_gmail_send, GmailSendLimitExceeded
+    try:
+        reserve_gmail_send(org_id, "task_approval")
+    except GmailSendLimitExceeded as e:
+        raise HTTPException(status_code=429, detail=str(e))
     message = MIMEText(task.get("description", ""))
     message["to"] = to_email
     message["subject"] = single_line(task["title"])
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=20) as client:
         res = await client.post(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
             headers={"Authorization": f"Bearer {access_token}"},
@@ -852,7 +868,7 @@ async def approve_and_send_email(task_id: str, to_email: str | None = None, arch
         )
 
     if res.status_code != 200:
-        raise HTTPException(status_code=400, detail=f"Gmail send error: {res.json()}")
+        raise HTTPException(status_code=400, detail=f"Gmail send failed with status {res.status_code}")
 
     supabase_admin.table("tasks").update({"status": "email_sent"}).eq("id", task_id).execute()
 
@@ -890,7 +906,7 @@ async def approve_and_create_event(task_id: str, start_time: str, end_time: str,
         )
 
     if res.status_code != 200:
-        raise HTTPException(status_code=400, detail=f"Calendar error: {res.json()}")
+        raise HTTPException(status_code=400, detail=f"Calendar request failed with status {res.status_code}")
 
     event = res.json()
     supabase_admin.table("tasks").update({"status": "event_created"}).eq("id", task_id).execute()
@@ -917,6 +933,20 @@ async def approve_and_create_event(task_id: str, start_time: str, end_time: str,
 def schedule_commit(target_date: str, folder_path: str,
                      file_name: str = None, content: str = None, branch_target: str = "main",
                      org_id: str = Depends(get_current_org_id)):
+    import re
+    from datetime import date as _date
+    try:
+        _date.fromisoformat(target_date)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="target_date must be YYYY-MM-DD")
+    if not re.fullmatch(r"[A-Za-z0-9_\-./]{1,200}", folder_path) or ".." in folder_path.split("/"):
+        raise HTTPException(status_code=422, detail="Invalid folder_path")
+    if file_name is not None and (not re.fullmatch(r"[A-Za-z0-9_\-.]{1,100}", file_name) or file_name in (".", "..")):
+        raise HTTPException(status_code=422, detail="Invalid file_name")
+    if content is not None and len(content) > 20000:
+        raise HTTPException(status_code=422, detail="content is too large")
+    if not re.fullmatch(r"[A-Za-z0-9_\-./]{1,100}", branch_target) or ".." in branch_target:
+        raise HTTPException(status_code=422, detail="Invalid branch_target")
     result = supabase_admin.table("scheduled_commits").insert({
         "organization_id": org_id,
         "target_date": target_date,
@@ -928,7 +958,9 @@ def schedule_commit(target_date: str, folder_path: str,
     return {"status": "scheduled", "entry": result.data[0]}
 
 @app.post("/commits/run-now")
-async def commits_run_now():
+async def commits_run_now(org_id: str = Depends(get_current_org_id)):
+    if org_id != settings.TEST_ORG_ID:
+        raise HTTPException(status_code=403, detail="Not permitted")
     await scheduler.check_and_commit_job()
     return {"status": "triggered"}
 
@@ -948,7 +980,10 @@ def get_integrations_status(org_id: str = Depends(get_current_org_id)):
         if provider not in latest_by_provider:
             latest_by_provider[provider] = row
 
-    return list(latest_by_provider.values())
+    return [
+        {k: v for k, v in row.items() if "token" not in k.lower() and "secret" not in k.lower()}
+        for row in latest_by_provider.values()
+    ]
 
 # ---------- Audit Logs moved to audit_logs/routes.py ----------
 
@@ -983,7 +1018,7 @@ def disconnect_integration(provider: str, org_id: str = Depends(get_current_org_
         supabase_admin.table("integrations").update({"connected": False}).eq("id", integration["id"]).execute()
     except Exception as e:
         logger.error(f"Failed to disconnect {provider} for org {org_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to disconnect {provider}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to disconnect {provider}")
 
     logger.info(f"Disconnected {provider} integration for org {org_id} (integration_id={integration['id']})")
     log_event(
