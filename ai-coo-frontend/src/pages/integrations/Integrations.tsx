@@ -16,9 +16,9 @@ const PROVIDER_META: Record<IntegrationProvider, { label: string; description: s
   },
   gmail: {
     label: 'Gmail',
-    description: 'Scans recent mail to detect job-application replies and unread messages, and sends emails you configure in workflows.',
+    description: 'Sends emails you configure in workflows. WorkForge does not read your Gmail inbox.',
     icon: Mail,
-    dataUseNote: 'Used only for Job Hunter tracking, AI task suggestions, and workflow emails you set up — never sold or used for ads.',
+    dataUseNote: 'Used only to send workflow emails you set up — never sold or used for ads.',
   },
   calendar: {
     label: 'Google Calendar',
