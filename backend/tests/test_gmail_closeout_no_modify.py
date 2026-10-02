@@ -613,7 +613,7 @@ def test_calendar_conflict_on_deterministic_id_counts_as_created(monkeypatch):
     assert res["sync_status"] == "created"
 
 
-def _p3_import_with_sync(monkeypatch, sync_status):
+def _p3_import_with_sync(monkeypatch, sync_status, extractor=None):
     import asyncio
     from types import SimpleNamespace
     from job_hunter import email_import as ei
@@ -630,7 +630,7 @@ def _p3_import_with_sync(monkeypatch, sync_status):
     monkeypatch.setattr(ei.service, "update_application_status", lambda o, a, st: app)
     monkeypatch.setattr(ei, "_get_verified_domain_for_job", lambda j: None)
     monkeypatch.setattr(ei, "find_best_match", lambda **kw: SimpleNamespace(is_confident=True, application_id="a1", score=90, signals={}))
-    monkeypatch.setattr(ei, "extract_interview_datetime", lambda msg, s, b: SimpleNamespace(start_time=1))
+    monkeypatch.setattr(ei, "extract_interview_datetime", extractor or (lambda msg, s, b: SimpleNamespace(start_time=1)))
     monkeypatch.setattr(ei, "log_event", lambda **kw: None)
 
     async def fake_sync(**kw):
@@ -651,3 +651,62 @@ def test_successful_calendar_sync_marks_import_processed(monkeypatch):
     result, recorded = _p3_import_with_sync(monkeypatch, "created")
     assert result["calendar_failed"] is False and result["calendar_action"] == "create"
     assert len(recorded) == 1
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), True])
+def test_llm_confidence_non_finite_or_boolean_is_rejected(monkeypatch, bad):
+    assert _llm(monkeypatch, confidence=bad) is None
+
+
+def test_llm_api_error_raises_extraction_unavailable(monkeypatch):
+    from types import SimpleNamespace
+    from job_hunter import interview_datetime_extractor as ex
+
+    def boom(model, contents):
+        raise RuntimeError("503")
+
+    monkeypatch.setattr(ex, "gemini_client", SimpleNamespace(models=SimpleNamespace(generate_content=boom)))
+    with pytest.raises(ex.ExtractionUnavailable):
+        ex.extract_via_llm("s", "b")
+
+
+def test_llm_oversized_output_is_rejected(monkeypatch):
+    assert _llm(monkeypatch, raw="x" * 25000) is None
+
+
+def test_llm_free_text_fields_are_sanitized_and_capped(monkeypatch):
+    r = _llm(monkeypatch, company="<b>Acme</b>" + "y" * 500, explanation="z" * 5000)
+    assert "<" not in r.company and len(r.company) <= 100 and len(r.explanation) <= 300
+
+
+def test_extraction_unavailable_import_is_not_recorded_as_processed(monkeypatch):
+    from job_hunter import interview_datetime_extractor as ex
+
+    def boom(msg, s, b):
+        raise ex.ExtractionUnavailable("503")
+
+    result, recorded = _p3_import_with_sync(monkeypatch, "created", extractor=boom)
+    assert result["calendar_failed"] is True and result["calendar_action"] is None
+    assert recorded == []
+
+
+@pytest.mark.parametrize("subject,body,expected", [
+    ("Application update", "Unfortunately we have decided not to proceed with your application for the Engineer role.", "rejection"),
+    ("Application update", "We will not be moving forward with your candidacy for this role.", "rejection"),
+    ("Application update", "We have decided to move forward with other candidates for the role.", "rejection"),
+    ("Application update", "We are withdrawing your application because the position has been closed.", "withdrawal"),
+    ("Interview confirmed", "Your interview has been confirmed for Monday at 10 AM.", "interview_invite"),
+    ("Interview", "Unfortunately I need to move our interview to Friday afternoon.", "reschedule"),
+    ("Interview", "We are interviewing other candidates this week and your interview is scheduled for Monday.", "interview_invite"),
+    ("Interview", "Unfortunately the video link was broken, here is the new interview link.", "interview_invite"),
+    ("Your order", "Unfortunately your package is delayed until Tuesday.", "not_recruitment"),
+])
+def test_classifier_does_not_treat_generic_words_as_rejection(subject, body, expected):
+    from job_hunter.gmail_classifier import classify_email
+    assert classify_email(subject, body).category == expected
+
+
+def test_repository_has_no_gmail_poll_helpers():
+    from job_hunter import repository
+    for name in ("has_running_gmail_poll", "create_gmail_poll_run", "finish_gmail_poll_run"):
+        assert not hasattr(repository, name)
