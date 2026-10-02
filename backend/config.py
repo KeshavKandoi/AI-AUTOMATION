@@ -50,6 +50,17 @@ def decrypt_token(token: str) -> str:
         return token
     return fernet.decrypt(token.encode()).decode()
 
+def single_line(value) -> str:
+    return " ".join(str(value if value is not None else "").split())
+
+
+def validate_recipient(email: str) -> str:
+    cleaned = (email or "").strip()
+    if not cleaned or "\r" in cleaned or "\n" in cleaned or cleaned.count("@") != 1:
+        raise ValueError("Invalid recipient email")
+    return cleaned
+
+
 logging.basicConfig(
     level=logging.INFO if settings.ENVIRONMENT == "production" else logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
