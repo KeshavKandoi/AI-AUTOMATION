@@ -129,6 +129,7 @@ async def check_and_commit_job():
 
     result = supabase_admin.table("scheduled_commits") \
         .select("*") \
+        .eq("organization_id", TEST_ORG_ID) \
         .eq("target_date", today) \
         .eq("status", "pending") \
         .execute()
