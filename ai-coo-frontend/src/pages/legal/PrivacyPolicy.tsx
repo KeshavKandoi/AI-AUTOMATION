@@ -3,7 +3,7 @@ import LegalPageLayout from './LegalPageLayout'
 import LegalSection from './LegalSection'
 
 const CONTACT_EMAIL = 'testerappp2001@gmail.com'
-const LAST_UPDATED = 'August 28, 2026'
+const LAST_UPDATED = 'October 2, 2026'
 
 export default function PrivacyPolicy() {
   return (
