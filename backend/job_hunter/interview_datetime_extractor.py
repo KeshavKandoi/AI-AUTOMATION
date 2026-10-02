@@ -13,6 +13,7 @@ None as "skip calendar sync, but still record the Gmail event and update
 application status."
 """
 import json
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -22,6 +23,10 @@ from icalendar import Calendar
 from config import logger, gemini_client
 
 LLM_CONFIDENCE_THRESHOLD = 70
+
+
+class ExtractionUnavailable(Exception):
+    pass
 
 
 @dataclass
@@ -207,7 +212,14 @@ def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[st
 
     try:
         response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
+    except Exception as e:
+        logger.warning(f"LLM datetime extraction unavailable: {type(e).__name__}")
+        raise ExtractionUnavailable(type(e).__name__)
+
+    try:
         raw_text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        if len(raw_text) > 20000:
+            raise ValueError("response too large")
         data = json.loads(raw_text)
         if not isinstance(data, dict):
             raise ValueError("response is not a JSON object")
@@ -221,7 +233,7 @@ def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[st
         return None
 
     confidence = data.get("confidence")
-    if not isinstance(confidence, (int, float)) or confidence < LLM_CONFIDENCE_THRESHOLD:
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not math.isfinite(confidence) or confidence < LLM_CONFIDENCE_THRESHOLD:
         logger.info(f"LLM datetime extraction confidence too low ({confidence}) — skipping calendar sync")
         return None
 
@@ -260,13 +272,13 @@ def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[st
     return ExtractedInterview(
         start_time=start_dt,
         end_time=end_dt,
-        timezone=data.get("timezone"),
+        timezone=tz_name.strip(),
         meeting_link=_safe_link(data.get("meeting_link")),
         interviewer=_safe_text(data.get("interviewer")),
-        company=data.get("company"),
+        company=_safe_text(data.get("company")),
         source="llm",
-        confidence=float(confidence),
-        explanation=data.get("explanation"),
+        confidence=min(float(confidence), 100.0),
+        explanation=_safe_text(data.get("explanation"), 300),
     )
 
 
