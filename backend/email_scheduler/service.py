@@ -6,7 +6,9 @@ from fastapi import HTTPException
 
 from email_scheduler import repository
 from email_scheduler.schemas import EmailJobCreate, EmailJobUpdate
-from config import supabase_admin, decrypt_token, get_valid_access_token, logger
+from config import supabase_admin, decrypt_token, get_valid_access_token, logger, single_line
+
+MAX_ACTIVE_EMAIL_JOBS_PER_ORG = 20
 
 
 def _get_gmail_token_for_org(organization_id: str) -> str:
@@ -33,16 +35,19 @@ def _get_gmail_token_for_org(organization_id: str) -> str:
 
 
 async def create_scheduled_job(payload: EmailJobCreate, organization_id: str) -> dict:
+    active = [j for j in repository.list_jobs(organization_id) if j.get("status") not in ("completed", "cancelled")]
+    if len(active) >= MAX_ACTIVE_EMAIL_JOBS_PER_ORG:
+        raise HTTPException(status_code=429, detail="Too many active scheduled email jobs")
     job_data = payload.model_dump(mode="json")
     job_data["organization_id"] = organization_id
     return repository.create_job(job_data)
 
 
-def get_job_or_404(job_id: str, organization_id: str = None) -> dict:
+def get_job_or_404(job_id: str, organization_id: str) -> dict:
     job = repository.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Scheduled email job not found")
-    if organization_id and job["organization_id"] != organization_id:
+    if job["organization_id"] != organization_id:
         raise HTTPException(status_code=403, detail="You do not have access to this job")
     return job
 
@@ -84,7 +89,7 @@ async def execute_job(job: dict) -> dict:
 
         mime_msg = MIMEText(job["body"])
         mime_msg["to"] = job["to_email"]
-        mime_msg["subject"] = job["subject"]
+        mime_msg["subject"] = single_line(job["subject"])
         raw = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode()
 
         async with httpx.AsyncClient() as client:
