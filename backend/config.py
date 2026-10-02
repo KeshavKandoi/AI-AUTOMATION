@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     WORKFLOW_MAX_RUNS_PER_ORG_PER_HOUR: int = 300
     WORKFLOW_ACTION_TIMEOUT_SECONDS: int = 30
     WORKFLOW_MAX_ACTIONS: int = 10
+    AI_CALLS_MAX_PER_ORG_PER_HOUR: int = 60
+    DISCORD_POSTS_MAX_PER_ORG_PER_HOUR: int = 60
+    CALENDAR_CREATES_MAX_PER_ORG_PER_HOUR: int = 60
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str
     OTP_EXPIRY_MINUTES: int = 10
@@ -155,7 +158,7 @@ def get_valid_access_token(integration_id: str) -> str:
     new_access_token = token_data.get("access_token")
 
     if not new_access_token:
-        raise ValueError(f"Failed to refresh token: {token_data}")
+        raise ValueError(f"Failed to refresh token: {token_data.get('error', 'unknown')}")
 
     from datetime import timedelta
     new_expires_at = (datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3599))).isoformat()
@@ -210,4 +213,28 @@ def reserve_gmail_send(organization_id: str, source: str) -> None:
         organization_id=organization_id, module="gmail", action="email_send_attempt",
         summary=f"Gmail send attempt ({source})", status="info",
         metadata={"source": source}, source="backend",
+    )
+
+
+class ActionRateLimited(RuntimeError):
+    pass
+
+
+def reserve_org_action(organization_id: str, action: str, limit: int) -> None:
+    from datetime import timedelta
+    from audit_logs.service import log_event
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    try:
+        result = supabase_admin.table("audit_logs").select("id", count="exact") \
+            .eq("organization_id", organization_id).eq("module", "rate_limit") \
+            .eq("action", action).gte("created_at", cutoff).execute()
+    except Exception as e:
+        logger.warning(f"Rate limit check unavailable for org {organization_id} action {action}: {type(e).__name__}")
+        return
+    used = result.count if isinstance(result.count, int) else 0
+    if used >= limit:
+        raise ActionRateLimited("Rate limit reached for this organization; try again later")
+    log_event(
+        organization_id=organization_id, module="rate_limit", action=action,
+        summary=f"Rate-limited action used: {action}", status="info", source="backend",
     )

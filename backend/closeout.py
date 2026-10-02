@@ -32,7 +32,7 @@ async def _github_comment(access_token: str, owner_repo: str, issue_number: str,
             json={"body": body}
         )
     if res.status_code not in (200, 201):
-        raise RuntimeError(f"GitHub comment failed: {res.text}")
+        raise RuntimeError(f"GitHub comment failed with status {res.status_code}")
 
 
 async def _github_close(access_token: str, owner_repo: str, issue_number: str):
@@ -43,7 +43,7 @@ async def _github_close(access_token: str, owner_repo: str, issue_number: str):
             json={"state": "closed"}
         )
     if res.status_code != 200:
-        raise RuntimeError(f"GitHub close failed: {res.text}")
+        raise RuntimeError(f"GitHub close failed with status {res.status_code}")
 
 
 async def close_github_loop(task: dict, access_token: str, approved: bool, resolution: str = None, pr_url: str = None):
@@ -91,7 +91,7 @@ async def _calendar_patch(access_token: str, event_id: str, payload: dict):
             json=payload
         )
     if res.status_code != 200:
-        raise RuntimeError(f"Calendar update failed: {res.text}")
+        raise RuntimeError(f"Calendar update failed with status {res.status_code}")
 
 
 async def _calendar_delete(access_token: str, event_id: str):
@@ -101,7 +101,7 @@ async def _calendar_delete(access_token: str, event_id: str):
             headers={"Authorization": f"Bearer {access_token}"}
         )
     if res.status_code not in (200, 204):
-        raise RuntimeError(f"Calendar delete failed: {res.text}")
+        raise RuntimeError(f"Calendar delete failed with status {res.status_code}")
 
 
 async def close_calendar_loop(task: dict, access_token: str, approved: bool, decline: bool = False, notes: str = None):

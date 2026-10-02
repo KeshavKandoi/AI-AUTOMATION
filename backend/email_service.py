@@ -17,7 +17,7 @@ def send_email(to: str, subject: str, html: str) -> bool:
         })
         return True
     except Exception as e:
-        logger.error(f"Resend send failed to {to}: {e}")
+        logger.error(f"Resend send failed: {type(e).__name__}")
         return False
 
 
