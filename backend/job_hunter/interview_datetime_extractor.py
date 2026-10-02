@@ -188,6 +188,13 @@ def _safe_link(value):
     return None
 
 
+def _safe_text(value, limit=100):
+    if not isinstance(value, str):
+        return None
+    cleaned = re.sub(r"[<>\x00-\x1f]", "", value).strip()
+    return cleaned[:limit] or None
+
+
 def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[str] = None) -> Optional[ExtractedInterview]:
     """LLM fallback — only called when extract_from_structured_sources()
     returns None. Requires the model to return strict, schema-validated
@@ -201,6 +208,8 @@ def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[st
         response = gemini_client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
         raw_text = response.text.strip().replace("```json", "").replace("```", "").strip()
         data = json.loads(raw_text)
+        if not isinstance(data, dict):
+            raise ValueError("response is not a JSON object")
     except Exception as e:
         logger.warning(f"LLM datetime extraction failed or returned invalid JSON: {e}")
         return None
@@ -222,7 +231,10 @@ def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[st
     try:
         from zoneinfo import ZoneInfo
         tz_name = data.get("timezone")
-        tz = ZoneInfo(tz_name) if tz_name else None
+        if not isinstance(tz_name, str) or not tz_name.strip():
+            logger.info("LLM datetime extraction had no explicit timezone - skipping calendar sync")
+            return None
+        tz = ZoneInfo(tz_name.strip())
 
         start_dt = datetime.fromisoformat(f"{data['date']}T{data['start_time']}")
         if tz:
@@ -242,7 +254,7 @@ def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[st
         end_time=end_dt,
         timezone=data.get("timezone"),
         meeting_link=_safe_link(data.get("meeting_link")),
-        interviewer=data.get("interviewer"),
+        interviewer=_safe_text(data.get("interviewer")),
         company=data.get("company"),
         source="llm",
         confidence=float(confidence),
