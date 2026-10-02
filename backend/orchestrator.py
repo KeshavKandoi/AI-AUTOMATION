@@ -4,7 +4,7 @@ from typing import TypedDict
 from fastapi import APIRouter
 from langgraph.graph import StateGraph, END
 
-from config import settings, supabase_admin, gemini_client
+from config import settings, supabase_admin, gemini_client, logger, pick_discord_webhook
 
 router = APIRouter()
 
@@ -223,8 +223,15 @@ async def node_notify_discord(state: COOState) -> COOState:
             report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')} (source: {t.get('source')}, id: {t.get('id')[:8]})\n"
         report += "\nApprove via /tasks/{id}/approve"
 
-    async with httpx.AsyncClient() as client:
-        await client.post(settings.DISCORD_WEBHOOK_URL, json={"content": report})
+    org_res = supabase_admin.table("organizations").select("discord_webhook_url").eq("id", state["org_id"]).execute()
+    org_webhook = org_res.data[0].get("discord_webhook_url") if org_res.data else None
+    webhook_url = pick_discord_webhook(state["org_id"], org_webhook)
+    if webhook_url:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.post(webhook_url, json={"content": report[:1900]})
+        except httpx.HTTPError as e:
+            logger.error(f"Orchestrator Discord post failed for org {state['org_id']}: {type(e).__name__}")
 
     state["report"] = report
     return state
