@@ -1,19 +1,26 @@
 from datetime import date, time, datetime
 from typing import Optional, Literal
-from pydantic import BaseModel, field_validator, EmailStr
+from pydantic import BaseModel, Field, field_validator, EmailStr
 
 Frequency = Literal["daily", "every_2_days", "weekdays", "custom"]
 
 class EmailJobCreate(BaseModel):
     organization_id: str
     to_email: EmailStr
-    subject: str
-    body: str
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(max_length=10000)
     start_date: date
     end_date: date
     frequency: Frequency = "daily"
     custom_dates: Optional[list[date]] = None
     send_time: time = time(9, 0, 0)
+
+    @field_validator("subject")
+    @classmethod
+    def subject_single_line(cls, v):
+        if "\r" in v or "\n" in v:
+            raise ValueError("subject must be a single line")
+        return v
 
     @field_validator("end_date")
     @classmethod
@@ -32,11 +39,18 @@ class EmailJobCreate(BaseModel):
 
 class EmailJobUpdate(BaseModel):
     to_email: Optional[EmailStr] = None
-    subject: Optional[str] = None
-    body: Optional[str] = None
+    subject: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    body: Optional[str] = Field(default=None, max_length=10000)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     frequency: Optional[Frequency] = None
     custom_dates: Optional[list[date]] = None
     send_time: Optional[time] = None
     status: Optional[str] = None
+
+    @field_validator("subject")
+    @classmethod
+    def update_subject_single_line(cls, v):
+        if v is not None and ("\r" in v or "\n" in v):
+            raise ValueError("subject must be a single line")
+        return v
