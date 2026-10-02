@@ -43,6 +43,7 @@ def check(provider: str, login_path: str, expected_scope_fragment: str, expected
     assert qs.get("client_id", [""])[0] == config.settings.GOOGLE_CLIENT_ID, f"{provider}: client_id mismatch"
     assert qs.get("redirect_uri", [""])[0] == getattr(config.settings, expected_redirect_env), f"{provider}: redirect_uri mismatch"
     assert expected_scope_fragment in qs.get("scope", [""])[0], f"{provider}: scope missing {expected_scope_fragment}"
+    assert "gmail.readonly" not in qs.get("scope", [""])[0], f"{provider}: gmail.readonly requested"
     assert qs.get("access_type", [""])[0] == "offline", f"{provider}: access_type not offline"
     assert qs.get("state", [""])[0] == TEST_ORG, f"{provider}: state mismatch"
 
@@ -57,8 +58,8 @@ def check(provider: str, login_path: str, expected_scope_fragment: str, expected
     prompt_state = "prompt=consent OMITTED (correct)" if has_refresh_token else "prompt=consent PRESENT (correct)"
     print(f"[PASS] {provider} / {scenario}: {prompt_state}")
 
-check("gmail", "/gmail/login", "gmail.readonly", "GOOGLE_GMAIL_REDIRECT_URI", has_refresh_token=False)
-check("gmail", "/gmail/login", "gmail.readonly", "GOOGLE_GMAIL_REDIRECT_URI", has_refresh_token=True)
+check("gmail", "/gmail/login", "gmail.send", "GOOGLE_GMAIL_REDIRECT_URI", has_refresh_token=False)
+check("gmail", "/gmail/login", "gmail.send", "GOOGLE_GMAIL_REDIRECT_URI", has_refresh_token=True)
 check("calendar", "/calendar/login", "auth/calendar", "GOOGLE_CALENDAR_REDIRECT_URI", has_refresh_token=False)
 check("calendar", "/calendar/login", "auth/calendar", "GOOGLE_CALENDAR_REDIRECT_URI", has_refresh_token=True)
 

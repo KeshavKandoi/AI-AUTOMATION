@@ -238,3 +238,21 @@ export interface ProviderHealthResponse {
 export interface SearchTriggerResponse {
   status: 'started' | 'already_running'
 }
+
+export interface ImportEmailPayload {
+  subject: string
+  body: string
+  sender?: string
+  recipient?: string
+  application_id?: string
+}
+
+export interface ImportEmailResult {
+  duplicate: boolean
+  message_id: string
+  category: string | null
+  application_id: string | null
+  applications_updated: number
+  calendar_action: 'create' | 'update' | 'cancel' | null
+  match_score?: number | null
+}

@@ -68,39 +68,7 @@ async def node_fetch_issues(state: COOState) -> COOState:
 
 
 async def node_fetch_emails(state: COOState) -> COOState:
-    gmail_token = state.get("gmail_token")
-    if not gmail_token:
-        state["emails_data"] = []
-        return state
-
-    async with httpx.AsyncClient() as client:
-        list_res = await client.get(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-            headers={"Authorization": f"Bearer {gmail_token}"},
-            params={"q": "is:unread", "maxResults": 10}
-        )
-    messages = list_res.json().get("messages", [])
-
-    emails = []
-    async with httpx.AsyncClient() as client:
-        for m in messages:
-            msg_res = await client.get(
-                f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{m['id']}",
-                headers={"Authorization": f"Bearer {gmail_token}"},
-                params={"format": "metadata", "metadataHeaders": ["From", "Subject"]}
-            )
-            msg = msg_res.json()
-            headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
-            emails.append({
-                "source": "gmail",
-                "message_id": m["id"],
-                "from": headers.get("From"),
-                "subject": headers.get("Subject"),
-                "snippet": msg.get("snippet"),
-                "source_ref": f"gmail:{m['id']}",
-            })
-
-    state["emails_data"] = emails
+    state["emails_data"] = []
     return state
 
 
