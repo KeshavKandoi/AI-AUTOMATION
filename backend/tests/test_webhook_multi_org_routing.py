@@ -115,3 +115,53 @@ def test_missing_signature_header_raises_401_not_crash():
             assert False, "expected HTTPException"
         except HTTPException as e:
             assert e.status_code == 401
+
+
+def _phase4_client(monkeypatch):
+    from fastapi.testclient import TestClient
+    from main import app
+    from webhooks import routes
+
+    async def fake_execute(job):
+        return {"status": "success"}
+
+    monkeypatch.setattr(routes.commit_repo, "get_job", lambda job_id: {"id": job_id})
+    monkeypatch.setattr(routes.commit_service, "execute_job", fake_execute)
+    return TestClient(app)
+
+
+def test_phase4_webhook_header_secret_accepted(monkeypatch):
+    from config import settings
+    client = _phase4_client(monkeypatch)
+    res = client.post("/webhooks/commit-jobs/abc", headers={"X-Webhook-Secret": settings.GENERIC_WEBHOOK_SECRET})
+    assert res.status_code == 200
+
+
+def test_phase4_webhook_invalid_and_missing_secret_rejected(monkeypatch):
+    client = _phase4_client(monkeypatch)
+    assert client.post("/webhooks/commit-jobs/abc", headers={"X-Webhook-Secret": "wrong"}).status_code == 401
+    assert client.post("/webhooks/commit-jobs/abc").status_code == 401
+
+
+def test_phase4_webhook_query_secret_fallback_toggle(monkeypatch):
+    from config import settings
+    client = _phase4_client(monkeypatch)
+    monkeypatch.setattr(settings, "ALLOW_QUERY_WEBHOOK_SECRET", True)
+    assert client.post("/webhooks/commit-jobs/abc", params={"secret": settings.GENERIC_WEBHOOK_SECRET}).status_code == 200
+    monkeypatch.setattr(settings, "ALLOW_QUERY_WEBHOOK_SECRET", False)
+    assert client.post("/webhooks/commit-jobs/abc", params={"secret": settings.GENERIC_WEBHOOK_SECRET}).status_code == 401
+
+
+def test_phase4_webhook_secret_not_logged(monkeypatch, caplog):
+    import logging
+    caplog.set_level(logging.DEBUG)
+    client = _phase4_client(monkeypatch)
+    client.post("/webhooks/commit-jobs/abc", headers={"X-Webhook-Secret": "sentinel-secret-value"})
+    assert "sentinel-secret-value" not in caplog.text
+
+
+def test_phase4_github_webhook_invalid_json_returns_400():
+    from fastapi.testclient import TestClient
+    from main import app
+    res = TestClient(app).post("/webhooks/github", content=b"not-json", headers={"Content-Type": "application/json"})
+    assert res.status_code == 400
