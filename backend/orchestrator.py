@@ -149,7 +149,7 @@ async def node_create_tasks(state: COOState) -> COOState:
     prompt = f"""You are a Planner AI for a busy founder. Here is prior context:
 {memory_context}
 
-Here is a numbered list of items needing attention (GitHub issues, unread emails, calendar events):
+Here is a numbered list of items needing attention (GitHub issues, emails, calendar events):
 {indexed_items}
 
 For EACH item in the list above, return exactly ONE task object. Do not skip items unless truly irrelevant, and NEVER combine multiple items into a single task — one task per item only.
