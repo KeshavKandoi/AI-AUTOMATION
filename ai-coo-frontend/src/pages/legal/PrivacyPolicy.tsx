@@ -46,12 +46,11 @@ export default function PrivacyPolicy() {
           <li>
             <strong>Sending email</strong> — used only to provide the workflow-automation feature, when you
             configure a workflow action to send an email (for example, "GitHub push → send an email"), or
-            when you explicitly approve a task that sends an email. WorkForge never sends email on its own
+            when you explicitly approve a task that sends an email, or when a scheduled email job that you created runs at the time you set. WorkForge never sends email on its own
             initiative.
           </li>
           <li>
-            <strong>Your Google account email address</strong> — used solely to identify your account
-            during sign-in to the Google integration.
+            <strong>Your Google account email address</strong> — used to identify your account during sign-in to the Google integration, and as the default recipient for workflow notification emails you configure.
           </li>
         </ul>
         <p className="text-[var(--color-text-primary)] font-medium mt-2">Google Calendar</p>
@@ -169,7 +168,7 @@ export default function PrivacyPolicy() {
         <ul className="list-disc list-inside flex flex-col gap-1.5">
           <li><span className="text-[var(--color-text-primary)]">Google's own APIs</span> — used to access or act on your Google account: Gmail (send only) and Calendar API calls are made directly to Google to act on your account, as described in Section 3.</li>
           <li><span className="text-[var(--color-text-primary)]">Google Gemini API</span> — receives only the specific Google data described in Section 5, solely to generate the outputs required for the AI-powered features described there.</li>
-          <li><span className="text-[var(--color-text-primary)]">Supabase</span> — our database provider, which stores encrypted OAuth tokens and limited metadata of emails you import (sender, recipient, subject, and detected category — not message bodies) needed to avoid reprocessing the same email twice, solely to support the features described above.</li>
+          <li><span className="text-[var(--color-text-primary)]">Supabase</span> — our database provider, which stores encrypted OAuth tokens and limited metadata of emails you import (sender, recipient, subject, detected category, and any meeting link found — not message bodies) needed to avoid reprocessing the same email twice, solely to support the features described above.</li>
         </ul>
         <p>
           Each of these is used only as necessary to provide or improve the corresponding WorkForge
