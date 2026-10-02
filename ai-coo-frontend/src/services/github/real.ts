@@ -48,6 +48,6 @@ export const realGitHubService: GitHubService = {
 
   createTasksFromPriorities: (orgId) =>
     apiClient
-      .get<CreateTasksFromPrioritiesResult>('/tasks/create-from-priorities', { params: { org_id: orgId } })
+      .post<CreateTasksFromPrioritiesResult>('/tasks/create-from-priorities', undefined, { params: { org_id: orgId } })
       .then((r) => r.data),
 }
