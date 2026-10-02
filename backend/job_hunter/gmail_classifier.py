@@ -41,7 +41,8 @@ CATEGORY_PATTERNS: dict[str, list[str]] = {
     ],
     "rejection": [
         r"not moving forward", r"decided not to proceed",
-        r"will not be moving forward", r"not selected", r"pursue other candidates",
+        r"will not be moving forward", r"(?<!if you are )(?<!if you're )(?<!if you were )(?<!should you be )(?<!whether you are )\bnot (been )?selected\b",
+        r"(?<!if we )(?<!should we )(?<!whether to )pursue other candidates",
         r"(move|moving|proceed|proceeding) forward with (other|another) (candidate|applicant)s?",
         r"unfortunately,? .{0,80}(not (be )?(moving|proceeding|selected|successful)|decided not|unable to offer)",
         r"position has been filled", r"unable to offer you",
@@ -54,6 +55,7 @@ CATEGORY_PATTERNS: dict[str, list[str]] = {
         r"schedule a time to (chat|talk|connect)",
         r"join your interview", r"your interview (is|has been) (scheduled|confirmed)",
         r"interview (link|details|reminder)", r"upcoming interview",
+        r"(?is)^(?!.*(?:reschedul|need to move|postpon))(?=.*\binterview\b)(?=.*(?:link|invite)\b.{0,80}\b(?:broken|not working|expired|incorrect|changed)\b|.*\b(?:here is|here's|below is) the (?:new|updated|correct|working) (?:\w+ )?(?:link|invite)\b)",
     ],
     "assessment": [
         r"coding (test|challenge|assessment)", r"technical assessment",
@@ -64,6 +66,7 @@ CATEGORY_PATTERNS: dict[str, list[str]] = {
         r"reschedul", r"need to move (our|the) (interview|call|meeting)",
         r"change (our|the) (interview|meeting) time",
         r"conflict.{0,30}(interview|meeting)",
+        r"(?is)^(?=.*\binterview\b)(?=.*\b(?:interviewer|hiring manager|recruiter)\b.{0,40}\b(?:unavailable|out of office|sick|can't make it|cannot make it|is out)\b)",
     ],
     "withdrawal": [
         r"withdraw(n|ing)? (your|my|the)? ?application",

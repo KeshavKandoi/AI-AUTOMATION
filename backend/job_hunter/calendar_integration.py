@@ -33,6 +33,10 @@ MODULE = "job_hunter"
 CALENDAR_API_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 
 
+class CalendarUpdateFailed(Exception):
+    pass
+
+
 async def sync_interview_event(
     organization_id: str,
     application_id: str,
@@ -152,70 +156,68 @@ async def update_interview_event(
     gmail_history_id: str,
     extracted: ExtractedInterview,
 ) -> dict | None:
-    """Updates the EXISTING calendar event for this application (a
-    reschedule) rather than creating a new one. Returns None if there's
-    no existing event to update — caller should fall back to creating a
-    fresh event in that case (a reschedule email arriving with no prior
-    tracked interview is a legitimate edge case, e.g. initial invite was
-    missed/unparseable)."""
     existing = repository.get_active_calendar_event_for_application(organization_id, application_id)
     if not existing or not existing.get("google_calendar_event_id"):
         return None
 
+    event_body = {
+        "start": {"dateTime": extracted.start_time.isoformat()},
+        "end": {"dateTime": (extracted.end_time or extracted.start_time).isoformat()},
+    }
+    if extracted.meeting_link:
+        event_body["location"] = extracted.meeting_link
+
     try:
         access_token = _get_calendar_token_for_org(organization_id)
-        event_body = {
-            "start": {"dateTime": extracted.start_time.isoformat()},
-            "end": {"dateTime": (extracted.end_time or extracted.start_time).isoformat()},
-        }
-        if extracted.meeting_link:
-            event_body["location"] = extracted.meeting_link
-
         async with httpx.AsyncClient(timeout=20) as client:
             res = await client.patch(
                 f"{CALENDAR_API_EVENTS_URL}/{existing['google_calendar_event_id']}",
                 headers={"Authorization": f"Bearer {access_token}"},
                 json=event_body,
             )
-        if res.status_code != 200:
-            raise RuntimeError(f"Calendar API update error {res.status_code}: {res.text[:200]}")
+    except Exception as e:
+        logger.error(f"[job_hunter] Calendar update unavailable for application {application_id}: {type(e).__name__}")
+        raise CalendarUpdateFailed("Calendar update unavailable") from e
 
-        updated_row = repository.update_calendar_event_row(existing["id"], {
-            "gmail_message_id": gmail_message_id,   # track the reschedule email that triggered this update
-            "gmail_history_id": gmail_history_id,
-            "extracted_start_time": extracted.start_time.isoformat(),
-            "extracted_end_time": (extracted.end_time or extracted.start_time).isoformat(),
-            "extraction_source": extracted.source,
-            "extraction_confidence": extracted.confidence,
-            "sync_status": "updated",
+    if res.status_code in (404, 410):
+        repository.update_calendar_event_row(existing["id"], {
+            "sync_status": "cancelled",
             "last_synced_at": datetime.now(timezone.utc).isoformat(),
         })
-
-        log_event(
-            organization_id=organization_id, module=MODULE, action="calendar_event_rescheduled",
-            summary="Calendar event updated due to reschedule", status="success",
-            resource_type="job_hunter_application", resource_id=application_id,
-            source="scheduler",
-        )
-        notify(
-            organization_id=organization_id, module=MODULE, category="interview_rescheduled",
-            priority="high", title="Interview rescheduled",
-            body=f"Updated to {extracted.start_time.strftime('%B %d, %Y at %I:%M %p')}.",
-            resource_type="job_hunter_application", resource_id=application_id,
-            action_url=f"/job-hunter/applications/{application_id}", action_label="View Application",
-            dedup_key=f"job_hunter:calendar_reschedule:{gmail_message_id}",
-        )
-        return updated_row
-
-    except Exception as e:
-        logger.error(f"[job_hunter] Failed to reschedule calendar event for application {application_id}: {e}")
         return None
+    if res.status_code != 200:
+        logger.error(f"[job_hunter] Calendar update error {res.status_code} for application {application_id}")
+        raise CalendarUpdateFailed(f"Calendar update error {res.status_code}")
+
+    updated_row = repository.update_calendar_event_row(existing["id"], {
+        "gmail_message_id": gmail_message_id,
+        "gmail_history_id": gmail_history_id,
+        "extracted_start_time": extracted.start_time.isoformat(),
+        "extracted_end_time": (extracted.end_time or extracted.start_time).isoformat(),
+        "extraction_source": extracted.source,
+        "extraction_confidence": extracted.confidence,
+        "sync_status": "updated",
+        "last_synced_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    log_event(
+        organization_id=organization_id, module=MODULE, action="calendar_event_rescheduled",
+        summary="Calendar event updated due to reschedule", status="success",
+        resource_type="job_hunter_application", resource_id=application_id,
+        source="scheduler",
+    )
+    notify(
+        organization_id=organization_id, module=MODULE, category="interview_rescheduled",
+        priority="high", title="Interview rescheduled",
+        body=f"Updated to {extracted.start_time.strftime('%B %d, %Y at %I:%M %p')}.",
+        resource_type="job_hunter_application", resource_id=application_id,
+        action_url=f"/job-hunter/applications/{application_id}", action_label="View Application",
+        dedup_key=f"job_hunter:calendar_reschedule:{gmail_message_id}",
+    )
+    return updated_row
 
 
 async def cancel_interview_event(organization_id: str, application_id: str) -> bool:
-    """Cancels/deletes the existing calendar event for an application
-    (e.g. on withdrawal or rejection). Safe no-op if there's no active
-    event to cancel."""
     existing = repository.get_active_calendar_event_for_application(organization_id, application_id)
     if not existing or not existing.get("google_calendar_event_id"):
         return False
@@ -227,22 +229,22 @@ async def cancel_interview_event(organization_id: str, application_id: str) -> b
                 f"{CALENDAR_API_EVENTS_URL}/{existing['google_calendar_event_id']}",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
-        # Google returns 204 on success, 410 if already deleted — both are fine
-        if res.status_code not in (204, 410):
-            raise RuntimeError(f"Calendar API delete error {res.status_code}: {res.text[:200]}")
-
-        repository.update_calendar_event_row(existing["id"], {
-            "sync_status": "cancelled",
-            "last_synced_at": datetime.now(timezone.utc).isoformat(),
-        })
-        log_event(
-            organization_id=organization_id, module=MODULE, action="calendar_event_cancelled",
-            summary="Calendar event cancelled", status="success",
-            resource_type="job_hunter_application", resource_id=application_id,
-            source="scheduler",
-        )
-        return True
-
     except Exception as e:
-        logger.error(f"[job_hunter] Failed to cancel calendar event for application {application_id}: {e}")
-        return False
+        logger.error(f"[job_hunter] Calendar cancel unavailable for application {application_id}: {type(e).__name__}")
+        raise CalendarUpdateFailed("Calendar cancel unavailable") from e
+
+    if res.status_code not in (200, 204, 404, 410):
+        logger.error(f"[job_hunter] Calendar cancel error {res.status_code} for application {application_id}")
+        raise CalendarUpdateFailed(f"Calendar cancel error {res.status_code}")
+
+    repository.update_calendar_event_row(existing["id"], {
+        "sync_status": "cancelled",
+        "last_synced_at": datetime.now(timezone.utc).isoformat(),
+    })
+    log_event(
+        organization_id=organization_id, module=MODULE, action="calendar_event_cancelled",
+        summary="Calendar event cancelled", status="success",
+        resource_type="job_hunter_application", resource_id=application_id,
+        source="scheduler",
+    )
+    return True

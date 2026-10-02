@@ -21,7 +21,6 @@ class LeverProvider(BaseJobProvider):
 
         async with httpx.AsyncClient(timeout=20) as client:
             for company in companies:
-                await self._rate_limiter.wait()
                 try:
                     jobs = await retry_with_backoff(
                         lambda c=company: self._fetch_company_jobs(client, c),
@@ -73,6 +72,7 @@ class LeverProvider(BaseJobProvider):
         return results
 
     async def _fetch_company_jobs(self, client: httpx.AsyncClient, company: dict) -> list[dict]:
+        await self._rate_limiter.wait()
         url = f"https://api.lever.co/v0/postings/{company['board_token']}"
         res = await client.get(url, params={"mode": "json"})
         if res.status_code == 404:
