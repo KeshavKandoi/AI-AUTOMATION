@@ -533,11 +533,19 @@ def test_calendar_reschedule_without_existing_event_returns_none(monkeypatch):
     assert state["http"] == []
 
 
-@pytest.mark.parametrize("status,expected", [(204, True), (410, True), (500, False)])
+@pytest.mark.parametrize("status,expected", [(204, True), (404, True), (410, True)])
 def test_calendar_cancel_deletes_existing_event(monkeypatch, status, expected):
     ci, state = _cal_setup(monkeypatch, status=status, existing={"id": "row1", "google_calendar_event_id": "ev1"})
     assert asyncio.run(ci.cancel_interview_event("org1", "app1")) is expected
     assert state["http"][0][0] == "delete" and state["http"][0][1].endswith("/ev1")
+
+
+@pytest.mark.parametrize("status", [500, 503])
+def test_calendar_cancel_transient_error_raises_for_retry(monkeypatch, status):
+    ci, state = _cal_setup(monkeypatch, status=status, existing={"id": "row1", "google_calendar_event_id": "ev1"})
+    with pytest.raises(ci.CalendarUpdateFailed):
+        asyncio.run(ci.cancel_interview_event("org1", "app1"))
+    assert state["http"][0][0] == "delete"
 
 
 def test_calendar_cancel_without_existing_event_is_noop(monkeypatch):
@@ -710,3 +718,31 @@ def test_repository_has_no_gmail_poll_helpers():
     from job_hunter import repository
     for name in ("has_running_gmail_poll", "create_gmail_poll_run", "finish_gmail_poll_run"):
         assert not hasattr(repository, name)
+
+
+@pytest.mark.parametrize("subject,body,expected", [
+    ("Update", "Unfortunately, we have decided not to proceed with your application.", "rejection"),
+    ("Update", "We will not be moving forward with your candidacy.", "rejection"),
+    ("Update", "We have decided to move forward with other candidates.", "rejection"),
+    ("Application update", "We regret that you were not selected for the role.", "rejection"),
+    ("Interview", "Unfortunately I need to move our interview to Friday.", "reschedule"),
+    ("Interview", "Unfortunately I need to move our interview to Friday. Here is the new link.", "reschedule"),
+    ("Interview", "Unfortunately the video link was broken. Here is the new link.", "interview_invite"),
+    ("Interview", "Unfortunately, the hiring manager is unavailable today.", "reschedule"),
+    ("Your order", "Unfortunately your package is delayed.", "not_recruitment"),
+    ("Password reset", "Unfortunately the link was broken. Here is the new link.", "not_recruitment"),
+    ("Interview invitation", "We would like to schedule an interview. If you are not selected for this round we will let you know.", "interview_invite"),
+])
+def test_phase4_classifier_context_rules(subject, body, expected):
+    from job_hunter.gmail_classifier import classify_email
+    assert classify_email(subject, body).category == expected
+
+
+@pytest.mark.parametrize("subject,body", [
+    ("Application", "Unfortunately the recruiter will be out. Please send your resume."),
+    ("Update", "Unfortunately, the interview room changed. See the new details."),
+    ("Update", "If you are not selected we will contact you."),
+])
+def test_phase4_classifier_ambiguous_never_rejection(subject, body):
+    from job_hunter.gmail_classifier import classify_email
+    assert classify_email(subject, body).category != "rejection"

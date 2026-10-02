@@ -121,3 +121,113 @@ def test_get_tasks_requires_auth():
     client = TestClient(app)
     res = client.get("/tasks")
     assert res.status_code == 401
+
+
+def test_phase4_removed_unauthenticated_routes():
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+    assert client.get("/tokens/00000000-0000-0000-0000-000000000000/valid").status_code in (404, 405)
+    assert client.post("/missed-events/run-now").status_code in (404, 405)
+
+
+def test_phase4_connect_repo_requires_auth():
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+    res = client.post("/github/connect-repo", params={"org_id": "x", "repo_full_name": "a/b"})
+    assert res.status_code in (401, 403)
+
+
+def _p4_as_org(org):
+    from main import app
+    from auth.dependencies import get_current_org_id
+    app.dependency_overrides[get_current_org_id] = lambda: org
+    return app
+
+
+def test_phase4_commits_run_now_requires_auth():
+    from fastapi.testclient import TestClient
+    from main import app
+    assert TestClient(app).post("/commits/run-now").status_code == 401
+
+
+def test_phase4_commits_run_now_is_operator_only():
+    from unittest.mock import patch, AsyncMock
+    from fastapi.testclient import TestClient
+    import scheduler
+    from config import settings
+    app = _p4_as_org("some-other-org")
+    try:
+        with patch.object(scheduler, "check_and_commit_job", new=AsyncMock()) as job:
+            assert TestClient(app).post("/commits/run-now").status_code == 403
+            job.assert_not_called()
+        app = _p4_as_org(settings.TEST_ORG_ID)
+        with patch.object(scheduler, "check_and_commit_job", new=AsyncMock()) as job:
+            assert TestClient(app).post("/commits/run-now").status_code == 200
+            job.assert_called_once()
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_phase4_nightly_commit_job_only_reads_operator_org_rows(monkeypatch):
+    import asyncio
+    import types
+    import scheduler
+
+    class Rec:
+        def __init__(self):
+            self.eqs = []
+
+        def table(self, n):
+            return self
+
+        def select(self, *a, **k):
+            return self
+
+        def eq(self, k, v):
+            self.eqs.append((k, v))
+            return self
+
+        def execute(self):
+            return types.SimpleNamespace(data=[])
+
+    async def no_commit():
+        return False
+
+    rec = Rec()
+    monkeypatch.setattr(scheduler, "supabase_admin", rec)
+    monkeypatch.setattr(scheduler, "has_committed_today", no_commit)
+    asyncio.run(scheduler.check_and_commit_job())
+    assert ("organization_id", scheduler.TEST_ORG_ID) in rec.eqs
+
+
+def test_phase4_schedule_commit_rejects_unsafe_input():
+    from unittest.mock import patch
+    from fastapi.testclient import TestClient
+    app = _p4_as_org("org-a")
+    try:
+        client = TestClient(app)
+        with patch("main.supabase_admin"):
+            assert client.post("/commits/schedule", params={"target_date": "not-a-date", "folder_path": "logs"}).status_code == 422
+            assert client.post("/commits/schedule", params={"target_date": "2030-01-01", "folder_path": "../.github/workflows"}).status_code == 422
+            assert client.post("/commits/schedule", params={"target_date": "2030-01-01", "folder_path": "logs", "file_name": "../x"}).status_code == 422
+            assert client.post("/commits/schedule", params={"target_date": "2030-01-01", "folder_path": "logs", "content": "x" * 20001}).status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_phase4_calendar_create_event_error_does_not_leak_provider_body():
+    from unittest.mock import patch, AsyncMock, MagicMock
+    from fastapi.testclient import TestClient
+    app = _p4_as_org("org-a")
+    try:
+        client_mock = AsyncMock()
+        client_mock.__aenter__.return_value = client_mock
+        client_mock.post.return_value = MagicMock(status_code=400, json=lambda: {"error": "leaky-detail"})
+        with patch("closeout._resolve_access_token", return_value="tok"), \
+             patch("main.httpx.AsyncClient", return_value=client_mock):
+            res = TestClient(app).post("/calendar/create-event", params={"summary": "s", "start_time": "2030-01-01T10:00:00Z", "end_time": "2030-01-01T11:00:00Z"})
+        assert res.status_code == 400 and "leaky-detail" not in res.text
+    finally:
+        app.dependency_overrides.clear()

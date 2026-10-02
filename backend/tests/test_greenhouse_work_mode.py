@@ -64,3 +64,70 @@ def test_function_no_longer_accepts_description_param():
     import inspect
     sig = inspect.signature(_extract_work_mode)
     assert list(sig.parameters.keys()) == ["location"]
+
+
+def test_phase4_api_providers_rate_limit_every_retry_attempt(monkeypatch):
+    import asyncio
+    import types
+    import httpx
+    from job_hunter.platforms import base
+    from job_hunter.platforms import greenhouse as gh, lever, ashby
+
+    async def no_sleep(*a, **k):
+        return None
+
+    monkeypatch.setattr(base.asyncio, "sleep", no_sleep)
+
+    for mod, cls_name in ((gh, "GreenhouseProvider"), (lever, "LeverProvider"), (ashby, "AshbyProvider")):
+        waits = []
+        gets = []
+
+        class FakeLimiter:
+            async def wait(self):
+                waits.append(1)
+
+        class FakeClient:
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def get(self, *a, **k):
+                gets.append(1)
+                return types.SimpleNamespace(status_code=500, text="", json=lambda: {})
+
+            async def post(self, *a, **k):
+                gets.append(1)
+                return types.SimpleNamespace(status_code=500, text="", json=lambda: {})
+
+        monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+        monkeypatch.setattr(mod.repository, "list_enabled_companies", lambda p: [{"id": "c1", "company_name": "Co", "board_token": "t", "company_token": "t", "slug": "t"}])
+        monkeypatch.setattr(mod.repository, "mark_company_sync_status", lambda *a, **k: None)
+        provider = getattr(mod, cls_name)()
+        provider._rate_limiter = FakeLimiter()
+        asyncio.run(provider.search("org", {}))
+        assert len(gets) >= 2
+        assert len(waits) == len(gets), cls_name
+
+
+def test_phase4_ats_detector_navigation_is_rate_limited(monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from job_hunter.platforms import ats_detector
+    waits = []
+
+    class FakeLimiter:
+        async def wait(self):
+            waits.append(1)
+
+    monkeypatch.setattr(ats_detector, "_nav_limiter", FakeLimiter())
+    page = MagicMock()
+    page.goto = AsyncMock()
+    page.wait_for_timeout = AsyncMock()
+    page.content = AsyncMock(return_value="<html></html>")
+    result = asyncio.run(ats_detector.detect_ats(page, "https://example.com/careers"))
+    assert waits == [1] and result.detected is False

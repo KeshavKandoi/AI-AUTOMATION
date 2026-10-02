@@ -228,3 +228,21 @@ def test_github_callback_response_never_contains_access_token():
         body = res.json()
         assert "access_token" not in body
         assert "super-secret-real-token" not in res.text
+
+
+import pytest as _p4pytest
+
+
+@_p4pytest.mark.parametrize("path", ["/gmail/callback", "/calendar/callback"])
+def test_phase4_oauth_callback_failure_does_not_leak_provider_response(path):
+    from unittest.mock import patch, AsyncMock, MagicMock
+    from fastapi.testclient import TestClient
+    import main
+    client = AsyncMock()
+    client.__aenter__.return_value = client
+    client.post.return_value = MagicMock(json=lambda: {"error": "invalid_grant", "error_description": "leaky-detail"})
+    with patch("main._consume_oauth_state", return_value="org-a"), \
+         patch("main.httpx.AsyncClient", return_value=client):
+        res = TestClient(main.app).get(path, params={"code": "x", "state": "y"})
+    assert res.status_code == 400
+    assert "leaky-detail" not in res.text
