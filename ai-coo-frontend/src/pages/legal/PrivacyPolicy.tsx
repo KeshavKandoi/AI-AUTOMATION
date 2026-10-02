@@ -116,18 +116,10 @@ export default function PrivacyPolicy() {
         </p>
         <ul className="list-disc list-inside flex flex-col gap-1.5">
           <li>
-            <strong>Interview date/time extraction (part of Job Hunter):</strong> when Job Hunter detects an
-            interview-related email, it first looks for a structured calendar invite (a .ics attachment or
-            calendar MIME part) in that email. Only if no structured invite is found does it send the
-            email's subject and a portion of its body (up to roughly 3,000 characters) to Gemini, solely to
-            extract a likely interview date and time. A low-confidence or unparseable result is discarded
-            and no calendar event is created from it.
-          </li>
-          <li>
-<strong>AI planner task suggestions:</strong> the title/time of your upcoming Calendar events is sent to Gemini solely to generate suggested task titles and priorities for your review.
+<strong>Interview date/time extraction (part of Job Hunter):</strong> when you import an email that looks like an interview invitation or reschedule, WorkForge sends the email's subject and a portion of its body (up to roughly 3,000 characters) to Gemini, solely to extract a likely interview date and time. A low-confidence or unparseable result is discarded and no calendar event is created from it.
 </li>
           <li>
-<strong>Imported emails:</strong> the email text you paste into Job Hunter may be sent to Gemini to extract interview date, time, and meeting details.
+<strong>AI planner task suggestions:</strong> the title/time of your upcoming Calendar events is sent to Gemini solely to generate suggested task titles and priorities for your review.
 </li>
           <li>
             <strong>Calendar AI summary:</strong> when you explicitly request it, only the title/summary and
