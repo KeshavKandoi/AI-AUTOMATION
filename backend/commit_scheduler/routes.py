@@ -73,5 +73,8 @@ def list_files(job_id: str, org_id: str = Depends(get_current_org_id)):
 @router.delete("/{job_id}/files/{file_id}")
 def delete_file(job_id: str, file_id: str, org_id: str = Depends(get_current_org_id)):
     service.get_job_or_404(job_id, org_id)
+    if not any(f.get("id") == file_id for f in repository.get_files_for_job(job_id)):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="File not found")
     repository.delete_job_file(file_id)
     return {"status": "deleted", "file_id": file_id}
