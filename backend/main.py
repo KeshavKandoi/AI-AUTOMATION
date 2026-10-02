@@ -834,9 +834,14 @@ async def approve_and_send_email(task_id: str, to_email: str | None = None, arch
             raise HTTPException(status_code=400, detail="to_email required — no email on file for this organization")
         to_email = profile_res.data[0]["email"]
 
+    from config import single_line, validate_recipient
+    try:
+        to_email = validate_recipient(to_email)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid recipient email")
     message = MIMEText(task.get("description", ""))
     message["to"] = to_email
-    message["subject"] = task["title"]
+    message["subject"] = single_line(task["title"])
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
     async with httpx.AsyncClient() as client:
