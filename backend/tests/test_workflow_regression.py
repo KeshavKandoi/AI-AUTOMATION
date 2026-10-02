@@ -300,3 +300,12 @@ def test_execute_workflow_records_success_and_retires_run_once():
     assert inserted["status"] == "success"
     assert result["status"] == "success"
     assert updated.get("status") == "completed"
+
+
+import pytest as _p4pytest
+
+
+@_p4pytest.fixture(autouse=True)
+def _p4_stub_gmail_budget(monkeypatch):
+    import workflow_engine
+    monkeypatch.setattr(workflow_engine, "reserve_gmail_send", lambda o, s: None)
