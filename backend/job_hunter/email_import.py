@@ -6,7 +6,7 @@ from config import logger
 from job_hunter import repository, service
 from job_hunter.gmail_classifier import classify_email
 from job_hunter.gmail_matcher import find_best_match
-from job_hunter.interview_datetime_extractor import extract_interview_datetime
+from job_hunter.interview_datetime_extractor import extract_interview_datetime, ExtractionUnavailable
 from job_hunter.calendar_integration import sync_interview_event, update_interview_event, cancel_interview_event
 from audit_logs.service import log_event
 
@@ -45,6 +45,14 @@ def _same_start(existing: dict, start) -> bool:
         return datetime.fromisoformat(str(existing["extracted_start_time"]).replace("Z", "+00:00")) == start
     except Exception:
         return False
+
+
+def _extract_or_flag(subject: str, body: str):
+    try:
+        return extract_interview_datetime({}, subject, body), False
+    except ExtractionUnavailable as e:
+        logger.warning(f"[job_hunter] Interview extraction unavailable: {e}")
+        return None, True
 
 
 async def process_imported_email(
@@ -138,7 +146,8 @@ async def process_imported_email(
         job_for_app = job_map.get(application_id)
 
         if category == "interview_invite":
-            extracted = extract_interview_datetime({}, subject, body)
+            extracted, extraction_failed = _extract_or_flag(subject, body)
+            calendar_failed = calendar_failed or extraction_failed
             existing_event = repository.get_active_calendar_event_for_application(organization_id, application_id) if extracted else None
             if extracted and job_for_app and existing_event and _same_start(existing_event, extracted.start_time):
                 pass
@@ -155,7 +164,8 @@ async def process_imported_email(
                 calendar_action = "create" if (sync_row or {}).get("sync_status") == "created" else None
                 calendar_failed = (sync_row or {}).get("sync_status") == "failed"
         elif category == "reschedule":
-            extracted = extract_interview_datetime({}, subject, body)
+            extracted, extraction_failed = _extract_or_flag(subject, body)
+            calendar_failed = calendar_failed or extraction_failed
             if extracted:
                 updated_event = await update_interview_event(
                     organization_id=organization_id,
