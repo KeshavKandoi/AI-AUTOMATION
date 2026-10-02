@@ -1,5 +1,6 @@
 import hashlib
 import re
+from datetime import datetime
 
 from config import logger
 from job_hunter import repository, service
@@ -34,8 +35,16 @@ def _get_verified_domain_for_job(job: dict):
 
 
 def _import_message_id(subject: str, sender: str, body: str) -> str:
-    digest = hashlib.sha256(f"{sender}\n{subject}\n{body}".encode("utf-8")).hexdigest()[:40]
+    normalized = " ".join(f"{subject} {body}".split()).lower()
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:40]
     return f"manual:{digest}"
+
+
+def _same_start(existing: dict, start) -> bool:
+    try:
+        return datetime.fromisoformat(str(existing["extracted_start_time"]).replace("Z", "+00:00")) == start
+    except Exception:
+        return False
 
 
 async def process_imported_email(
@@ -129,7 +138,10 @@ async def process_imported_email(
 
         if category == "interview_invite":
             extracted = extract_interview_datetime({}, subject, body)
-            if extracted and job_for_app:
+            existing_event = repository.get_active_calendar_event_for_application(organization_id, application_id) if extracted else None
+            if extracted and job_for_app and existing_event and _same_start(existing_event, extracted.start_time):
+                pass
+            elif extracted and job_for_app:
                 await sync_interview_event(
                     organization_id=organization_id,
                     application_id=application_id,

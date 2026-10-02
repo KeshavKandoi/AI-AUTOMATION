@@ -96,6 +96,7 @@ def _setup(monkeypatch, processed=False, update_result=None):
     monkeypatch.setattr(repo, "list_applications", lambda org, status=None: [application])
     monkeypatch.setattr(repo, "get_job", lambda job_id, org: job)
     monkeypatch.setattr(repo, "get_job_sources", lambda job_id: [])
+    monkeypatch.setattr(repo, "get_active_calendar_event_for_application", lambda org, aid: calls.get("active"))
     monkeypatch.setattr(repo, "get_preferences", lambda org: {"email": "me@example.com"})
     monkeypatch.setattr(repo, "gmail_message_already_processed", lambda org, mid: processed)
     monkeypatch.setattr(repo, "create_gmail_event", lambda row: calls["events"].append(row) or row)
@@ -175,3 +176,37 @@ def test_unknown_application_hint_raises(monkeypatch):
     _setup(monkeypatch)
     with pytest.raises(LookupError):
         asyncio.run(email_import.process_imported_email("org1", "s", "b", application_id_hint="nope"))
+
+
+def test_same_start_time_does_not_create_second_event(monkeypatch):
+    calls = _setup(monkeypatch)
+    fixed = datetime(2030, 1, 1, 10, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(email_import, "extract_interview_datetime", lambda m, s, b: SimpleNamespace(start_time=fixed, end_time=None))
+    calls["active"] = {"extracted_start_time": fixed.isoformat()}
+    _import("Interview invitation for Engineer at Acme", "We would like to schedule an interview with Acme for the Engineer role.")
+    assert calls["sync"] == []
+
+
+def test_import_id_ignores_whitespace_and_case():
+    a = email_import._import_message_id("Hello", "x", "Some  Body\n text")
+    b = email_import._import_message_id("hello", "y", "some body text")
+    assert a == b
+
+
+def _scope(url):
+    return re.search(r"scope=([^&]*)", url).group(1).split()
+
+
+def test_gmail_login_requests_only_send_and_email(monkeypatch):
+    import main
+    monkeypatch.setattr(main, "_has_stored_refresh_token", lambda o, p: False)
+    monkeypatch.setattr(main, "_issue_oauth_state", lambda o, p: "s")
+    scopes = _scope(main.gmail_login("org")["url"])
+    assert set(scopes) == {"https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/userinfo.email"}
+
+
+def test_calendar_login_scope_unchanged(monkeypatch):
+    import main
+    monkeypatch.setattr(main, "_has_stored_refresh_token", lambda o, p: False)
+    monkeypatch.setattr(main, "_issue_oauth_state", lambda o, p: "s")
+    assert _scope(main.calendar_login("org")["url"]) == ["https://www.googleapis.com/auth/calendar"]

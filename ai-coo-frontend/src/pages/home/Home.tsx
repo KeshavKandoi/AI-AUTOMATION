@@ -140,7 +140,7 @@ export default function Home() {
               </li>
               <li className="flex gap-2.5">
                 <span className="text-[var(--color-signal)]">→</span>
-                <span>Both integrations also power optional, on-request <strong className="text-[var(--color-text-primary)]">AI summaries</strong> — Google's Gemini API turns your unread mail or upcoming events into a short summary, only when you click to request it. Google data is never sold or used to train general-purpose AI models.</span>
+                <span>Google Calendar also powers an optional, on-request <strong className="text-[var(--color-text-primary)]">AI summary</strong> — Google's Gemini API turns your upcoming events into a short summary shown only to you.</span>
               </li>
             </ul>
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
