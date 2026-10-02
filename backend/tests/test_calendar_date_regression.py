@@ -29,6 +29,7 @@ def test_calendar_events_uses_current_utc_time_not_hardcoded_date():
             mock_http_client = AsyncMock()
             mock_http_client.__aenter__.return_value = mock_http_client
             events_response = MagicMock()
+            events_response.status_code = 200
             events_response.json.return_value = {"items": []}
             mock_http_client.get.return_value = events_response
             mock_client_cls.return_value = mock_http_client
@@ -234,3 +235,29 @@ def test_phase4_import_same_interview_start_is_not_duplicated(monkeypatch):
     ei, log = _p4_import(monkeypatch, existing_start="2030-01-01T10:00:00+00:00", extracted=_p4_extracted())
     asyncio.run(ei.process_imported_email("o", "Interview invitation", "We would like to schedule an interview.", application_id_hint="app1"))
     assert log["sync"] == 0
+
+
+def test_calendar_events_and_summary_return_502_when_google_errors():
+    from main import app
+    from fastapi.testclient import TestClient
+
+    _override_org(app, org_id="org-1")
+    try:
+        with patch("closeout._resolve_access_token", return_value="tok"), \
+             patch("config.reserve_org_action"), \
+             patch("main.httpx.AsyncClient") as mock_client_cls:
+            mock_http_client = AsyncMock()
+            mock_http_client.__aenter__.return_value = mock_http_client
+            bad = MagicMock()
+            bad.status_code = 401
+            bad.json.return_value = {"error": "leaky-detail"}
+            mock_http_client.get.return_value = bad
+            mock_client_cls.return_value = mock_http_client
+
+            client = TestClient(app)
+            for path in ("/calendar/events", "/calendar/summary"):
+                res = client.get(path)
+                assert res.status_code == 502
+                assert "leaky-detail" not in res.text
+    finally:
+        _clear(app)
