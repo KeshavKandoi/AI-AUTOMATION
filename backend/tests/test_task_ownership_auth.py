@@ -138,6 +138,7 @@ def test_create_issue_double_request_does_not_create_twice():
         row = {"id": "task-123", "organization_id": "org-victim", "status": "approved", "title": "t", "description": "d", "source_ref": None}
         with patch("main.supabase_admin", _FakeSB(select_data=[row], update_data=[])), \
              patch("closeout._resolve_access_token", return_value="tok"), \
+             patch("main._allowed_issue_repos", return_value={"connected": "x/y"}), \
              patch("main.github_post", new_callable=AsyncMock) as gp:
             res = TestClient(app).post("/tasks/task-123/approve-and-create-issue", params={"repo_full_name": "x/y"})
         assert res.status_code == 409
@@ -194,6 +195,7 @@ def test_approve_and_create_issue_rejects_client_supplied_access_token():
         }
         with patch("main.supabase_admin", _FakeSB(select_data=[task_row], update_data=[task_row])), \
              patch("closeout._resolve_access_token") as mock_resolve, \
+             patch("main._allowed_issue_repos", return_value={"connected": "x/y"}), \
              patch("main.github_post", new_callable=AsyncMock) as mock_github_post, \
              patch("main.log_event"):
             mock_resolve.return_value = "server-side-real-token"
@@ -685,3 +687,122 @@ def test_issues_opened_webhook_goes_through_dedup_dispatch():
     assert d.call_args.args[1] == "issue_created"
     assert d.call_args.kwargs["event_key"] == "issue-7-opened"
     r.assert_not_called()
+
+
+def _issue_call(allowed, repo=None):
+    from main import app
+    _override_auth(app, org_id="org-victim")
+    try:
+        row = {"id": "task-123", "organization_id": "org-victim", "status": "approved", "title": "t", "description": "d", "source_ref": None}
+        with patch("main.supabase_admin", _FakeSB(select_data=[row], update_data=[row])), \
+             patch("closeout._resolve_access_token", return_value="tok"), \
+             patch("main._allowed_issue_repos", return_value=allowed), \
+             patch("main.log_event"), \
+             patch("main.github_post", new_callable=AsyncMock) as gp:
+            gp.return_value = MagicMock(status_code=201, json=lambda: {"number": 1, "html_url": "https://github.com/x/y/issues/1"})
+            params = {"repo_full_name": repo} if repo else {}
+            res = TestClient(app).post("/tasks/task-123/approve-and-create-issue", params=params)
+        return res, gp
+    finally:
+        _clear(app)
+
+
+def test_issue_destination_rejects_repo_outside_allow_list():
+    res, gp = _issue_call({"source": "src/repo", "connected": "own/repo"}, repo="victim/other")
+    assert res.status_code == 403
+    gp.assert_not_called()
+
+
+def test_issue_destination_rejects_malformed_repo():
+    res, gp = _issue_call({"connected": "own/repo"}, repo="../evil")
+    assert res.status_code == 422
+    gp.assert_not_called()
+
+
+def test_issue_destination_accepts_allowed_repo_case_insensitively():
+    res, gp = _issue_call({"connected": "Own/Repo"}, repo="own/repo")
+    assert res.status_code == 200
+    gp.assert_called_once()
+
+
+def test_issue_destination_prefers_source_repo_then_connected():
+    res, gp = _issue_call({"source": "src/repo", "connected": "own/repo"})
+    assert res.status_code == 200 and "src/repo" in gp.call_args.args[0]
+    res, gp = _issue_call({"connected": "own/repo"})
+    assert res.status_code == 200 and "own/repo" in gp.call_args.args[0]
+
+
+def test_issue_destination_without_any_allowed_repo_returns_400():
+    res, gp = _issue_call({})
+    assert res.status_code == 400
+    gp.assert_not_called()
+
+
+def test_query_webhook_secret_is_disabled_by_default():
+    from config import Settings
+    assert Settings.model_fields["ALLOW_QUERY_WEBHOOK_SECRET"].default is False
+
+
+def test_generic_webhooks_only_run_operator_org_jobs(monkeypatch):
+    from config import settings
+    from main import app
+    from webhooks import routes
+    ran = []
+
+    async def fake_execute(job):
+        ran.append(job)
+        return {"status": "success"}
+
+    monkeypatch.setattr(routes.commit_repo, "get_job", lambda j: {"id": j, "organization_id": "other-org"})
+    monkeypatch.setattr(routes.commit_service, "execute_job", fake_execute)
+    monkeypatch.setattr(routes.email_repo, "get_job", lambda j: {"id": j, "organization_id": "other-org"})
+    monkeypatch.setattr(routes.email_service, "execute_job", fake_execute)
+    c = TestClient(app)
+    h = {"X-Webhook-Secret": settings.GENERIC_WEBHOOK_SECRET}
+    assert c.post("/webhooks/commit-jobs/abc", headers=h).status_code == 404
+    assert c.post("/webhooks/email-jobs/abc", headers=h).status_code == 404
+    assert ran == []
+
+
+def _users(*items):
+    import types
+    return [types.SimpleNamespace(email=e, email_confirmed_at=c) for e, c in items]
+
+
+def test_signup_existing_confirmed_account_is_generic_and_sends_nothing():
+    from auth import service
+    auth = MagicMock()
+    auth.auth.admin.list_users.return_value = _users(("a@b.com", "2030-01-01"))
+    with patch.object(service, "get_auth_client", return_value=auth), patch.object(service, "_issue_otp") as issue:
+        assert service.signup("n", "a@b.com", "pw", "org") == "a@b.com"
+    issue.assert_not_called()
+    auth.auth.admin.create_user.assert_not_called()
+
+
+def test_resend_otp_is_silent_for_unknown_and_confirmed_but_sends_for_unconfirmed():
+    from auth import service
+    with patch.object(service, "_list_users_with_retry", return_value=_users(("known@b.com", None), ("done@b.com", "x"))), \
+         patch.object(service, "_issue_otp") as issue:
+        service.resend_signup_otp("nobody@b.com")
+        service.resend_signup_otp("done@b.com")
+        issue.assert_not_called()
+        service.resend_signup_otp("known@b.com")
+        issue.assert_called_once_with("known@b.com", "signup")
+
+
+def test_resend_otp_cooldown_is_not_distinguishable():
+    from fastapi import HTTPException
+    from auth import service
+    with patch.object(service, "_list_users_with_retry", return_value=_users(("known@b.com", None))), \
+         patch.object(service, "_issue_otp", side_effect=HTTPException(status_code=429, detail="wait")):
+        service.resend_signup_otp("known@b.com")
+
+
+def test_forgot_password_cooldown_is_swallowed_and_unknown_is_silent():
+    from fastapi import HTTPException
+    from auth import service
+    with patch.object(service, "_list_users_with_retry", return_value=_users(("known@b.com", "x"))), \
+         patch.object(service, "_issue_otp", side_effect=HTTPException(status_code=429, detail="wait")) as issue:
+        service.forgot_password("known@b.com")
+        service.forgot_password("nobody@b.com")
+    issue.assert_called_once()

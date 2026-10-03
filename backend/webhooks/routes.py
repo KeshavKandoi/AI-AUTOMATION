@@ -231,7 +231,7 @@ def _resolve_generic_secret(header_value, query_value):
 async def trigger_commit_job(job_id: str, x_webhook_secret: str = Header(None), secret: str = Query(None)):
     verify_generic_secret(_resolve_generic_secret(x_webhook_secret, secret))
     job = commit_repo.get_job(job_id)
-    if not job:
+    if not job or job.get("organization_id") != settings.TEST_ORG_ID:
         raise HTTPException(status_code=404, detail="Commit job not found")
     run = await commit_service.execute_job(job)
     logger.info(f"Webhook-triggered commit job {job_id} -> {run['status']}")
@@ -242,7 +242,7 @@ async def trigger_commit_job(job_id: str, x_webhook_secret: str = Header(None), 
 async def trigger_email_job(job_id: str, x_webhook_secret: str = Header(None), secret: str = Query(None)):
     verify_generic_secret(_resolve_generic_secret(x_webhook_secret, secret))
     job = email_repo.get_job(job_id)
-    if not job:
+    if not job or job.get("organization_id") != settings.TEST_ORG_ID:
         raise HTTPException(status_code=404, detail="Email job not found")
     run = await email_service.execute_job(job)
     logger.info(f"Webhook-triggered email job {job_id} -> {run['status']}")
