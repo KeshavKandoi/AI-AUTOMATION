@@ -276,9 +276,8 @@ from audit_logs.service import log_event
 
 @app.post("/github/connect-repo")
 async def connect_repo(repo_full_name: str, org_id: str = Depends(get_current_org_id)):
-    import re
-    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}", repo_full_name):
-        raise HTTPException(status_code=422, detail="Invalid repository name")
+    _valid_repo(repo_full_name)
+    _rate_limit(org_id, "github_write", "GITHUB_WRITES_MAX_PER_ORG_PER_HOUR")
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
     result = await register_github_webhook(
@@ -450,6 +449,7 @@ async def github_create_issue(repo_full_name: str, title: str, body: str = "", o
     _valid_repo(repo_full_name)
     if not title.strip() or len(title) > 256 or len(body) > 20000:
         raise HTTPException(status_code=422, detail="Invalid issue fields")
+    _rate_limit(org_id, "github_write", "GITHUB_WRITES_MAX_PER_ORG_PER_HOUR")
     access_token = _resolve_access_token(org_id, "github")
     res = await github_post(
         f"https://api.github.com/repos/{repo_full_name}/issues",

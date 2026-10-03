@@ -14,10 +14,24 @@ Design notes:
   opaque 500, and surfaces 403/404 permission failures as GitHubAPIError
   rather than raising raw httpx exceptions.
 """
+import re
 import httpx
 from typing import Optional
+from fastapi import HTTPException
 
 BASE_URL = "https://api.github.com"
+_REPO_PART_RE = re.compile(r"[A-Za-z0-9_.-]{1,100}")
+_STATUS_MESSAGES = {
+    405: "GitHub says this action is not allowed right now (for example, the pull request is not mergeable)",
+    409: "GitHub reported a conflict; the target may have changed",
+    422: "GitHub rejected the request as invalid",
+}
+
+
+def repo_path(owner: str, repo: str) -> str:
+    if owner in (".", "..") or repo in (".", "..") or not _REPO_PART_RE.fullmatch(owner or "") or not _REPO_PART_RE.fullmatch(repo or ""):
+        raise HTTPException(status_code=422, detail="Invalid repository name")
+    return f"{owner}/{repo}"
 
 
 class GitHubAPIError(Exception):
@@ -56,7 +70,7 @@ async def _request(method: str, url: str, access_token: str, **kwargs) -> httpx.
         async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
             res = await client.request(method, url, headers=_headers(access_token), **kwargs)
     except httpx.HTTPError as e:
-        raise GitHubAPIError(status_code=502, message=f"Couldn't reach GitHub: {e}")
+        raise GitHubAPIError(status_code=502, message="Couldn't reach GitHub. Please try again shortly.")
 
     _check_rate_limit(res)
 
@@ -64,8 +78,10 @@ async def _request(method: str, url: str, access_token: str, **kwargs) -> httpx.
         raise GitHubAPIError(status_code=404, message="Not found, or you don't have access.")
     if res.status_code == 403:
         raise GitHubAPIError(status_code=403, message="GitHub denied this action — check repository permissions.")
+    if res.status_code == 401:
+        raise GitHubAPIError(status_code=400, message="GitHub authorization failed - please reconnect GitHub in Settings")
     if res.status_code >= 400:
-        raise GitHubAPIError(status_code=res.status_code, message=res.text)
+        raise GitHubAPIError(status_code=res.status_code, message=_STATUS_MESSAGES.get(res.status_code, f"GitHub request failed with status {res.status_code}"))
 
     return res
 
