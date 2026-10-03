@@ -23,8 +23,8 @@ class ExtractedInterview:
     meeting_link: Optional[str]
     interviewer: Optional[str]
     company: Optional[str]
-    source: str              # "ics" | "llm"
-    confidence: float        # 100 for ics (authoritative), 0-100 for llm
+    source: str
+    confidence: float
     explanation: Optional[str] = None
 
 
