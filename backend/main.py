@@ -477,11 +477,15 @@ async def approve_and_create_issue(task_id: str, repo_full_name: str | None = No
     if task.get("status") != "approved":
         raise HTTPException(status_code=403, detail="Task must be approved before creating a GitHub issue")
 
-    if not repo_full_name:
-        source_type, identifier = parse_source_ref(task.get("source_ref") or "")
-        if source_type != "github" or not identifier or "#" not in identifier:
-            raise HTTPException(status_code=400, detail="repo_full_name required — task has no GitHub source_ref to infer it from")
-        repo_full_name = identifier.rsplit("#", 1)[0]
+    allowed = _allowed_issue_repos(task, org_id)
+    if repo_full_name:
+        _valid_repo(repo_full_name)
+        if repo_full_name.lower() not in {v.lower() for v in allowed.values()}:
+            raise HTTPException(status_code=403, detail="Repository is not permitted for this task")
+    else:
+        repo_full_name = allowed.get("source") or allowed.get("connected")
+        if not repo_full_name:
+            raise HTTPException(status_code=400, detail="No repository available for this task; connect a repository first")
     _valid_repo(repo_full_name)
 
     access_token = _resolve_access_token(task["organization_id"], "github")
@@ -820,6 +824,18 @@ def _parse_event_time(value: str) -> datetime:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         raise HTTPException(status_code=422, detail="Invalid event time")
+
+
+def _allowed_issue_repos(task: dict, org_id: str) -> dict:
+    from closeout import parse_source_ref
+    allowed = {}
+    source_type, identifier = parse_source_ref(task.get("source_ref") or "")
+    if source_type == "github" and identifier and "#" in identifier:
+        allowed["source"] = identifier.rsplit("#", 1)[0]
+    res = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
+    if res.data and res.data[0].get("github_repo"):
+        allowed["connected"] = res.data[0]["github_repo"]
+    return allowed
 
 
 def _claim_task(task_id: str, org_id: str, from_status: str, to_status: str):

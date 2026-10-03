@@ -37,6 +37,14 @@ def _issue_otp(email: str, purpose: str) -> str:
     return otp
 
 
+def _issue_otp_quiet(email: str, purpose: str) -> None:
+    try:
+        _issue_otp(email, purpose)
+    except HTTPException as e:
+        if e.status_code != 429:
+            raise
+
+
 def _verify_otp(email: str, otp: str, purpose: str) -> bool:
     record = repository.get_latest_otp(email, purpose)
     if not record:
@@ -94,11 +102,11 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
     match = next((u for u in existing if u.email == email), None)
 
     if match and match.email_confirmed_at:
-        raise HTTPException(status_code=409, detail="An account with this email already exists")
+        return email
 
     if match:
         # Unconfirmed account from a previous incomplete signup — resend OTP, don't recreate.
-        _issue_otp(email, "signup")
+        _issue_otp_quiet(email, "signup")
         return email
 
     try:
@@ -132,7 +140,13 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
 
 
 def resend_signup_otp(email: str):
-    _issue_otp(email, "signup")
+    try:
+        users = _list_users_with_retry()
+    except Exception:
+        return
+    match = next((u for u in users if u.email == email), None)
+    if match and not match.email_confirmed_at:
+        _issue_otp_quiet(email, "signup")
 
 
 def _post_auth(user_id: str, email: str, full_name: str = ""):
@@ -214,7 +228,7 @@ def forgot_password(email: str):
         return
     match = next((u for u in users if u.email == email), None)
     if match:
-        _issue_otp(email, "password_reset")
+        _issue_otp_quiet(email, "password_reset")
     # Always returns silently regardless of whether the email exists —
     # caller (routes.py) returns the same generic message either way.
 
