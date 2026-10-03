@@ -746,3 +746,39 @@ def test_phase4_classifier_context_rules(subject, body, expected):
 def test_phase4_classifier_ambiguous_never_rejection(subject, body):
     from job_hunter.gmail_classifier import classify_email
     assert classify_email(subject, body).category != "rejection"
+
+
+def test_interview_extraction_runs_off_the_event_loop(monkeypatch):
+    import asyncio
+    import threading
+    from types import SimpleNamespace
+    from job_hunter import email_import as ei
+
+    seen = {}
+    loop_thread = {}
+
+    def fake_extract(msg, subject, body):
+        seen["thread"] = threading.get_ident()
+        return SimpleNamespace(start_time=1, end_time=None)
+
+    async def fake_sync(**kwargs):
+        return {"sync_status": "created"}
+
+    monkeypatch.setattr(ei.repository, "list_applications", lambda org, status=None: [{"id": "a1", "job_id": "j1", "status": "applied"}])
+    monkeypatch.setattr(ei.repository, "gmail_message_already_processed", lambda org, mid: False)
+    monkeypatch.setattr(ei.repository, "get_preferences", lambda org: {})
+    monkeypatch.setattr(ei.repository, "get_job", lambda jid, org: {"id": "j1", "job_title": "Dev", "company_name": "Acme"})
+    monkeypatch.setattr(ei.repository, "get_active_calendar_event_for_application", lambda org, app: None)
+    monkeypatch.setattr(ei.repository, "create_gmail_event", lambda row: None)
+    monkeypatch.setattr(ei.service, "update_application_status", lambda org, app, status: None)
+    monkeypatch.setattr(ei, "log_event", lambda **kwargs: None)
+    monkeypatch.setattr(ei, "extract_interview_datetime", fake_extract)
+    monkeypatch.setattr(ei, "sync_interview_event", fake_sync)
+
+    async def run():
+        loop_thread["id"] = threading.get_ident()
+        return await ei.process_imported_email("org-1", "Interview invitation", "We would like to schedule an interview.", application_id_hint="a1")
+
+    result = asyncio.run(run())
+    assert result["calendar_action"] == "create"
+    assert seen["thread"] != loop_thread["id"]
