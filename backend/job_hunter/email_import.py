@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import re
 from datetime import datetime
@@ -146,7 +147,7 @@ async def process_imported_email(
         job_for_app = job_map.get(application_id)
 
         if category == "interview_invite":
-            extracted, extraction_failed = _extract_or_flag(subject, body)
+            extracted, extraction_failed = await asyncio.to_thread(_extract_or_flag, subject, body)
             calendar_failed = calendar_failed or extraction_failed
             existing_event = repository.get_active_calendar_event_for_application(organization_id, application_id) if extracted else None
             if extracted and job_for_app and existing_event and _same_start(existing_event, extracted.start_time):
@@ -164,7 +165,7 @@ async def process_imported_email(
                 calendar_action = "create" if (sync_row or {}).get("sync_status") == "created" else None
                 calendar_failed = (sync_row or {}).get("sync_status") == "failed"
         elif category == "reschedule":
-            extracted, extraction_failed = _extract_or_flag(subject, body)
+            extracted, extraction_failed = await asyncio.to_thread(_extract_or_flag, subject, body)
             calendar_failed = calendar_failed or extraction_failed
             if extracted:
                 try:
