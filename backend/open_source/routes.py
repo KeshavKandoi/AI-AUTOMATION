@@ -6,6 +6,7 @@ from open_source.schemas import (
     OpportunitySelectedRequest,
 )
 from auth.dependencies import get_current_org_id
+from github_client import repo_path
 
 router = APIRouter(prefix="/open-source", tags=["open-source"])
 
@@ -28,7 +29,7 @@ async def list_issues(
 
 @router.get("/issues/{owner}/{repo}/{issue_number}", response_model=OSIssueDetail)
 async def get_issue(owner: str, repo: str, issue_number: int, org_id: str = Depends(get_current_org_id)):
-    return await service.get_issue_detail(org_id, f"{owner}/{repo}", issue_number)
+    return await service.get_issue_detail(org_id, repo_path(owner, repo), issue_number)
 
 
 @router.get("/repositories", response_model=OSRepoListResponse)
@@ -47,7 +48,7 @@ async def list_repositories(
 
 @router.get("/repositories/{owner}/{repo}", response_model=OSRepoDetail)
 async def get_repository(owner: str, repo: str, org_id: str = Depends(get_current_org_id)):
-    return await service.get_repository_detail(org_id, f"{owner}/{repo}")
+    return await service.get_repository_detail(org_id, repo_path(owner, repo))
 
 
 @router.post("/opportunity-selected")

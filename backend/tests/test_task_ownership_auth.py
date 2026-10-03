@@ -489,3 +489,199 @@ def test_calendar_create_event_rejects_invalid_times():
         assert r.status_code == 422
     finally:
         _clear(app)
+
+
+def test_repo_path_rejects_unsafe_owner_or_repo():
+    import pytest
+    from fastapi import HTTPException
+    import github_client
+    for o, r in (("..", "x"), ("x", ".."), (".", "x"), ("a b", "c"), ("a", "b?c"), ("a", "b#c"), ("a" * 101, "b")):
+        with pytest.raises(HTTPException):
+            github_client.repo_path(o, r)
+    assert github_client.repo_path("octo", "hello-world.js") == "octo/hello-world.js"
+
+
+def test_pr_route_rejects_unsafe_repo_before_service_call():
+    from main import app
+    _override_auth(app, org_id="org-a")
+    try:
+        with patch("pull_requests.routes.service.merge_pull_request", new_callable=AsyncMock) as m:
+            res = TestClient(app).post("/pull-requests/octo/x%3Fy/1/merge", json={"merge_method": "merge"})
+            assert res.status_code == 422
+            m.assert_not_called()
+    finally:
+        _clear(app)
+
+
+def test_pr_write_returns_429_when_org_limited():
+    import config
+    from main import app
+    _override_auth(app, org_id="org-a")
+    try:
+        with patch("config.reserve_org_action", side_effect=config.ActionRateLimited("limited")), \
+             patch("pull_requests.service._resolve_access_token", return_value="tok"), \
+             patch("pull_requests.service.gh.merge_pull_request", new_callable=AsyncMock) as m:
+            res = TestClient(app).post("/pull-requests/octo/hello/5/merge", json={"merge_method": "merge"})
+            assert res.status_code == 429
+            m.assert_not_called()
+    finally:
+        _clear(app)
+
+
+def test_github_client_errors_do_not_include_provider_body_or_401():
+    import asyncio
+    import pytest
+    import github_client
+    for status in (400, 401, 405, 409, 422, 500):
+        c = AsyncMock()
+        c.__aenter__.return_value = c
+        c.request.return_value = MagicMock(status_code=status, text="SECRET-BODY", headers={})
+        with patch("github_client.httpx.AsyncClient", return_value=c):
+            with pytest.raises(github_client.GitHubAPIError) as exc:
+                asyncio.run(github_client.get("t", "/x"))
+        assert "SECRET-BODY" not in exc.value.message
+        assert exc.value.status_code != 401
+
+
+def test_pr_action_body_is_size_capped():
+    import pytest
+    from pydantic import ValidationError
+    from pull_requests.schemas import PRActionRequest
+    with pytest.raises(ValidationError):
+        PRActionRequest(body="x" * 65001)
+    assert PRActionRequest(body="ok").body == "ok"
+
+
+def test_commit_job_update_rejects_unsafe_paths_branches_and_sizes():
+    import pytest
+    from pydantic import ValidationError
+    from commit_scheduler.schemas import CommitJobUpdate, CommitJobFile
+    bad_cases = (
+        {"folder_path": "../../x"}, {"folder_path": "/abs"}, {"folder_path": "a//b"}, {"folder_path": "a/./b"},
+        {"folder_path": "a?b"}, {"folder_path": "a#b"}, {"folder_path": "a%2e%2e/b"}, {"folder_path": "a\\b"},
+        {"file_name": "a/b"}, {"file_name": ".."}, {"file_name": "x?y"},
+        {"branch": "../x"}, {"branch": "/main"}, {"branch": "a?b"},
+        {"commit_message": "m" * 2001}, {"file_content": "x" * 500001}, {"custom_dates": ["2030-01-01"] * 401},
+    )
+    for bad in bad_cases:
+        with pytest.raises(ValidationError):
+            CommitJobUpdate(**bad)
+    ok = CommitJobUpdate(folder_path="docs/notes/", file_name="a.txt", branch="feature/x", commit_message="m")
+    assert ok.folder_path == "docs/notes"
+    with pytest.raises(ValidationError):
+        CommitJobFile(folder_path="../x", file_name="f")
+    with pytest.raises(ValidationError):
+        CommitJobFile(folder_path="docs", file_name="a.txt", content="x" * 500001)
+    assert CommitJobFile(folder_path="docs", file_name="a.txt").folder_path == "docs"
+
+
+def test_execute_job_refuses_unsafe_stored_path_and_never_calls_github():
+    import asyncio
+    from commit_scheduler import service
+    provider = MagicMock()
+    provider.get_file = AsyncMock()
+    provider.commit_file = AsyncMock()
+    job = {"id": "j", "organization_id": "o", "provider": "github", "repo_full_name": "a/b",
+           "branch": "main", "commit_message": "m", "mode": "recurring"}
+    files = [{"folder_path": "../../x", "file_name": "f.txt", "content": "c"}]
+    with patch.object(service.repository, "get_run_for_date", return_value=None), \
+         patch.object(service.repository, "create_run", side_effect=lambda r: r), \
+         patch.object(service, "_get_github_token_for_org", return_value="tok"), \
+         patch.object(service, "_resolve_files_for_run", new=AsyncMock(return_value=files)), \
+         patch.object(service.git_ops, "get_provider", return_value=provider), \
+         patch.object(service, "log_event"):
+        out = asyncio.run(service.execute_job(job))
+    assert out["status"] == "failed"
+    assert out["error_message"] == "Invalid file path in job configuration"
+    provider.get_file.assert_not_called()
+    provider.commit_file.assert_not_called()
+
+
+def test_execute_job_failure_message_hides_unexpected_exception_details():
+    import asyncio
+    from commit_scheduler import service
+    job = {"id": "j", "organization_id": "o", "provider": "github", "repo_full_name": "a/b",
+           "branch": "main", "commit_message": "m", "mode": "recurring"}
+    with patch.object(service.repository, "get_run_for_date", return_value=None), \
+         patch.object(service.repository, "create_run", side_effect=lambda r: r), \
+         patch.object(service, "_get_github_token_for_org", side_effect=KeyError("SECRET-DETAIL")), \
+         patch.object(service, "log_event"):
+        out = asyncio.run(service.execute_job(job))
+    assert out["status"] == "failed"
+    assert "SECRET-DETAIL" not in out["error_message"]
+
+
+def test_git_ops_get_file_url_encodes_path():
+    import asyncio
+    from commit_scheduler import git_ops
+    c = AsyncMock()
+    c.__aenter__.return_value = c
+    c.get.return_value = MagicMock(status_code=404)
+    with patch("commit_scheduler.git_ops.httpx.AsyncClient", return_value=c):
+        out = asyncio.run(git_ops.GitHubProvider().get_file("t", "a/b", "dir/f?x#y.txt", "main"))
+    assert out is None
+    url = c.get.call_args.args[0]
+    assert "?" not in url and "#" not in url and "%3F" in url and "%23" in url
+
+
+def test_git_ops_errors_do_not_include_provider_body():
+    import asyncio
+    import pytest
+    from commit_scheduler import git_ops
+    c = AsyncMock()
+    c.__aenter__.return_value = c
+    c.put.return_value = MagicMock(status_code=422, text="SECRET-BODY")
+    with patch("commit_scheduler.git_ops.httpx.AsyncClient", return_value=c):
+        with pytest.raises(RuntimeError) as exc:
+            asyncio.run(git_ops.GitHubProvider().commit_file("t", "a/b", "f.txt", "c", "main", "m"))
+    assert "SECRET-BODY" not in str(exc.value)
+
+
+def test_connect_repo_rejects_traversal_and_limits():
+    import config
+    from main import app
+    _override_auth(app, org_id="org-a")
+    try:
+        with patch("closeout._resolve_access_token", return_value="tok"), \
+             patch("main.register_github_webhook", new_callable=AsyncMock) as reg:
+            c = TestClient(app)
+            for bad in ("../x", "a/..", "a/b/c"):
+                assert c.post("/github/connect-repo", params={"repo_full_name": bad}).status_code == 422
+            reg.assert_not_called()
+            with patch("config.reserve_org_action", side_effect=config.ActionRateLimited("limited")):
+                assert c.post("/github/connect-repo", params={"repo_full_name": "a/b"}).status_code == 429
+            reg.assert_not_called()
+    finally:
+        _clear(app)
+
+
+def test_create_issue_returns_429_when_org_limited():
+    import config
+    from main import app
+    _override_auth(app, org_id="org-a")
+    try:
+        with patch("config.reserve_org_action", side_effect=config.ActionRateLimited("limited")), \
+             patch("closeout._resolve_access_token", return_value="tok"), \
+             patch("main.github_post", new_callable=AsyncMock) as gp:
+            res = TestClient(app).post("/github/create-issue", params={"repo_full_name": "a/b", "title": "t"})
+            assert res.status_code == 429
+            gp.assert_not_called()
+    finally:
+        _clear(app)
+
+
+def test_issues_opened_webhook_goes_through_dedup_dispatch():
+    import json
+    from main import app
+    body = json.dumps({"repository": {"full_name": "a/b"}, "action": "opened",
+                       "issue": {"number": 7, "title": "t", "body": "b", "labels": [], "html_url": "u"}})
+    with patch("webhooks.routes._resolve_org_for_webhook", return_value={"id": "org-a"}), \
+         patch("webhooks.routes.dispatch_workflow_event", new_callable=AsyncMock) as d, \
+         patch("webhooks.routes.run_workflows", new_callable=AsyncMock) as r:
+        res = TestClient(app).post("/webhooks/github", content=body,
+                                   headers={"Content-Type": "application/json", "X-GitHub-Event": "issues"})
+    assert res.status_code == 200
+    d.assert_called_once()
+    assert d.call_args.args[1] == "issue_created"
+    assert d.call_args.kwargs["event_key"] == "issue-7-opened"
+    r.assert_not_called()
