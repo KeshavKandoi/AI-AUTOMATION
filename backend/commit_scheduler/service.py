@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import HTTPException
 
 from commit_scheduler import repository, git_ops
-from commit_scheduler.schemas import CommitJobCreate, CommitJobUpdate
+from commit_scheduler.schemas import CommitJobCreate, CommitJobUpdate, validate_folder_path, validate_file_name
 from config import supabase_admin, decrypt_token, logger
 from audit_logs.service import log_event
 from workflow_engine import dispatch_workflow_event
@@ -247,6 +247,14 @@ async def _dispatch_pull_request_workflow_event(job: dict, pr: dict, head_sha: s
         )
 
 
+def _safe_run_error(e: Exception) -> str:
+    if isinstance(e, HTTPException):
+        return str(e.detail)[:300]
+    if isinstance(e, (RuntimeError, ValueError)):
+        return " ".join(str(e).split())[:300]
+    return "Unexpected error while committing"
+
+
 async def execute_job(job: dict) -> dict:
     """Performs the actual Git commit(s) for a due job. Returns the run record.
     For one-time 'scheduled' jobs, marks the job 'completed' after a successful run
@@ -314,7 +322,12 @@ async def execute_job(job: dict) -> dict:
         last_result = None
         for f in files_to_commit:
             # folder_path may be empty (repo root) — avoid a leading slash in that case.
-            path = f"{f['folder_path']}/{f['file_name']}" if f.get('folder_path') else f['file_name']
+            try:
+                folder = validate_folder_path(f.get("folder_path") or "")
+                name = validate_file_name(f["file_name"])
+            except ValueError:
+                raise RuntimeError("Invalid file path in job configuration")
+            path = f"{folder}/{name}" if folder else name
             existing = await provider.get_file(access_token, job["repo_full_name"], path, target_branch)
             sha = existing["sha"] if existing else None
             content = f.get("content") or f"Auto-commit — {run_date}"
@@ -356,12 +369,12 @@ async def execute_job(job: dict) -> dict:
             resource_type="commit_job",
             resource_id=job["id"],
             metadata={"repo_full_name": job.get("repo_full_name"), "run_date": run_date},
-            error_message=str(e),
+            error_message=_safe_run_error(e),
             source="scheduler",
         )
         return repository.create_run({
             "job_id": job["id"], "run_date": run_date, "status": "failed",
-            "error_message": str(e)
+            "error_message": _safe_run_error(e)
         })
 
     if job.get("mode") == "scheduled" and run["status"] == "success":

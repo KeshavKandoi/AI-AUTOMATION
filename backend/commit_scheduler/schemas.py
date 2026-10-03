@@ -5,6 +5,65 @@ from pydantic import BaseModel, field_validator, model_validator
 
 IST = ZoneInfo("Asia/Kolkata")
 
+import re as _re
+
+_BAD_PATH_CHARS = _re.compile(r"[\x00-\x1f\x7f\\?#%]")
+MAX_COMMIT_MESSAGE = 2000
+MAX_FILE_CONTENT = 500_000
+MAX_JOB_FILES = 50
+MAX_CUSTOM_DATES = 400
+
+
+def validate_folder_path(v):
+    if v is None:
+        return v
+    if v.startswith("/") or ".." in v or len(v) > 300 or _BAD_PATH_CHARS.search(v):
+        raise ValueError("folder_path is invalid")
+    v = v.strip("/")
+    if v and any(seg in ("", ".") for seg in v.split("/")):
+        raise ValueError("folder_path is invalid")
+    return v
+
+
+def validate_file_name(v):
+    if v is None or v == "":
+        return v
+    if v == "." or ".." in v or "/" in v or len(v) > 255 or _BAD_PATH_CHARS.search(v):
+        raise ValueError("file_name is invalid")
+    return v
+
+
+def validate_branch(v):
+    if v is None:
+        return v
+    if not v or v.startswith("/") or v.endswith("/") or ".." in v or "//" in v or " " in v or len(v) > 255 or _BAD_PATH_CHARS.search(v):
+        raise ValueError("branch is invalid")
+    return v
+
+
+def validate_commit_message(v):
+    if v is not None and (len(v) > MAX_COMMIT_MESSAGE or "\x00" in v):
+        raise ValueError("commit_message is invalid")
+    return v
+
+
+def validate_content(v):
+    if v is not None and len(v) > MAX_FILE_CONTENT:
+        raise ValueError("content is too large")
+    return v
+
+
+def validate_custom_dates(v):
+    if v is not None and len(v) > MAX_CUSTOM_DATES:
+        raise ValueError("too many custom_dates")
+    return v
+
+
+def validate_files(v):
+    if v is not None and len(v) > MAX_JOB_FILES:
+        raise ValueError("too many files")
+    return v
+
 Frequency = Literal["daily", "every_2_days", "weekdays", "custom"]
 JobStatus = Literal["active", "paused", "completed", "cancelled"]
 RunStatus = Literal["pending", "success", "failed", "skipped"]
@@ -20,16 +79,17 @@ class CommitJobFile(BaseModel):
     @field_validator("folder_path")
     @classmethod
     def no_path_traversal_file(cls, v):
-        if ".." in v or v.startswith("/"):
-            raise ValueError("folder_path must not contain '..' or start with '/'")
-        return v.strip("/")
+        return validate_folder_path(v)
 
     @field_validator("file_name")
     @classmethod
     def no_slashes_file(cls, v):
-        if "/" in v or ".." in v:
-            raise ValueError("file_name must not contain '/' or '..'")
-        return v
+        return validate_file_name(v)
+
+    @field_validator("content")
+    @classmethod
+    def content_size(cls, v):
+        return validate_content(v)
 
 
 class CommitJobCreate(BaseModel):
@@ -75,20 +135,12 @@ class CommitJobCreate(BaseModel):
     @field_validator("folder_path")
     @classmethod
     def no_path_traversal(cls, v):
-        if v is None:
-            return v
-        if ".." in v or v.startswith("/"):
-            raise ValueError("folder_path must not contain '..' or start with '/'")
-        return v.strip("/")
+        return validate_folder_path(v)
 
     @field_validator("file_name")
     @classmethod
     def no_slashes_in_filename(cls, v):
-        if v is None:
-            return v
-        if "/" in v or ".." in v:
-            raise ValueError("file_name must not contain '/' or '..'")
-        return v
+        return validate_file_name(v)
 
     @field_validator("execution_at")
     @classmethod
@@ -99,6 +151,26 @@ class CommitJobCreate(BaseModel):
         if exec_at <= datetime.now(IST):
             raise ValueError("execution_at must be in the future")
         return v
+
+    @field_validator("commit_message")
+    @classmethod
+    def create_commit_message_ok(cls, v):
+        return validate_commit_message(v)
+
+    @field_validator("file_content")
+    @classmethod
+    def create_file_content_ok(cls, v):
+        return validate_content(v)
+
+    @field_validator("files")
+    @classmethod
+    def create_files_ok(cls, v):
+        return validate_files(v)
+
+    @field_validator("custom_dates")
+    @classmethod
+    def create_custom_dates_ok(cls, v):
+        return validate_custom_dates(v)
 
     @model_validator(mode="after")
     def validate_mode_requirements(self):
@@ -133,6 +205,36 @@ class CommitJobUpdate(BaseModel):
         if exec_at <= datetime.now(IST):
             raise ValueError("execution_at must be in the future")
         return v
+
+    @field_validator("folder_path")
+    @classmethod
+    def update_folder_path_ok(cls, v):
+        return validate_folder_path(v)
+
+    @field_validator("file_name")
+    @classmethod
+    def update_file_name_ok(cls, v):
+        return validate_file_name(v)
+
+    @field_validator("branch")
+    @classmethod
+    def update_branch_ok(cls, v):
+        return validate_branch(v)
+
+    @field_validator("commit_message")
+    @classmethod
+    def update_commit_message_ok(cls, v):
+        return validate_commit_message(v)
+
+    @field_validator("file_content")
+    @classmethod
+    def update_file_content_ok(cls, v):
+        return validate_content(v)
+
+    @field_validator("custom_dates")
+    @classmethod
+    def update_custom_dates_ok(cls, v):
+        return validate_custom_dates(v)
 
 
 class CommitJobOut(BaseModel):

@@ -170,7 +170,7 @@ async def check_and_commit_job():
         )
 
     if put_res.status_code not in (200, 201):
-        print(f"Scheduled commit failed: {put_res.text}")
+        print(f"Scheduled commit failed with status {put_res.status_code}")
         return
 
     supabase_admin.table("scheduled_commits") \

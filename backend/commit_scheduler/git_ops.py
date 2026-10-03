@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 import base64
 import httpx
+from urllib.parse import quote
 
 
 class VCSProvider(ABC):
@@ -81,7 +82,7 @@ class GitHubProvider(VCSProvider):
     async def get_file(self, access_token: str, repo_full_name: str, path: str, branch: str) -> Optional[dict]:
         async with httpx.AsyncClient() as client:
             res = await client.get(
-                f"{self.BASE_URL}/repos/{repo_full_name}/contents/{path}",
+                f"{self.BASE_URL}/repos/{repo_full_name}/contents/{quote(path, safe='/')}",
                 headers=self._headers(access_token),
                 params={"ref": branch}
             )
@@ -102,12 +103,12 @@ class GitHubProvider(VCSProvider):
 
         async with httpx.AsyncClient() as client:
             res = await client.put(
-                f"{self.BASE_URL}/repos/{repo_full_name}/contents/{path}",
+                f"{self.BASE_URL}/repos/{repo_full_name}/contents/{quote(path, safe='/')}",
                 headers=self._headers(access_token),
                 json=payload
             )
         if res.status_code not in (200, 201):
-            raise RuntimeError(f"GitHub commit failed ({res.status_code}): {res.text}")
+            raise RuntimeError(f"GitHub commit failed with status {res.status_code}")
         data = res.json()
         return {
             # NOTE: data["content"]["sha"] is the file BLOB's hash, not the
@@ -128,11 +129,11 @@ class GitHubProvider(VCSProvider):
     async def create_branch(self, access_token: str, repo_full_name: str, from_branch: str, new_branch: str) -> dict:
         async with httpx.AsyncClient() as client:
             ref_res = await client.get(
-                f"{self.BASE_URL}/repos/{repo_full_name}/git/ref/heads/{from_branch}",
+                f"{self.BASE_URL}/repos/{repo_full_name}/git/ref/heads/{quote(from_branch, safe='/')}",
                 headers=self._headers(access_token)
             )
             if ref_res.status_code != 200:
-                raise RuntimeError(f"Failed to read base branch '{from_branch}': {ref_res.text}")
+                raise RuntimeError(f"Failed to read base branch '{from_branch}' (status {ref_res.status_code})")
             base_sha = ref_res.json()["object"]["sha"]
 
             create_res = await client.post(
@@ -144,7 +145,7 @@ class GitHubProvider(VCSProvider):
         if create_res.status_code == 422 and "already exists" in create_res.text:
             return {"status": "already_exists", "branch": new_branch}
         if create_res.status_code not in (200, 201):
-            raise RuntimeError(f"Failed to create branch '{new_branch}': {create_res.text}")
+            raise RuntimeError(f"Failed to create branch '{new_branch}' (status {create_res.status_code})")
 
         return {"status": "created", "branch": new_branch}
 
@@ -168,7 +169,7 @@ class GitHubProvider(VCSProvider):
             )
 
         if res.status_code not in (200, 201):
-            raise RuntimeError(f"Failed to create PR: {res.text}")
+            raise RuntimeError(f"Failed to create PR (status {res.status_code})")
 
         data = res.json()
         return {"html_url": data["html_url"], "number": data["number"], "status": "created"}
