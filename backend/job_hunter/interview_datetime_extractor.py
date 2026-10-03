@@ -1,17 +1,4 @@
-"""
-Interview datetime extraction: structured sources first (text/calendar
-MIME parts, .ics attachments), LLM as a last-resort fallback only when
-no structured source is present.
-
-Design principle: structured extraction is authoritative (confidence is
-always implicitly "high" — it's not inference, it's literally what the
-calendar system reports) and must always be tried first. The LLM path is
-only reached when extract_from_structured_sources() returns None, and
-even then, a low-confidence or schema-invalid LLM result must result in
-NO calendar event being created — the caller is responsible for treating
-None as "skip calendar sync, but still record the Gmail event and update
-application status."
-"""
+"""Interview date/time extraction from imported email text via a validated LLM call."""
 import json
 import math
 import re
@@ -19,7 +6,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from icalendar import Calendar
 from config import logger, gemini_client
 
 LLM_CONFIDENCE_THRESHOLD = 70
@@ -40,120 +26,6 @@ class ExtractedInterview:
     source: str              # "ics" | "llm"
     confidence: float        # 100 for ics (authoritative), 0-100 for llm
     explanation: Optional[str] = None
-
-
-def _walk_mime_parts(payload: dict) -> list[dict]:
-    """Flattens a Gmail message payload's MIME tree into a list of parts,
-    reusing the same recursive-walk shape as _extract_attachments in
-    email_import.py (kept separate here rather than imported, since
-    this module has no other dependency on email_import and importing
-    it would create a needless coupling — the traversal logic itself is
-    intentionally identical, not reinvented differently)."""
-    parts = []
-
-    def walk(part: dict):
-        parts.append(part)
-        for sub in part.get("parts", []):
-            walk(sub)
-
-    walk(payload)
-    return parts
-
-
-def _decode_part_body(part: dict) -> bytes:
-    import base64
-    data = part.get("body", {}).get("data", "")
-    if not data:
-        return b""
-    try:
-        return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
-    except Exception:
-        return b""
-
-
-def _parse_ics_bytes(ics_bytes: bytes) -> Optional[ExtractedInterview]:
-    try:
-        cal = Calendar.from_ical(ics_bytes)
-    except Exception as e:
-        logger.warning(f"Failed to parse .ics content: {e}")
-        return None
-
-    for component in cal.walk():
-        if component.name != "VEVENT":
-            continue
-
-        dtstart = component.get("dtstart")
-        dtend = component.get("dtend")
-        if not dtstart:
-            continue
-
-        start_dt = dtstart.dt if hasattr(dtstart, "dt") else None
-        end_dt = dtend.dt if dtend and hasattr(dtend, "dt") else None
-        if not isinstance(start_dt, datetime):
-            continue  # all-day / date-only events aren't useful for interview scheduling
-
-        tz_name = str(start_dt.tzinfo) if start_dt.tzinfo else None
-
-        location = str(component.get("location", "")) or None
-        meeting_link = None
-        if location and re.match(r"^https?://", location):
-            meeting_link = location
-        else:
-            description = str(component.get("description", ""))
-            link_match = re.search(
-                r"(https://[^\s]*(?:zoom\.us|meet\.google\.com|teams\.microsoft\.com)[^\s]*)",
-                description, re.IGNORECASE,
-            )
-            if link_match:
-                meeting_link = link_match.group(1).rstrip(".,)")
-
-        organizer = component.get("organizer")
-        interviewer = str(organizer).replace("mailto:", "") if organizer else None
-
-        return ExtractedInterview(
-            start_time=start_dt,
-            end_time=end_dt if isinstance(end_dt, datetime) else None,
-            timezone=tz_name,
-            meeting_link=meeting_link,
-            interviewer=interviewer,
-            company=None,  # not reliably present in ICS; caller has this from the job record already
-            source="ics",
-            confidence=100.0,
-        )
-
-    return None
-
-
-def extract_from_structured_sources(msg: dict) -> Optional[ExtractedInterview]:
-    """Checks every MIME part of a Gmail message for text/calendar content
-    (inline invites) or .ics attachment filenames. Returns the first
-    successfully parsed VEVENT, or None if nothing structured is found."""
-    payload = msg.get("payload", {})
-    parts = _walk_mime_parts(payload)
-
-    for part in parts:
-        mime_type = part.get("mimeType", "")
-        filename = part.get("filename", "")
-
-        is_calendar_mime = mime_type == "text/calendar"
-        is_ics_attachment = filename.lower().endswith(".ics")
-
-        if not (is_calendar_mime or is_ics_attachment):
-            continue
-
-        # Inline text/calendar parts have body data directly on the part.
-        # .ics attachments referenced by attachmentId require a separate
-        # Gmail API fetch — not handled here since it needs an HTTP client;
-        # see email_import.py's caller for the attachment-fetch step.
-        ics_bytes = _decode_part_body(part)
-        if not ics_bytes:
-            continue
-
-        result = _parse_ics_bytes(ics_bytes)
-        if result:
-            return result
-
-    return None
 
 
 LLM_EXTRACTION_PROMPT = """You are extracting interview scheduling details from a recruitment email. Analyze the email below and return ONLY a valid JSON object (no markdown, no explanation outside the JSON) with this exact structure:
@@ -202,8 +74,7 @@ def _safe_text(value, limit=100):
 
 
 def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[str] = None) -> Optional[ExtractedInterview]:
-    """LLM fallback — only called when extract_from_structured_sources()
-    returns None. Requires the model to return strict, schema-validated
+    """Requires the model to return strict, schema-validated
     JSON with its own confidence score; anything below
     LLM_CONFIDENCE_THRESHOLD or that fails validation returns None,
     meaning no calendar event will be created (caller still proceeds with
@@ -283,11 +154,4 @@ def extract_via_llm(subject: str, body_text: str, email_received_at: Optional[st
 
 
 def extract_interview_datetime(msg: dict, subject: str, body_text: str) -> Optional[ExtractedInterview]:
-    """Single entry point: tries structured sources first, only falls
-    back to the LLM if nothing structured was found. This is the only
-    function callers (email_import.py) should use."""
-    structured = extract_from_structured_sources(msg)
-    if structured:
-        return structured
-
     return extract_via_llm(subject, body_text)
