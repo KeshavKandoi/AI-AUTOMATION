@@ -255,4 +255,5 @@ export interface ImportEmailResult {
   applications_updated: number
   calendar_action: 'create' | 'update' | 'cancel' | null
   match_score?: number | null
+  calendar_failed?: boolean
 }
