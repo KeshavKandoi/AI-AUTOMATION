@@ -22,6 +22,14 @@ from notifications.service import notify
 MODULE = "pull_requests"
 
 
+def _write_limit(organization_id: str) -> None:
+    from config import reserve_org_action, ActionRateLimited, settings
+    try:
+        reserve_org_action(organization_id, "github_write", settings.GITHUB_WRITES_MAX_PER_ORG_PER_HOUR)
+    except ActionRateLimited as e:
+        raise HTTPException(status_code=429, detail=str(e))
+
+
 def _get_token(organization_id: str) -> str:
     try:
         return _resolve_access_token(organization_id, "github")
@@ -255,6 +263,7 @@ async def _action_common(organization_id: str, repo_full_name: str, pr_number: i
 
 
 async def approve_pull_request(organization_id: str, repo_full_name: str, pr_number: int, body: Optional[str]) -> dict:
+    _write_limit(organization_id)
     access_token = _get_token(organization_id)
     try:
         result = await gh.approve_pull_request(access_token, repo_full_name, pr_number, body)
@@ -275,6 +284,7 @@ async def approve_pull_request(organization_id: str, repo_full_name: str, pr_num
 async def request_changes_on_pull_request(organization_id: str, repo_full_name: str, pr_number: int, body: str) -> dict:
     if not body or not body.strip():
         raise HTTPException(status_code=400, detail="A comment body is required when requesting changes")
+    _write_limit(organization_id)
     access_token = _get_token(organization_id)
     try:
         result = await gh.request_changes_on_pull_request(access_token, repo_full_name, pr_number, body)
@@ -289,6 +299,7 @@ async def request_changes_on_pull_request(organization_id: str, repo_full_name: 
 async def comment_on_pull_request(organization_id: str, repo_full_name: str, pr_number: int, body: str) -> dict:
     if not body or not body.strip():
         raise HTTPException(status_code=400, detail="Comment body is required")
+    _write_limit(organization_id)
     access_token = _get_token(organization_id)
     try:
         result = await gh.comment_on_pull_request(access_token, repo_full_name, pr_number, body)
@@ -300,6 +311,7 @@ async def comment_on_pull_request(organization_id: str, repo_full_name: str, pr_
 
 
 async def merge_pull_request(organization_id: str, repo_full_name: str, pr_number: int, merge_method: str) -> dict:
+    _write_limit(organization_id)
     access_token = _get_token(organization_id)
     try:
         result = await gh.merge_pull_request(access_token, repo_full_name, pr_number, merge_method)
@@ -319,6 +331,7 @@ async def merge_pull_request(organization_id: str, repo_full_name: str, pr_numbe
 
 
 async def close_pull_request(organization_id: str, repo_full_name: str, pr_number: int) -> dict:
+    _write_limit(organization_id)
     access_token = _get_token(organization_id)
     try:
         result = await gh.close_pull_request(access_token, repo_full_name, pr_number)

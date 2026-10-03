@@ -129,7 +129,7 @@ async def github_webhook(
             "author": (issue.get("user") or {}).get("login", ""),
         }
 
-        await run_workflows(org_id, "issue_created", context)
+        await dispatch_workflow_event(org_id, "issue_created", context, event_key=f"issue-{context['issue_number']}-opened")
 
         logger.info(f"Workflow dispatch complete for issue #{context['issue_number']} (priority={context['priority']})")
 

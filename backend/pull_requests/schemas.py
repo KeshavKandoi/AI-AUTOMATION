@@ -1,6 +1,6 @@
 from typing import Optional, Literal
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 PRView = Literal[
     "all", "mine", "in_my_repos", "needs_review",
@@ -106,7 +106,7 @@ class PRDetail(BaseModel):
 
 
 class PRActionRequest(BaseModel):
-    body: Optional[str] = None
+    body: Optional[str] = Field(default=None, max_length=65000)
 
 
 class PRMergeRequest(BaseModel):
