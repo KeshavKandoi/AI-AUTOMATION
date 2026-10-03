@@ -76,7 +76,8 @@ export default function Gmail() {
               <p>Detected: {CATEGORY_LABELS[result.category ?? ''] ?? result.category}</p>
               <p>{result.application_id ? 'Matched to an application.' : 'No application was updated.'}</p>
               {result.applications_updated > 0 && <p>Application status updated.</p>}
-              {result.calendar_action && <p>Calendar event {result.calendar_action}d.</p>}
+              {result.calendar_action && <p>Calendar event {{ create: 'created', update: 'updated', cancel: 'cancelled' }[result.calendar_action]}.</p>}
+              {result.calendar_failed && <p>Calendar sync could not be completed. Import this email again to retry.</p>}
             </>
           )}
         </Card>
