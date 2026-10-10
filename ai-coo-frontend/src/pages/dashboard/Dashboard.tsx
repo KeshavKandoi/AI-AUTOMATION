@@ -17,7 +17,6 @@ import { formatDistanceToNow } from 'date-fns'
 const PROVIDER_LABELS: Record<string, string> = {
   github: 'GitHub',
   gmail: 'Gmail',
-  calendar: 'Google Calendar',
   discord: 'Discord',
 }
 

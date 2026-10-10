@@ -147,21 +147,6 @@ def test_create_issue_double_request_does_not_create_twice():
         _clear(app)
 
 
-def test_create_event_double_request_does_not_create_twice():
-    from main import app
-    _override_auth(app, org_id="org-victim")
-    try:
-        row = {"id": "task-123", "organization_id": "org-victim", "status": "approved", "title": "t", "description": "d", "source_ref": None}
-        client_mock = AsyncMock()
-        client_mock.__aenter__.return_value = client_mock
-        with patch("main.supabase_admin", _FakeSB(select_data=[row], update_data=[])), \
-             patch("closeout._resolve_access_token", return_value="tok"), \
-             patch("main.httpx.AsyncClient", return_value=client_mock):
-            res = TestClient(app).post("/tasks/task-123/approve-and-create-event", params={"start_time": "2030-01-01T10:00:00Z", "end_time": "2030-01-01T11:00:00Z"})
-        assert res.status_code == 409
-        client_mock.post.assert_not_called()
-    finally:
-        _clear(app)
 
 
 def test_failed_gmail_send_releases_task_back_to_approved():
@@ -291,8 +276,8 @@ def test_phase4_commits_run_now_is_operator_only():
         with patch.object(scheduler, "check_and_commit_job", new=AsyncMock()) as job:
             assert TestClient(app).post("/commits/run-now").status_code == 403
             job.assert_not_called()
-        app = _p4_as_org(settings.TEST_ORG_ID)
-        with patch.object(scheduler, "check_and_commit_job", new=AsyncMock()) as job:
+        app = _p4_as_org("operator-org")
+        with patch.object(settings, "SCHEDULER_ORG_ID", "operator-org"), patch.object(scheduler, "scheduler_target", return_value=("operator-org", "acme/repo")), patch.object(scheduler, "check_and_commit_job", new=AsyncMock()) as job:
             assert TestClient(app).post("/commits/run-now").status_code == 200
             job.assert_called_once()
     finally:
@@ -327,8 +312,10 @@ def test_phase4_nightly_commit_job_only_reads_operator_org_rows(monkeypatch):
     rec = Rec()
     monkeypatch.setattr(scheduler, "supabase_admin", rec)
     monkeypatch.setattr(scheduler, "has_committed_today", no_commit)
+    monkeypatch.setattr(scheduler, "scheduler_target", lambda: ("operator-org", "acme/repo"))
+    monkeypatch.setattr(scheduler, "_get_org_integration_token", lambda *_: "token")
     asyncio.run(scheduler.check_and_commit_job())
-    assert ("organization_id", scheduler.TEST_ORG_ID) in rec.eqs
+    assert ("organization_id", "operator-org") in rec.eqs
 
 
 def test_phase4_schedule_commit_rejects_unsafe_input():
@@ -346,20 +333,6 @@ def test_phase4_schedule_commit_rejects_unsafe_input():
         app.dependency_overrides.clear()
 
 
-def test_phase4_calendar_create_event_error_does_not_leak_provider_body():
-    from unittest.mock import patch, AsyncMock, MagicMock
-    from fastapi.testclient import TestClient
-    app = _p4_as_org("org-a")
-    try:
-        client_mock = AsyncMock()
-        client_mock.__aenter__.return_value = client_mock
-        client_mock.post.return_value = MagicMock(status_code=400, json=lambda: {"error": "leaky-detail"})
-        with patch("closeout._resolve_access_token", return_value="tok"), \
-             patch("main.httpx.AsyncClient", return_value=client_mock):
-            res = TestClient(app).post("/calendar/create-event", params={"summary": "s", "start_time": "2030-01-01T10:00:00Z", "end_time": "2030-01-01T11:00:00Z"})
-        assert res.status_code == 400 and "leaky-detail" not in res.text
-    finally:
-        app.dependency_overrides.clear()
 
 
 def test_closeout_errors_do_not_include_provider_body():
@@ -375,8 +348,6 @@ def test_closeout_errors_do_not_include_provider_body():
         for coro in (
             closeout._github_comment("t", "a/b", "1", "x"),
             closeout._github_close("t", "a/b", "1"),
-            closeout._calendar_patch("t", "e", {}),
-            closeout._calendar_delete("t", "e"),
         ):
             with pytest.raises(RuntimeError) as exc:
                 asyncio.run(coro)
@@ -456,7 +427,7 @@ def test_gemini_endpoints_return_429_before_any_work_when_limited():
              patch("closeout._resolve_access_token") as tok, \
              patch("main.run_gemini") as gem:
             c = TestClient(app)
-            for path in ("/github/summary", "/planner/priorities", "/calendar/summary"):
+            for path in ("/github/summary", "/planner/priorities"):
                 assert c.get(path).status_code == 429
             assert c.post("/tasks/create-from-priorities").status_code in (429,)
             tok.assert_not_called()
@@ -465,32 +436,8 @@ def test_gemini_endpoints_return_429_before_any_work_when_limited():
         _clear(app)
 
 
-def test_discord_and_calendar_create_return_429_before_external_call():
-    import config
-    from main import app
-    _override_auth(app, org_id="org-a")
-    try:
-        with patch("config.reserve_org_action", side_effect=config.ActionRateLimited("x")), \
-             patch("main._post_discord", new_callable=AsyncMock) as pd, \
-             patch("closeout._resolve_access_token") as tok:
-            c = TestClient(app)
-            assert c.post("/discord/notify", params={"message": "hi"}).status_code == 429
-            assert c.post("/discord/daily-report").status_code == 429
-            assert c.post("/calendar/create-event", params={"summary": "s", "start_time": "2030-01-01T10:00:00Z", "end_time": "2030-01-01T11:00:00Z"}).status_code == 429
-            pd.assert_not_called()
-            tok.assert_not_called()
-    finally:
-        _clear(app)
 
 
-def test_calendar_create_event_rejects_invalid_times():
-    from main import app
-    _override_auth(app, org_id="org-a")
-    try:
-        r = TestClient(app).post("/calendar/create-event", params={"summary": "s", "start_time": "garbage", "end_time": "2030-01-01T11:00:00Z"})
-        assert r.status_code == 422
-    finally:
-        _clear(app)
 
 
 def test_repo_path_rejects_unsafe_owner_or_repo():
@@ -644,7 +591,8 @@ def test_connect_repo_rejects_traversal_and_limits():
     from main import app
     _override_auth(app, org_id="org-a")
     try:
-        with patch("closeout._resolve_access_token", return_value="tok"), \
+        with patch.object(config.settings, "RENDER_BASE_URL", "https://example.com"), \
+             patch("closeout._resolve_access_token", return_value="tok"), \
              patch("main.register_github_webhook", new_callable=AsyncMock) as reg:
             c = TestClient(app)
             for bad in ("../x", "a/..", "a/b/c"):
@@ -772,8 +720,8 @@ def _users(*items):
 def test_signup_existing_confirmed_account_is_generic_and_sends_nothing():
     from auth import service
     auth = MagicMock()
-    auth.auth.admin.list_users.return_value = _users(("a@b.com", "2030-01-01"))
-    with patch.object(service, "get_auth_client", return_value=auth), patch.object(service, "_issue_otp") as issue:
+    auth.auth.admin.get_user_by_id.return_value.user.email_confirmed_at = "2030-01-01"
+    with patch.object(service, "get_auth_client", return_value=auth), patch.object(service.repository, "get_user_profile_by_email", return_value={"id": "user-1"}), patch.object(service, "_issue_otp") as issue:
         assert service.signup("n", "a@b.com", "pw", "org") == "a@b.com"
     issue.assert_not_called()
     auth.auth.admin.create_user.assert_not_called()
@@ -781,7 +729,10 @@ def test_signup_existing_confirmed_account_is_generic_and_sends_nothing():
 
 def test_resend_otp_is_silent_for_unknown_and_confirmed_but_sends_for_unconfirmed():
     from auth import service
-    with patch.object(service, "_list_users_with_retry", return_value=_users(("known@b.com", None), ("done@b.com", "x"))), \
+    auth = MagicMock()
+    auth.auth.admin.get_user_by_id.return_value.user.email_confirmed_at = None
+    with patch.object(service, "get_auth_client", return_value=auth), \
+         patch.object(service.repository, "get_user_profile_by_email", side_effect=lambda email: {"id": "user-1"} if email == "known@b.com" else None), \
          patch.object(service, "_issue_otp") as issue:
         service.resend_signup_otp("nobody@b.com")
         service.resend_signup_otp("done@b.com")
@@ -793,7 +744,9 @@ def test_resend_otp_is_silent_for_unknown_and_confirmed_but_sends_for_unconfirme
 def test_resend_otp_cooldown_is_not_distinguishable():
     from fastapi import HTTPException
     from auth import service
-    with patch.object(service, "_list_users_with_retry", return_value=_users(("known@b.com", None))), \
+    auth = MagicMock()
+    auth.auth.admin.get_user_by_id.return_value.user.email_confirmed_at = None
+    with patch.object(service, "get_auth_client", return_value=auth), patch.object(service.repository, "get_user_profile_by_email", return_value={"id": "user-1"}), \
          patch.object(service, "_issue_otp", side_effect=HTTPException(status_code=429, detail="wait")):
         service.resend_signup_otp("known@b.com")
 
@@ -801,7 +754,7 @@ def test_resend_otp_cooldown_is_not_distinguishable():
 def test_forgot_password_cooldown_is_swallowed_and_unknown_is_silent():
     from fastapi import HTTPException
     from auth import service
-    with patch.object(service, "_list_users_with_retry", return_value=_users(("known@b.com", "x"))), \
+    with patch.object(service.repository, "get_user_profile_by_email", side_effect=lambda email: {"id": "user-1"} if email == "known@b.com" else None), \
          patch.object(service, "_issue_otp", side_effect=HTTPException(status_code=429, detail="wait")) as issue:
         service.forgot_password("known@b.com")
         service.forgot_password("nobody@b.com")

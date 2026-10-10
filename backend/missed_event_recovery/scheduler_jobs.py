@@ -42,7 +42,7 @@ async def run_missed_event_recovery():
         )
 
         initial_state = {
-            "github_token": access_token, "gmail_token": "", "calendar_token": "",
+            "github_token": access_token, "gmail_token": "",
             "org_id": org_id, "issues_data": [], "emails_data": [],
             "events_data": [], "tasks": [], "report": ""
         }

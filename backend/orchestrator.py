@@ -20,11 +20,9 @@ def get_memory_context(org_id: str) -> str:
 class COOState(TypedDict):
     github_token: str
     gmail_token: str
-    calendar_token: str
     org_id: str
     issues_data: list
     emails_data: list
-    events_data: list
     tasks: list
     report: str
 
@@ -72,41 +70,11 @@ async def node_fetch_emails(state: COOState) -> COOState:
     return state
 
 
-async def node_fetch_events(state: COOState) -> COOState:
-    calendar_token = state.get("calendar_token")
-    if not calendar_token:
-        state["events_data"] = []
-        return state
-
-    async with httpx.AsyncClient() as client:
-        res = await client.get(
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            headers={"Authorization": f"Bearer {calendar_token}"},
-            params={"maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
-        )
-    data = res.json()
-    events = data.get("items", [])
-
-    formatted = [
-        {
-            "source": "calendar",
-            "event_id": e.get("id"),
-            "summary": e.get("summary"),
-            "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
-            "source_ref": f"calendar:{e.get('id')}",
-        }
-        for e in events
-    ]
-    state["events_data"] = formatted
-    return state
-
-
 async def node_create_tasks(state: COOState) -> COOState:
     issues_data = state.get("issues_data", [])
     emails_data = state.get("emails_data", [])
-    events_data = state.get("events_data", [])
 
-    if not issues_data and not emails_data and not events_data:
+    if not issues_data and not emails_data:
         state["tasks"] = []
         return state
 
@@ -115,8 +83,6 @@ async def node_create_tasks(state: COOState) -> COOState:
         all_items.append({**i, "_type": "github"})
     for i in emails_data:
         all_items.append({**i, "_type": "gmail"})
-    for i in events_data:
-        all_items.append({**i, "_type": "calendar"})
 
     all_refs = [i.get("source_ref") for i in all_items if i.get("source_ref")]
     already_tracked = set()
@@ -149,7 +115,7 @@ async def node_create_tasks(state: COOState) -> COOState:
     prompt = f"""You are a Planner AI for a busy founder. Here is prior context:
 {memory_context}
 
-Here is a numbered list of items needing attention (GitHub issues, emails, calendar events):
+Here is a numbered list of items needing attention (GitHub issues):
 {indexed_items}
 
 For EACH item in the list above, return exactly ONE task object. Do not skip items unless truly irrelevant, and NEVER combine multiple items into a single task — one task per item only.
@@ -216,7 +182,7 @@ async def node_notify_discord(state: COOState) -> COOState:
     tasks = state.get("tasks", [])
 
     if not tasks:
-        report = "**Workforge Run Complete**\n\nNothing found across GitHub, Gmail, or Calendar. All clear."
+        report = "**Workforge Run Complete**\n\nNothing found across GitHub. All clear."
     else:
         report = "**Workforge Run Complete**\n\n**Tasks awaiting your approval:**\n"
         for t in tasks:
@@ -240,14 +206,12 @@ async def node_notify_discord(state: COOState) -> COOState:
 workflow = StateGraph(COOState)
 workflow.add_node("fetch_issues", node_fetch_issues)
 workflow.add_node("fetch_emails", node_fetch_emails)
-workflow.add_node("fetch_events", node_fetch_events)
 workflow.add_node("create_tasks", node_create_tasks)
 workflow.add_node("notify_discord", node_notify_discord)
 
 workflow.set_entry_point("fetch_issues")
 workflow.add_edge("fetch_issues", "fetch_emails")
-workflow.add_edge("fetch_emails", "fetch_events")
-workflow.add_edge("fetch_events", "create_tasks")
+workflow.add_edge("fetch_emails", "create_tasks")
 workflow.add_edge("create_tasks", "notify_discord")
 workflow.add_edge("notify_discord", END)
 

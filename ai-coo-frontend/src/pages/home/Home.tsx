@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import {
-  ListTodo, Workflow, GitBranch, Mail, Calendar, GitCommitHorizontal,
+  ListTodo, Workflow, GitBranch, Mail, GitCommitHorizontal,
   GitPullRequest, ShieldCheck, ScrollText, BarChart3, ArrowRight, LayoutDashboard,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
@@ -11,8 +11,7 @@ const FEATURES = [
   { icon: GitBranch, title: 'GitHub', description: 'Connect repositories so WorkForge can react to pushes, issues, and pull requests.' },
   { icon: GitCommitHorizontal, title: 'Commit Scheduler', description: 'Schedule and automate commits on a recurring basis.' },
   { icon: GitPullRequest, title: 'Pull Requests', description: 'Review, approve, and manage PRs from one place.' },
-  { icon: Mail, title: 'Gmail', description: 'Sends emails for workflows you configure. WorkForge does not read your Gmail inbox; Job Hunter works from email text you paste in.' },
-  { icon: Calendar, title: 'Google Calendar', description: 'Shows your upcoming events with an on-demand AI summary, creates interview events from emails you import into Job Hunter, runs workflow-triggered event creation, and can optionally auto-block your lunch hour.' },
+  { icon: Mail, title: 'Gmail', description: 'Sends emails for workflows you configure. WorkForge does not read your Gmail inbox.' },
   { icon: ShieldCheck, title: 'Human Approval', description: 'Keep a human in the loop before automation takes action.' },
   { icon: ScrollText, title: 'Audit Logs', description: 'A full record of every automated and manual action.' },
   { icon: BarChart3, title: 'Analytics', description: 'Operational visibility into activity across your organization.' },
@@ -63,8 +62,8 @@ export default function Home() {
           </h1>
           <p className="mt-5 text-lg text-[var(--color-text-muted)] max-w-2xl mx-auto">
             WorkForge is a workflow automation platform. You connect services you authorize — GitHub, Gmail,
-            Google Calendar, Discord — and configure triggers and actions so operational work (tasks, emails,
-            calendar events, notifications) happens automatically based on events you define.
+            Discord — and configure triggers and actions so operational work (tasks, emails,
+            notifications) happens automatically based on events you define.
           </p>
           {isAuthenticated ? (
             <Link
@@ -134,17 +133,9 @@ export default function Home() {
                 <span className="text-[var(--color-signal)]">→</span>
                 <span>Connecting <strong className="text-[var(--color-text-primary)]">Gmail</strong> lets WorkForge send emails as part of workflows you configure (it never reads your inbox) — for example, "GitHub push → send a notification email."</span>
               </li>
-              <li className="flex gap-2.5">
-                <span className="text-[var(--color-signal)]">→</span>
-                <span>Connecting <strong className="text-[var(--color-text-primary)]">Google Calendar</strong> lets WorkForge create interview events from emails you import into Job Hunter, create events as part of workflows you configure, and optionally auto-block a daily lunch window you set.</span>
-              </li>
-              <li className="flex gap-2.5">
-                <span className="text-[var(--color-signal)]">→</span>
-                <span>Google Calendar also powers an optional, on-request <strong className="text-[var(--color-text-primary)]">AI summary</strong> — Google's Gemini API turns your upcoming events into a short summary shown only to you.</span>
-              </li>
             </ul>
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
-              WorkForge does not independently decide to send emails or create events — these actions only
+              WorkForge does not independently decide to send emails — these actions only
               happen because you configured them. Full details are in our{' '}
               <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110">Privacy Policy</Link>.
             </p>

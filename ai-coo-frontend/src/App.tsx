@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { apiClient } from '@/api/client'
+import { apiClient, isPublicPath } from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
 import Login from '@/pages/auth/Login'
 import Signup from '@/pages/auth/Signup'
@@ -20,8 +20,6 @@ import CommitScheduler from '@/pages/commitScheduler/CommitScheduler'
 import PullRequests from '@/pages/pullRequests/PullRequests'
 import OpenSource from '@/pages/openSource/OpenSource'
 import GitHub from '@/pages/github/GitHub'
-import Gmail from '@/pages/gmail/Gmail'
-import CalendarPage from '@/pages/calendar/Calendar'
 import Workflows from '@/pages/workflows/Workflows'
 import AuditLogs from '@/pages/auditLogs/AuditLogs'
 import Settings from '@/pages/settings/Settings'
@@ -41,6 +39,10 @@ function App() {
   const logout = useAuthStore((s) => s.logout)
 
   useEffect(() => {
+    if (isPublicPath(window.location.pathname) && !useAuthStore.getState().user) {
+      setBootstrapped(true)
+      return
+    }
     apiClient
       .post('/auth/refresh')
       .then((res) => setAuth(res.data.user, res.data.access_token))
@@ -72,8 +74,6 @@ function App() {
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/workflows" element={<Workflows />} />
               <Route path="/integrations/github" element={<GitHub />} />
-              <Route path="/integrations/gmail" element={<Gmail />} />
-              <Route path="/integrations/calendar" element={<CalendarPage />} />
               <Route path="/commit-scheduler" element={<CommitScheduler />} />
               <Route path="/pull-requests" element={<PullRequests />} />
               <Route path="/open-source" element={<OpenSource />} />

@@ -125,7 +125,8 @@ def _phase4_client(monkeypatch):
     async def fake_execute(job):
         return {"status": "success"}
 
-    monkeypatch.setattr(routes.commit_repo, "get_job", lambda job_id: {"id": job_id, "organization_id": __import__("config").settings.TEST_ORG_ID})
+    monkeypatch.setattr(__import__("config").settings, "SCHEDULER_ORG_ID", "operator-org")
+    monkeypatch.setattr(routes.commit_repo, "get_job", lambda job_id: {"id": job_id, "organization_id": "operator-org"})
     monkeypatch.setattr(routes.commit_service, "execute_job", fake_execute)
     return TestClient(app)
 

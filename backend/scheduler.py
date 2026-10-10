@@ -1,4 +1,5 @@
 import httpx
+import re
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter, Depends
 from auth.dependencies import get_current_user
@@ -6,7 +7,6 @@ from auth.dependencies import get_current_user
 from config import settings, supabase_admin, logger, get_valid_access_token
 from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from email_scheduler.scheduler_jobs import run_due_email_jobs
-from calendar_automation.scheduler_jobs import run_daily_lunch_block_check
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
 from job_hunter.scheduler_jobs import run_search_for_all_orgs, run_due_reminders, run_stale_job_cleanup
 from workflow_engine import sweep_expired_workflows
@@ -15,8 +15,13 @@ from orchestrator import coo_graph
 router = APIRouter()
 scheduler = AsyncIOScheduler()
 
-TEST_GITHUB_TOKEN = settings.TEST_GITHUB_ACCESS_TOKEN
-TEST_ORG_ID = settings.TEST_ORG_ID
+def scheduler_target() -> tuple[str, str] | None:
+    org_id = settings.SCHEDULER_ORG_ID.strip()
+    repo = settings.SCHEDULER_REPOSITORY.strip()
+    if not org_id or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo) or (settings.ENVIRONMENT == "production" and (not settings.SCHEDULER_ENABLE_PRODUCTION or org_id == settings.TEST_ORG_ID)):
+        logger.warning("Dedicated scheduler target is not configured; legacy scheduler jobs are disabled")
+        return None
+    return org_id, repo
 
 
 def _get_org_integration_token(organization_id: str, provider: str):
@@ -36,19 +41,18 @@ def _get_org_integration_token(organization_id: str, provider: str):
 
 
 async def scheduled_orchestrator_run():
-    print("Running scheduled AI COO orchestrator...")
-
-    gmail_token = _get_org_integration_token(TEST_ORG_ID, "gmail")
-    calendar_token = _get_org_integration_token(TEST_ORG_ID, "calendar")
+    target = scheduler_target()
+    if not target:
+        return
+    org_id, _ = target
+    github_token = _get_org_integration_token(org_id, "github")
+    if not github_token:
+        return
 
     initial_state = {
-        "github_token": TEST_GITHUB_TOKEN,
-        "gmail_token": gmail_token,
-        "calendar_token": calendar_token,
-        "org_id": TEST_ORG_ID,
+        "github_token": github_token,
+        "org_id": org_id,
         "issues_data": [],
-        "emails_data": [],
-        "events_data": [],
         "tasks": [],
         "report": ""
     }
@@ -56,12 +60,15 @@ async def scheduled_orchestrator_run():
     print(f"Scheduled run complete: {final_state['report']}")
 
 
-SELF_URL = "https://ai-automation-d2s2.onrender.com/health"
-
 async def keep_alive_ping():
+    if not settings.SCHEDULER_SELF_URL:
+        return
+    if settings.ENVIRONMENT == "production" and not settings.SCHEDULER_SELF_URL.startswith("https://"):
+        logger.error("Production scheduler self URL must use HTTPS")
+        return
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            res = await client.get(SELF_URL)
+            res = await client.get(settings.SCHEDULER_SELF_URL)
         logger.info(f"Keep-alive ping -> {res.status_code}")
     except Exception as e:
         logger.error(f"Keep-alive ping failed: {e}")
@@ -75,7 +82,6 @@ def start_scheduler():
     scheduler.add_job(keep_alive_ping, "interval", minutes=10, id="keep_alive_job")
     scheduler.add_job(run_missed_event_recovery, "interval", minutes=15, id="missed_event_recovery_job")
     scheduler.add_job(sweep_expired_workflows, "interval", minutes=1, id="workflow_expiry_sweep_job")
-    scheduler.add_job(run_daily_lunch_block_check, "cron", hour=8, minute=0, timezone="Asia/Kolkata", id="lunch_block_job")
     scheduler.add_job(run_search_for_all_orgs, "interval", hours=6, id="job_hunter_search_job")
     scheduler.add_job(run_due_reminders, "interval", minutes=15, id="job_hunter_reminders_job")
     # Lightweight daily soft-expiration sweep -- entirely separate from
@@ -101,25 +107,35 @@ def scheduler_status(user: dict = Depends(get_current_user)):
 import base64
 from datetime import date
 
-REPO = "KeshavKandoi/Smart-Inventory-Management-System"
-GITHUB_TOKEN = settings.TEST_GITHUB_ACCESS_TOKEN
-
-
 async def has_committed_today() -> bool:
+    target = scheduler_target()
+    if not target:
+        return False
+    org_id, repo = target
+    token = _get_org_integration_token(org_id, "github")
+    if not token:
+        return False
     today = date.today().isoformat()
     async with httpx.AsyncClient() as client:
         res = await client.get(
-            f"https://api.github.com/repos/{REPO}/commits",
-            headers={"Authorization": f"Bearer {GITHUB_TOKEN}"},
+            f"https://api.github.com/repos/{repo}/commits",
+            headers={"Authorization": f"Bearer {token}"},
             params={"since": f"{today}T00:00:00Z"}
         )
     if res.status_code != 200:
-        return False
+        raise RuntimeError(f"Could not verify repository commits (HTTP {res.status_code})")
     commits = res.json()
     return len(commits) > 0
 
 
 async def check_and_commit_job():
+    target = scheduler_target()
+    if not target:
+        return
+    org_id, repo = target
+    token = _get_org_integration_token(org_id, "github")
+    if not token:
+        return
     today = date.today().isoformat()
     print(f"Running 11pm check-and-commit job for {today}")
 
@@ -129,7 +145,7 @@ async def check_and_commit_job():
 
     result = supabase_admin.table("scheduled_commits") \
         .select("*") \
-        .eq("organization_id", TEST_ORG_ID) \
+        .eq("organization_id", org_id) \
         .eq("target_date", today) \
         .eq("status", "pending") \
         .execute()
@@ -149,8 +165,8 @@ async def check_and_commit_job():
 
     async with httpx.AsyncClient() as client:
         get_res = await client.get(
-            f"https://api.github.com/repos/{REPO}/contents/{full_path}",
-            headers={"Authorization": f"Bearer {GITHUB_TOKEN}"},
+            f"https://api.github.com/repos/{repo}/contents/{full_path}",
+            headers={"Authorization": f"Bearer {token}"},
             params={"ref": branch}
         )
         sha = get_res.json().get("sha") if get_res.status_code == 200 else None
@@ -164,8 +180,8 @@ async def check_and_commit_job():
             payload["sha"] = sha
 
         put_res = await client.put(
-            f"https://api.github.com/repos/{REPO}/contents/{full_path}",
-            headers={"Authorization": f"Bearer {GITHUB_TOKEN}"},
+            f"https://api.github.com/repos/{repo}/contents/{full_path}",
+            headers={"Authorization": f"Bearer {token}"},
             json=payload
         )
 

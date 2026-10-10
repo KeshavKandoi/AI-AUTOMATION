@@ -1,13 +1,10 @@
 import axios from 'axios'
 import { useAuthStore } from '@/store/authStore'
 
-// Routes that don't require a session. The bootstrap silent-refresh call in
-// App.tsx runs on every page load regardless of route, including these, so an
-// expected 401 here (visitor has no session) must not force-navigate them
-// away from a page that was never supposed to require login.
-const PUBLIC_PATHS = ['/', '/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password', '/privacy', '/terms']
+// Public visitors can load these routes without probing the refresh endpoint.
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password', '/privacy', '/terms', '/security']
 
-function isPublicPath(pathname: string): boolean {
+export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.includes(pathname)
 }
 
@@ -58,7 +55,7 @@ apiClient.interceptors.response.use(
   async (error) => {
     const original = error.config
 
-    if (error.response?.status === 401 && !original?._retried) {
+    if (error.response?.status === 401 && !original?._retried && !isPublicPath(window.location.pathname)) {
       original._retried = true
       const newToken = await refreshAccessToken()
       if (newToken) {

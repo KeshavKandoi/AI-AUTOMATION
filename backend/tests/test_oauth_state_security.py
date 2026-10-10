@@ -47,11 +47,6 @@ def test_gmail_login_requires_auth():
     assert res.status_code == 401
 
 
-def test_calendar_login_requires_auth():
-    from main import app
-    client = TestClient(app)
-    res = client.get("/calendar/login", follow_redirects=False)
-    assert res.status_code == 401
 
 
 # ---------------- login issues a real state, not org_id ----------------
@@ -60,7 +55,7 @@ def test_github_login_issues_random_state_not_org_id():
     from main import app
     _override_org(app, org_id="org-victim")
     try:
-        with patch("main.supabase_admin") as sb:
+        with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
             insert_result = MagicMock()
             sb.table.return_value.insert.return_value.execute.return_value = insert_result
 
@@ -84,7 +79,7 @@ def test_github_login_issues_random_state_not_org_id():
 
 def test_github_callback_rejects_unknown_state():
     from main import app
-    with patch("main.supabase_admin") as sb:
+    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
         empty_result = MagicMock()
         empty_result.data = []
         sb.table.return_value.select.return_value.eq.return_value.execute.return_value = empty_result
@@ -98,7 +93,7 @@ def test_github_callback_rejects_unknown_state():
 
 def test_github_callback_rejects_expired_state():
     from main import app
-    with patch("main.supabase_admin") as sb:
+    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
         row = _mock_state_row(provider="github", expired=True)
         select_result = MagicMock(data=[row])
         sb.table.return_value.select.return_value.eq.return_value.execute.return_value = select_result
@@ -112,7 +107,7 @@ def test_github_callback_rejects_expired_state():
 
 def test_github_callback_rejects_state_issued_for_different_provider():
     from main import app
-    with patch("main.supabase_admin") as sb:
+    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
         row = _mock_state_row(provider="gmail")
         select_result = MagicMock(data=[row])
         sb.table.return_value.select.return_value.eq.return_value.execute.return_value = select_result
@@ -126,7 +121,7 @@ def test_github_callback_rejects_state_issued_for_different_provider():
 
 def test_github_callback_rejects_replayed_state():
     from main import app
-    with patch("main.supabase_admin") as sb:
+    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
         row = _mock_state_row(provider="github", consumed_at=datetime.now(timezone.utc).isoformat())
         select_result = MagicMock(data=[row])
         sb.table.return_value.select.return_value.eq.return_value.execute.return_value = select_result
@@ -141,7 +136,7 @@ def test_github_callback_rejects_replayed_state():
 
 def test_github_callback_rejects_concurrent_replay_race():
     from main import app
-    with patch("main.supabase_admin") as sb:
+    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
         row = _mock_state_row(provider="github", consumed_at=None)
         select_result = MagicMock(data=[row])
 
@@ -165,6 +160,7 @@ def test_github_callback_uses_org_id_from_state_not_query_param():
     org_id query param to the callback and wires it in by mistake."""
     from main import app
     with patch("main.supabase_admin") as sb, \
+         patch("oauth_state.supabase_admin", sb), \
          patch("main.httpx.AsyncClient") as mock_client_cls, \
          patch("main.register_github_webhook"):
         row = _mock_state_row(provider="github", org_id="org-from-state-row", consumed_at=None)
@@ -200,6 +196,7 @@ def test_github_callback_uses_org_id_from_state_not_query_param():
 def test_github_callback_response_never_contains_access_token():
     from main import app
     with patch("main.supabase_admin") as sb, \
+         patch("oauth_state.supabase_admin", sb), \
          patch("main.httpx.AsyncClient") as mock_client_cls, \
          patch("main.register_github_webhook"):
         row = _mock_state_row(provider="github", org_id="org-1", consumed_at=None)
@@ -233,7 +230,7 @@ def test_github_callback_response_never_contains_access_token():
 import pytest as _p4pytest
 
 
-@_p4pytest.mark.parametrize("path", ["/gmail/callback", "/calendar/callback"])
+@_p4pytest.mark.parametrize("path", ["/gmail/callback"])
 def test_phase4_oauth_callback_failure_does_not_leak_provider_response(path):
     from unittest.mock import patch, AsyncMock, MagicMock
     from fastapi.testclient import TestClient

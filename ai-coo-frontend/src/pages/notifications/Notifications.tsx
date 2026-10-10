@@ -26,7 +26,7 @@ function selectClass() {
 }
 
 const PAGE_SIZE = 25
-const KNOWN_MODULES = ['tasks', 'workflows', 'commit_scheduler', 'github', 'gmail', 'calendar', 'integrations', 'memory', 'job_hunter', 'system']
+const KNOWN_MODULES = ['tasks', 'workflows', 'commit_scheduler', 'github', 'gmail', 'integrations', 'memory', 'job_hunter', 'system']
 
 export default function Notifications() {
   const orgId = useAuthStore((s) => s.user?.organization_id)

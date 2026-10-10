@@ -345,7 +345,7 @@ async def close_pull_request(organization_id: str, repo_full_name: str, pr_numbe
 
 async def summarize_pull_request(organization_id: str, repo_full_name: str, pr_number: int) -> str:
     """On-demand only — never called automatically. Uses the existing shared
-    run_gemini() from config.py, same infra as GitHub/Gmail/Calendar summaries."""
+    run_gemini() from config.py, same infra as GitHub/Gmail summaries."""
     detail = await get_pull_request_detail(organization_id, repo_full_name, pr_number)
 
     files_summary = "\n".join(f"- {f['filename']} (+{f['additions']}/-{f['deletions']})" for f in detail["files"][:30])

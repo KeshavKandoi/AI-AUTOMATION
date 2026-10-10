@@ -65,28 +65,6 @@ def test_create_commit_job_uses_trusted_org_id_not_body():
         _clear(app)
 
 
-def test_upsert_lunch_block_settings_uses_trusted_org_id_not_body():
-    from main import app
-    _override_org(app, org_id="org-real")
-    try:
-        with patch("calendar_automation.routes.service.upsert_settings") as mock_upsert:
-            mock_upsert.return_value = {"organization_id": "org-real"}
-            client = TestClient(app)
-            res = client.post("/lunch-block/settings", json={
-                "organization_id": "org-attacker-forged",
-                "enabled": True,
-                "start_time": "12:00",
-                "end_time": "13:00",
-                "title": "Lunch",
-                "weekdays_only": True,
-            })
-            assert res.status_code == 200
-            mock_upsert.assert_called_once()
-            assert mock_upsert.call_args.kwargs.get("organization_id") == "org-real"
-    finally:
-        _clear(app)
-
-
 def test_orchestrator_run_endpoint_is_not_exposed():
     from main import app
     paths = {getattr(r, "path", "") for r in app.routes}

@@ -9,7 +9,7 @@ export default function Security() {
     <LegalPageLayout title="Security" lastUpdated={LAST_UPDATED}>
       <LegalSection number="1" title="Authorization">
         <p>
-          Access to GitHub, Gmail, and Google Calendar is granted through each provider's own OAuth
+          Access to GitHub and Gmail is granted through each provider's own OAuth
           consent screen — WorkForge never asks for or stores your Google or GitHub password. You can see
           exactly which permissions are being requested before approving, and can revoke access at any
           time from your Integrations settings or directly from your Google Account permissions page.

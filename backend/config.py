@@ -14,12 +14,13 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
-    GOOGLE_REDIRECT_URI: str
     GOOGLE_GMAIL_REDIRECT_URI: str
-    GOOGLE_CALENDAR_REDIRECT_URI: str
-    DISCORD_WEBHOOK_URL: str
-    TEST_GITHUB_ACCESS_TOKEN: str
-    TEST_ORG_ID: str
+    DISCORD_WEBHOOK_URL: str = ""
+    TEST_ORG_ID: str = ""
+    SCHEDULER_ORG_ID: str = ""
+    SCHEDULER_REPOSITORY: str = ""
+    SCHEDULER_SELF_URL: str = ""
+    SCHEDULER_ENABLE_PRODUCTION: bool = False
     GITHUB_WEBHOOK_SECRET: str
     GENERIC_WEBHOOK_SECRET: str
     ALLOW_QUERY_WEBHOOK_SECRET: bool = False
@@ -29,7 +30,6 @@ class Settings(BaseSettings):
     WORKFLOW_MAX_ACTIONS: int = 10
     AI_CALLS_MAX_PER_ORG_PER_HOUR: int = 60
     DISCORD_POSTS_MAX_PER_ORG_PER_HOUR: int = 60
-    CALENDAR_CREATES_MAX_PER_ORG_PER_HOUR: int = 60
     GITHUB_WRITES_MAX_PER_ORG_PER_HOUR: int = 120
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str
@@ -39,10 +39,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     TOKEN_ENCRYPTION_KEY: str
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
-    RENDER_BASE_URL: str = "https://ai-automation-d2s2.onrender.com"
+    RENDER_BASE_URL: str = ""
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
 
@@ -87,7 +88,7 @@ def is_valid_discord_webhook(url) -> bool:
 def pick_discord_webhook(organization_id: str, org_webhook):
     if org_webhook and is_valid_discord_webhook(org_webhook):
         return org_webhook
-    if organization_id == settings.TEST_ORG_ID and is_valid_discord_webhook(settings.DISCORD_WEBHOOK_URL):
+    if settings.ENVIRONMENT != "production" and settings.TEST_ORG_ID and organization_id == settings.TEST_ORG_ID and is_valid_discord_webhook(settings.DISCORD_WEBHOOK_URL):
         return settings.DISCORD_WEBHOOK_URL
     return None
 

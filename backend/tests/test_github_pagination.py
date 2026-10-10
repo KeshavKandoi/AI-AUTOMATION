@@ -38,7 +38,7 @@ def test_github_get_paginated_follows_multiple_pages():
         MagicMock(json=lambda: page3),
     ]
 
-    with patch("main.github_get", new_callable=AsyncMock) as mock_get:
+    with patch("github_helpers.github_get", new_callable=AsyncMock) as mock_get:
         mock_get.side_effect = responses
 
         result = asyncio.run(
@@ -64,7 +64,7 @@ def test_github_get_paginated_stops_on_exact_full_page_then_empty():
     page1 = [_make_repo(i) for i in range(100)]
     page2 = []
 
-    with patch("main.github_get", new_callable=AsyncMock) as mock_get:
+    with patch("github_helpers.github_get", new_callable=AsyncMock) as mock_get:
         mock_get.side_effect = [MagicMock(json=lambda: page1), MagicMock(json=lambda: page2)]
 
         result = asyncio.run(
@@ -80,7 +80,7 @@ def test_github_get_paginated_raises_on_error_response_first_page():
     from main import github_get_paginated
     from fastapi import HTTPException
 
-    with patch("main.github_get", new_callable=AsyncMock) as mock_get:
+    with patch("github_helpers.github_get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = MagicMock(json=lambda: {"message": "Bad credentials"})
 
         try:
@@ -102,7 +102,7 @@ def test_github_repos_endpoint_returns_all_pages():
         page2 = [_make_repo(i) for i in range(100, 145)]  # short page -> last
 
         with patch("closeout._resolve_access_token", return_value="tok"), \
-             patch("main.github_get", new_callable=AsyncMock) as mock_get:
+             patch("github_helpers.github_get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = [MagicMock(json=lambda: page1), MagicMock(json=lambda: page2)]
 
             client = TestClient(app)
@@ -133,7 +133,7 @@ def test_fetch_github_repos_and_issues_paginates_both_repos_and_issues():
     issues_page1 = [_issue(i) for i in range(100)]
     issues_page2 = [_issue(i) for i in range(100, 150)]
 
-    with patch("main.github_get", new_callable=AsyncMock) as mock_get:
+    with patch("github_helpers.github_get", new_callable=AsyncMock) as mock_get:
         mock_get.side_effect = [
             MagicMock(json=lambda: repos_page1),        # repos page 1 (short -> stop)
             MagicMock(json=lambda: issues_page1),        # issues page 1 (full -> continue)

@@ -17,7 +17,7 @@ export default function TermsOfService() {
       <LegalSection number="2" title="Description of WorkForge">
         <p>
           WorkForge is an automation platform that helps you manage tasks, workflows, and optional
-          integrations with services such as GitHub, Gmail, and Google Calendar. Features include task
+          integrations with services such as GitHub and Gmail. Features include task
           tracking, workflow automation, scheduled commits, pull request management, and related
           productivity tools.
         </p>
@@ -33,7 +33,7 @@ export default function TermsOfService() {
 
       <LegalSection number="4" title="Google Integrations">
         <p>
-          You may optionally connect Google services (Gmail, Google Calendar) to WorkForge. By connecting
+          You may optionally connect Google services (Gmail) to WorkForge. By connecting
           these services, you authorize WorkForge to access the specific permissions you approve during the
           Google consent process, solely to provide the corresponding features within the app.
         </p>

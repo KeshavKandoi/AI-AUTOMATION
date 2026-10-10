@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle, ShieldCheck } from 'lucide-react'
+import { GitBranch, Mail, CheckCircle2, Circle, ShieldCheck } from 'lucide-react'
 import { integrationsService, type IntegrationProvider } from '@/services/integrations'
 import { useAuthStore } from '@/store/authStore'
 import Card from '@/components/ui/Card'
@@ -20,15 +20,10 @@ const PROVIDER_META: Record<IntegrationProvider, { label: string; description: s
     icon: Mail,
     dataUseNote: 'Used only to send workflow emails you set up — never sold or used for ads.',
   },
-  calendar: {
-    label: 'Google Calendar',
-    description: 'Views upcoming events and creates events for interviews and workflows you configure.',
-    icon: CalendarIcon,
-    dataUseNote: 'Used only to show upcoming events and create events you or your workflows request — never sold or used for ads.',
-  },
+
 }
 
-const ALL_PROVIDERS: IntegrationProvider[] = ['github', 'gmail', 'calendar']
+const ALL_PROVIDERS: IntegrationProvider[] = ['github', 'gmail']
 
 export default function Integrations() {
   const orgId = useAuthStore((s) => s.user?.organization_id)

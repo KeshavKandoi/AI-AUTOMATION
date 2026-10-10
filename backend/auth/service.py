@@ -30,10 +30,18 @@ def _issue_otp(email: str, purpose: str) -> str:
 
     otp = _generate_otp()
     expires_at = (datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)).isoformat()
-    repository.create_otp(email, _hash_otp(otp), purpose, expires_at)
-    sent = send_otp_email(email, otp, purpose)
+    record = repository.create_otp(email, _hash_otp(otp), purpose, expires_at)
+    try:
+        sent = send_otp_email(email, otp, purpose)
+    except Exception:
+        sent = False
     if not sent:
+        try:
+            repository.mark_otp_consumed(record["id"])
+        except Exception:
+            repository.delete_otp(record["id"])
         logger.error(f"Failed to send OTP email (purpose={purpose})")
+        raise HTTPException(status_code=502, detail="Could not send verification code. Please try again.")
     return otp
 
 
@@ -94,19 +102,15 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
     auth_client = get_auth_client()
 
     try:
-        existing = auth_client.auth.admin.list_users()
+        match = repository.get_user_profile_by_email(email)
     except Exception:
-        logger.exception(f"Signup: list_users failed for {email}")
+        logger.exception("Signup: profile lookup failed")
         raise HTTPException(status_code=502, detail="Authentication service is temporarily unavailable. Please try again shortly.")
 
-    match = next((u for u in existing if u.email == email), None)
-
-    if match and match.email_confirmed_at:
-        return email
-
     if match:
-        # Unconfirmed account from a previous incomplete signup — resend OTP, don't recreate.
-        _issue_otp_quiet(email, "signup")
+        user = auth_client.auth.admin.get_user_by_id(match["id"]).user
+        if not user.email_confirmed_at:
+            _issue_otp_quiet(email, "signup")
         return email
 
     try:
@@ -124,16 +128,24 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
 
     # From here on, a failure leaves an orphaned Supabase Auth user with no
     # org/profile — roll it back so signup can be cleanly retried.
+    org = None
     try:
         org = repository.create_organization(organization_name)
         repository.create_user_profile(user_id, org["id"], email)
         _issue_otp(email, "signup")
-    except Exception:
+    except Exception as error:
         logger.exception(f"Signup: post-user-creation step failed for {email} (user_id={user_id}) — rolling back")
+        if org:
+            try:
+                repository.delete_incomplete_signup(user_id, org["id"])
+            except Exception:
+                logger.exception("Signup rollback: failed to remove incomplete profile and organization")
         try:
             auth_client.auth.admin.delete_user(user_id)
         except Exception:
             logger.exception(f"Signup rollback: failed to delete orphaned auth user {user_id} for {email} — MANUAL CLEANUP NEEDED")
+        if isinstance(error, HTTPException) and error.status_code == 502:
+            raise error
         raise HTTPException(status_code=500, detail="Could not complete signup. Please try again.")
 
     return email
@@ -141,10 +153,10 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
 
 def resend_signup_otp(email: str):
     try:
-        users = _list_users_with_retry()
+        profile = repository.get_user_profile_by_email(email)
+        match = get_auth_client().auth.admin.get_user_by_id(profile["id"]).user if profile else None
     except Exception:
         return
-    match = next((u for u in users if u.email == email), None)
     if match and not match.email_confirmed_at:
         _issue_otp_quiet(email, "signup")
 
@@ -169,8 +181,8 @@ def verify_signup_otp(email: str, otp: str):
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
     auth_client = get_auth_client()
-    users = auth_client.auth.admin.list_users()
-    match = next((u for u in users if u.email == email), None)
+    profile = repository.get_user_profile_by_email(email)
+    match = auth_client.auth.admin.get_user_by_id(profile["id"]).user if profile else None
     if not match:
         raise HTTPException(status_code=404, detail="Account not found")
 
@@ -195,39 +207,15 @@ def login(email: str, password: str):
     return user_out, result.session.access_token, result.session.refresh_token
 
 
-def _list_users_with_retry(max_attempts: int = 3):
-    """The Admin API's list_users has shown itself to be intermittently
-    unreliable in this environment (transient AuthApiError even with a
-    verified-correct key). A sign_in-based probe can't substitute for it here
-    — Supabase deliberately returns the same "Invalid login credentials"
-    message for both existing and nonexistent emails, so there's no way to
-    distinguish them without admin-level lookup. Retrying is the correct fix
-    for a transient failure rather than working around a permanent one."""
-    import time
-    auth_client = get_auth_client()
-    last_error = None
-    for attempt in range(max_attempts):
-        try:
-            return auth_client.auth.admin.list_users()
-        except Exception as e:
-            last_error = e
-            logger.warning(f"list_users attempt {attempt + 1}/{max_attempts} failed: {e}")
-            if attempt < max_attempts - 1:
-                time.sleep(0.5 * (attempt + 1))
-    logger.error(f"list_users failed after {max_attempts} attempts: {last_error}")
-    raise last_error
-
-
 def forgot_password(email: str):
     try:
-        users = _list_users_with_retry()
+        profile = repository.get_user_profile_by_email(email)
     except Exception:
         # Don't leak whether the lookup itself failed vs the email not
         # existing — fail closed (no OTP sent) but still return the same
         # generic message so behavior is indistinguishable to the caller.
         return
-    match = next((u for u in users if u.email == email), None)
-    if match:
+    if profile:
         _issue_otp_quiet(email, "password_reset")
     # Always returns silently regardless of whether the email exists —
     # caller (routes.py) returns the same generic message either way.
@@ -238,12 +226,11 @@ def reset_password(email: str, otp: str, new_password: str):
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
     auth_client = get_auth_client()
-    users = auth_client.auth.admin.list_users()
-    match = next((u for u in users if u.email == email), None)
-    if not match:
+    profile = repository.get_user_profile_by_email(email)
+    if not profile:
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
-    auth_client.auth.admin.update_user_by_id(match.id, {"password": new_password})
+    auth_client.auth.admin.update_user_by_id(profile["id"], {"password": new_password})
 
 
 def change_password(user_id: str, email: str, current_password: str, new_password: str):

@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ai-coo-frontend/package-lock.json
+      - run: npm ci
+        working-directory: ai-coo-frontend
+      - run: npm run lint
+        working-directory: ai-coo-frontend
+      - run: npm run build
+        working-directory: ai-coo-frontend
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt pytest
+        working-directory: backend
+      - run: cp .env.example .env
+        working-directory: backend
+      - run: python -m pytest -q
+        working-directory: backend

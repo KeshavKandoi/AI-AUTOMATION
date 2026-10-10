@@ -24,8 +24,4 @@ export const tasksApi = {
       params: { archive },
     }),
 
-  resolveCalendar: (taskId: string, startTime: string, endTime: string) =>
-    apiClient.post(`/tasks/${taskId}/approve-and-create-event`, undefined, {
-      params: { start_time: startTime, end_time: endTime },
-    }),
 }

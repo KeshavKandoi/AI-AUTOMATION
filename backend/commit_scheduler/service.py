@@ -184,7 +184,7 @@ async def _dispatch_push_workflow_event(job: dict, run: dict) -> None:
     normalized push context a real GitHub webhook would produce and sends it
     through the shared dispatch_workflow_event entry point -- so any
     Push-triggered workflow (send_email, create_task, notify_discord,
-    create_calendar_event, save_audit_log, or any combination) fires exactly
+    save_audit_log, or any combination) fires exactly
     as it would for a real external push, with the same idempotency
     protection against a real GitHub webhook for this same commit arriving
     separately.

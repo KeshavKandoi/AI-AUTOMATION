@@ -194,17 +194,6 @@ def test_send_email_success_path_uses_resolved_recipient():
 
 
 # ---------------------------------------------------------------------------
-# 4. _action_create_calendar_event surfaces the specific reason
-# ---------------------------------------------------------------------------
-
-def test_calendar_event_surfaces_specific_reason():
-    with patch.object(workflow_engine, "_get_org_token", return_value=(None, "No connected calendar integration for this organization")):
-        with pytest.raises(RuntimeError) as exc:
-            run(workflow_engine._action_create_calendar_event("org-1", {"title": "Meeting"}))
-        assert "No connected calendar integration" in str(exc.value)
-
-
-# ---------------------------------------------------------------------------
 # 5. GitHub PUSH trigger matching: org_id resolved server-side, only that
 #    org's workflows fire
 # ---------------------------------------------------------------------------

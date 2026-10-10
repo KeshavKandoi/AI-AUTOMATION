@@ -9,42 +9,41 @@ from auth.schemas import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Frontend (localhost:5173 in dev, or the deployed frontend origin in prod)
-# and backend (Render) are cross-site in every environment this app runs in
-# — SameSite=Lax would be silently dropped by the browser on cross-site
-# fetch/XHR calls (only Strict/Lax-exempt top-level navigations get Lax
-# cookies), breaking the refresh-cookie flow specifically in local dev
-# testing. SameSite=None is required unconditionally here, not just in prod.
-COOKIE_KWARGS = dict(
-    key="refresh_token",
-    httponly=True,
-    secure=True,
-    samesite="none",
-    path="/auth",
-)
-if settings.COOKIE_DOMAIN:
-    COOKIE_KWARGS["domain"] = settings.COOKIE_DOMAIN
+# Local HTTP development uses a same-site cookie; cross-site production uses
+# SameSite=None, which browsers require to be paired with Secure.
+def refresh_cookie_kwargs() -> dict:
+    production = settings.ENVIRONMENT.lower() == "production"
+    kwargs = dict(
+        key="refresh_token",
+        httponly=True,
+        secure=production,
+        samesite="none" if production else "lax",
+        path="/auth",
+    )
+    if settings.COOKIE_DOMAIN:
+        kwargs["domain"] = settings.COOKIE_DOMAIN
+    return kwargs
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str):
-    response.set_cookie(value=refresh_token, max_age=60 * 60 * 24 * 30, **COOKIE_KWARGS)
+    response.set_cookie(value=refresh_token, max_age=60 * 60 * 24 * 30, **refresh_cookie_kwargs())
 
 
 def _clear_refresh_cookie(response: Response):
-    clear_kwargs = {k: v for k, v in COOKIE_KWARGS.items() if k != "key"}
+    clear_kwargs = {k: v for k, v in refresh_cookie_kwargs().items() if k != "key"}
     response.delete_cookie(key="refresh_token", **{k: v for k, v in clear_kwargs.items() if k in ("path", "domain")})
 
 
 @router.post("/signup")
 def signup(payload: SignupRequest):
     email = service.signup(payload.full_name, payload.email, payload.password, payload.organization_name)
-    return {"message": "Verification code sent", "email": email}
+    return {"message": "Check your email for verification instructions", "email": email}
 
 
 @router.post("/resend-otp")
 def resend_otp(payload: ResendOtpRequest):
     service.resend_signup_otp(payload.email)
-    return {"message": "Verification code sent"}
+    return {"message": "If verification is needed, check your email for a code"}
 
 
 @router.post("/verify-otp")

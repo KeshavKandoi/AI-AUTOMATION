@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
-  Calendar,
   CalendarClock,
   CheckSquare,
   ChevronDown,
@@ -86,7 +85,6 @@ const ACTION_ICON: Record<ActionName, typeof Mail> = {
   create_task: CheckSquare,
   send_email: Mail,
   notify_discord: MessageSquare,
-  create_calendar_event: Calendar,
   save_audit_log: FileText,
 }
 

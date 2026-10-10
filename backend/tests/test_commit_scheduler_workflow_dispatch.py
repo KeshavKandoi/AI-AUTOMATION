@@ -2,7 +2,7 @@
 Regression tests for Commit Scheduler dispatching events through the shared
 workflow engine (dispatch_workflow_event) after a successful commit or PR,
 so a Push/PR-triggered workflow (send_email, create_task, notify_discord,
-create_calendar_event, save_audit_log) executes automatically -- without a
+save_audit_log) executes automatically -- without a
 separate, hardcoded email/action implementation living in the scheduler.
 """
 from unittest.mock import patch, MagicMock, AsyncMock

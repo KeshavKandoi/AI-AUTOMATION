@@ -9,149 +9,14 @@ import secrets
 from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token, get_valid_access_token, run_gemini
 
 
-OAUTH_STATE_TTL_MINUTES = 10
+from oauth_state import _issue_oauth_state, _consume_oauth_state
+from github_helpers import fetch_github_repos_and_issues, github_get, github_post, github_get_paginated
 
-
-def _issue_oauth_state(org_id: str, provider: str) -> str:
-    state = secrets.token_urlsafe(32)
-    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=OAUTH_STATE_TTL_MINUTES)).isoformat()
-    supabase_admin.table("oauth_states").insert({
-        "state": state,
-        "organization_id": org_id,
-        "provider": provider,
-        "expires_at": expires_at,
-    }).execute()
-    return state
-
-
-def _consume_oauth_state(state: str, provider: str) -> str:
-    """Validates and single-use-consumes an OAuth state token. Returns the
-    organization_id it was issued for. Raises HTTPException(400) on any
-    invalid, expired, wrong-provider, or already-used state -- the error
-    message is intentionally generic so it does not reveal which specific
-    check failed (avoids leaking timing/enumeration signal to an attacker
-    probing the callback endpoint)."""
-    row_res = supabase_admin.table("oauth_states").select("*").eq("state", state).execute()
-    if not row_res.data:
-        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
-    row = row_res.data[0]
-
-    if row["provider"] != provider:
-        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
-    if row.get("consumed_at") is not None:
-        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
-    expires_at = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
-    if datetime.now(timezone.utc) >= expires_at:
-        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
-
-    # Atomically claim this state: only succeeds if consumed_at is still
-    # null at the moment of the update, closing the replay race window
-    # between the check above and this write.
-    claim_res = supabase_admin.table("oauth_states") \
-        .update({"consumed_at": datetime.now(timezone.utc).isoformat()}) \
-        .eq("id", row["id"]) \
-        .is_("consumed_at", "null") \
-        .execute()
-    if not claim_res.data:
-        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
-
-    return row["organization_id"]
-
-async def fetch_github_repos_and_issues(access_token: str):
-    """Fetches the user's repos and open issues for repos that have any.
-    Paginates both the repo list and each repo's issue list so orgs/repos
-    with more than one GitHub API page of results aren't silently truncated.
-    Wraps outbound GitHub calls so transient network failures (dropped
-    connections, timeouts) return a clean error instead of an unhandled 500."""
-    repos = await github_get_paginated("https://api.github.com/user/repos", access_token)
-
-    repos_with_issues = [r for r in repos if r.get("open_issues_count", 0) > 0]
-    issues_data = []
-    for r in repos_with_issues:
-        issues = await github_get_paginated(
-            f"https://api.github.com/repos/{r['full_name']}/issues",
-            access_token,
-            params={"state": "open"},
-        )
-        for issue in issues:
-            issues_data.append({
-                "repo": r["name"], "title": issue.get("title"),
-                "created_at": issue.get("created_at"), "comments": issue.get("comments"),
-            })
-
-    return issues_data
-
-
-async def github_get(url: str, access_token: str, params: dict = None):
-    """GET a GitHub API URL with clean handling for network-level failures."""
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            res = await client.get(
-                url,
-                headers={"Authorization": f"Bearer {access_token}"},
-                params=params,
-            )
-        return res
-    except httpx.HTTPError as e:
-        logger.error(f"GitHub GET {url} failed: {e}")
-        raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
-
-
-async def github_post(url: str, access_token: str, json_body: dict = None):
-    """POST to a GitHub API URL with clean handling for network-level failures."""
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            res = await client.post(
-                url,
-                headers={"Authorization": f"Bearer {access_token}"},
-                json=json_body,
-            )
-        return res
-    except httpx.HTTPError as e:
-        logger.error(f"GitHub POST {url} failed: {e}")
-        raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
-
-
-GITHUB_MAX_PAGES = 20  # hard ceiling (up to 2000 items at per_page=100) -- safety bound, not expected to be hit
-
-
-async def github_get_paginated(url: str, access_token: str, params: dict = None) -> list:
-    """GETs every page of a GitHub list endpoint (repos, issues, etc.) and
-    returns the concatenated results. Uses per_page=100 and increments page
-    until a page comes back empty or short (fewer than per_page items,
-    meaning it was the last page), or GITHUB_MAX_PAGES is hit as a safety
-    bound. Raises the same clean errors as github_get on network failure or
-    a non-list response (e.g. a GitHub error payload on page 1)."""
-    all_items: list = []
-    page = 1
-    per_page = 100
-    base_params = dict(params or {})
-    base_params["per_page"] = per_page
-
-    while page <= GITHUB_MAX_PAGES:
-        page_params = dict(base_params)
-        page_params["page"] = page
-        res = await github_get(url, access_token, params=page_params)
-        data = res.json()
-
-        if not isinstance(data, list):
-            if page == 1:
-                raise HTTPException(status_code=400, detail="GitHub API error")
-            break
-
-        all_items.extend(data)
-
-        if len(data) < per_page:
-            break
-        page += 1
-
-    return all_items
 import orchestrator
 import scheduler
 from commit_scheduler.routes import router as commit_scheduler_router
 from email_scheduler.routes import router as email_scheduler_router
 from workflow_routes import router as workflow_router
-from calendar_automation.routes import router as lunch_block_router
 from audit_logs.routes import router as audit_logs_router
 from memory.routes import router as memory_router
 from pull_requests.routes import router as pull_requests_router
@@ -190,7 +55,6 @@ app.include_router(workflow_router)
 
 from webhooks.routes import router as webhooks_router
 app.include_router(webhooks_router)
-app.include_router(lunch_block_router)
 app.include_router(audit_logs_router)
 app.include_router(memory_router)
 app.include_router(pull_requests_router)
@@ -277,6 +141,8 @@ from audit_logs.service import log_event
 @app.post("/github/connect-repo")
 async def connect_repo(repo_full_name: str, org_id: str = Depends(get_current_org_id)):
     _valid_repo(repo_full_name)
+    if not settings.RENDER_BASE_URL.startswith("https://"):
+        raise HTTPException(status_code=503, detail="GitHub webhook URL is not configured")
     _rate_limit(org_id, "github_write", "GITHUB_WRITES_MAX_PER_ORG_PER_HOUR")
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
@@ -602,137 +468,6 @@ async def gmail_callback(code: str, state: str):
     return {"status": "connected", "integration_id": integration_id}
 
 
-# ---------- Calendar OAuth ----------
-
-@app.get("/calendar/login")
-def calendar_login(org_id: str = Depends(get_current_org_id)):
-    prompt_param = "&prompt=consent"
-    state = _issue_oauth_state(org_id, "calendar")
-    url = (
-        f"https://accounts.google.com/o/oauth2/v2/auth"
-        f"?client_id={settings.GOOGLE_CLIENT_ID}"
-        f"&redirect_uri={settings.GOOGLE_CALENDAR_REDIRECT_URI}"
-        f"&response_type=code"
-        f"&scope=https://www.googleapis.com/auth/calendar"
-        f"&access_type=offline{prompt_param}&state={state}"
-    )
-    return {"url": url}
-
-
-@app.get("/calendar/callback")
-async def calendar_callback(code: str, state: str):
-    org_id = _consume_oauth_state(state, "calendar")
-    async with httpx.AsyncClient(timeout=20) as client:
-        token_res = await client.post(
-            "https://oauth2.googleapis.com/token",
-            data={
-                "client_id": settings.GOOGLE_CLIENT_ID, "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "code": code, "redirect_uri": settings.GOOGLE_CALENDAR_REDIRECT_URI, "grant_type": "authorization_code"
-            }
-        )
-        token_data = token_res.json()
-
-    access_token = token_data.get("access_token")
-    if not access_token:
-        logger.error(f"Calendar OAuth exchange failed: {token_data.get('error', 'unknown')}")
-        raise HTTPException(status_code=400, detail="Calendar authorization failed")
-
-    integration = supabase_admin.table("integrations").insert({
-        "organization_id": org_id, "provider": "calendar", "connected": True
-    }).execute()
-    integration_id = integration.data[0]["id"]
-
-    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3599))).isoformat()
-
-    supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id, "access_token": encrypt_token(access_token),
-        "refresh_token": encrypt_token(token_data.get("refresh_token")), "expires_at": expires_at
-    }).execute()
-
-    return {"status": "connected", "integration_id": integration_id}
-
-
-@app.get("/calendar/events")
-async def calendar_events(org_id: str = Depends(get_current_org_id)):
-    from closeout import _resolve_access_token
-    access_token = _resolve_access_token(org_id, "calendar")
-    async with httpx.AsyncClient() as client:
-        res = await client.get(
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            headers={"Authorization": f"Bearer {access_token}"},
-            params={"timeMin": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
-        )
-    if res.status_code != 200:
-        raise HTTPException(status_code=502, detail="Could not load calendar events")
-    data = res.json()
-    events = data.get("items", [])
-    formatted = [
-        {"summary": e.get("summary"),
-         "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
-         "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date")}
-        for e in events
-    ]
-    return {"event_count": len(formatted), "events": formatted}
-
-
-@app.get("/calendar/summary")
-async def calendar_summary(org_id: str = Depends(get_current_org_id)):
-    from closeout import _resolve_access_token
-    _rate_limit(org_id, "ai_call", "AI_CALLS_MAX_PER_ORG_PER_HOUR")
-    access_token = _resolve_access_token(org_id, "calendar")
-    async with httpx.AsyncClient() as client:
-        res = await client.get(
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            headers={"Authorization": f"Bearer {access_token}"},
-            params={"timeMin": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "maxResults": 10, "singleEvents": "true", "orderBy": "startTime"}
-        )
-    if res.status_code != 200:
-        raise HTTPException(status_code=502, detail="Could not load calendar events")
-    data = res.json()
-    events = data.get("items", [])
-    if not events:
-        return {"summary": "No upcoming events. Calendar is clear."}
-
-    formatted = [
-        {"summary": e.get("summary"),
-         "start": e.get("start", {}).get("dateTime") or e.get("start", {}).get("date"),
-         "end": e.get("end", {}).get("dateTime") or e.get("end", {}).get("date")}
-        for e in events
-    ]
-
-    prompt = f"""You are an AI assistant summarizing a founder's upcoming calendar.
-Here is the event data: {formatted}
-
-Give a short summary covering:
-- How many upcoming events
-- Any potential scheduling conflicts (overlapping times)
-- What's coming up soonest
-Keep it under 150 words."""
-
-    response = run_gemini(prompt)
-    return {"summary": response.text}
-
-
-@app.post("/calendar/create-event")
-async def calendar_create_event(summary: str, start_time: str, end_time: str, org_id: str = Depends(get_current_org_id)):
-    if not summary.strip() or len(summary) > 500 or len(start_time) > 64 or len(end_time) > 64:
-        raise HTTPException(status_code=422, detail="Invalid event fields")
-    _parse_event_time(start_time)
-    _parse_event_time(end_time)
-    _rate_limit(org_id, "calendar_create", "CALENDAR_CREATES_MAX_PER_ORG_PER_HOUR")
-    from closeout import _resolve_access_token
-    access_token = _resolve_access_token(org_id, "calendar")
-    async with httpx.AsyncClient(timeout=20) as client:
-        res = await client.post(
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={"summary": summary, "start": {"dateTime": start_time}, "end": {"dateTime": end_time}}
-        )
-    if res.status_code != 200:
-        raise HTTPException(status_code=400, detail=f"Calendar request failed with status {res.status_code}")
-    event = res.json()
-    return {"status": "created", "event_link": event.get("htmlLink")}
-
 # ---------- Discord Agent ----------
 
 def _org_discord_webhook(org_id: str):
@@ -793,8 +528,6 @@ async def discord_daily_report(org_id: str = Depends(get_current_org_id)):
     await _post_discord(_org_discord_webhook(org_id), report[:1900])
 
     return {"status": "sent", "report": report}
-
-# ---------- Memory System moved to memory/routes.py ----------
 
 # ---------- Human Approval Layer ----------
 
@@ -970,67 +703,6 @@ async def approve_and_send_email(task_id: str, to_email: str | None = None, arch
 
     return {"status": "email_sent", "task_id": task_id, "to": to_email}
 
-# ---------- Calendar Agent (Write Action, Approval-Gated) ----------
-
-@app.post("/tasks/{task_id}/approve-and-create-event")
-async def approve_and_create_event(task_id: str, start_time: str, end_time: str, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
-    from closeout import run_closeout, _resolve_access_token
-
-    _parse_event_time(start_time)
-    _parse_event_time(end_time)
-
-    task_res = supabase_admin.table("tasks").select("*").eq("id", task_id).eq("organization_id", org_id).execute()
-    if not task_res.data:
-        raise HTTPException(status_code=404, detail="Task not found")
-    task = task_res.data[0]
-
-    if task.get("status") != "approved":
-        raise HTTPException(status_code=403, detail="Task must be approved before creating a calendar event")
-
-    access_token = _resolve_access_token(task["organization_id"], "calendar")
-
-    if not _claim_task(task_id, org_id, "approved", "event_created"):
-        raise HTTPException(status_code=409, detail="Task is already being processed or completed")
-
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            res = await client.post(
-                "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-                headers={"Authorization": f"Bearer {access_token}"},
-                json={
-                    "summary": task["title"],
-                    "description": task.get("description", ""),
-                    "start": {"dateTime": start_time},
-                    "end": {"dateTime": end_time},
-                }
-            )
-        if res.status_code != 200:
-            raise HTTPException(status_code=400, detail=f"Calendar request failed with status {res.status_code}")
-        event = res.json()
-    except httpx.HTTPError:
-        _release_task(task_id, org_id, "event_created", "approved")
-        raise HTTPException(status_code=502, detail="Could not reach Google Calendar")
-    except Exception:
-        _release_task(task_id, org_id, "event_created", "approved")
-        raise
-
-    log_event(
-        organization_id=task["organization_id"],
-        module="calendar",
-        action="calendar_event_created",
-        summary=f"Calendar event created for task: {task.get('title', 'Untitled')}",
-        status="success",
-        resource_type="task",
-        resource_id=task_id,
-        metadata={"event_link": event.get("htmlLink")},
-        source="backend",
-    )
-
-    if task.get("source_ref"):
-        await run_closeout(task, approved=True, access_token=access_token, notes=f"Follow-up event created: {event.get('htmlLink')}")
-
-    return {"status": "event_created", "event_link": event.get("htmlLink"), "task_id": task_id}
-
 # ---------- Scheduled Commits ----------
 
 @app.post("/commits/schedule")
@@ -1063,7 +735,7 @@ def schedule_commit(target_date: str, folder_path: str,
 
 @app.post("/commits/run-now")
 async def commits_run_now(org_id: str = Depends(get_current_org_id)):
-    if org_id != settings.TEST_ORG_ID:
+    if org_id != settings.SCHEDULER_ORG_ID or not scheduler.scheduler_target():
         raise HTTPException(status_code=403, detail="Not permitted")
     await scheduler.check_and_commit_job()
     return {"status": "triggered"}
@@ -1081,7 +753,7 @@ def get_integrations_status(org_id: str = Depends(get_current_org_id)):
     latest_by_provider = {}
     for row in result.data:
         provider = row["provider"]
-        if provider not in latest_by_provider:
+        if provider in {"github", "gmail"} and provider not in latest_by_provider:
             latest_by_provider[provider] = row
 
     return [
@@ -1089,11 +761,9 @@ def get_integrations_status(org_id: str = Depends(get_current_org_id)):
         for row in latest_by_provider.values()
     ]
 
-# ---------- Audit Logs moved to audit_logs/routes.py ----------
-
 # ---------- Integration Disconnect ----------
 
-VALID_PROVIDERS = {"github", "gmail", "calendar"}
+VALID_PROVIDERS = {"github", "gmail"}
 
 
 @app.post("/{provider}/disconnect")

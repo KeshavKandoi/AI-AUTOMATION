@@ -114,7 +114,6 @@ async def github_webhook(
 
     org_id = org["id"]
 
-    # --- New: single-issue events go through the configurable workflow engine ---
     if x_github_event == "issues" and payload.get("action") == "opened":
         issue = payload.get("issue", {})
         context = {
@@ -140,9 +139,6 @@ async def github_webhook(
             "priority": context["priority"]
         }
 
-    # --- New: push events also go through the configurable workflow engine,
-    # in addition to (not instead of) the existing orchestrator run below,
-    # so existing push-triggered orchestrator behavior is unchanged. ---
     if x_github_event == "push":
         head_commit = payload.get("head_commit") or {}
         push_context = {
@@ -162,9 +158,6 @@ async def github_webhook(
         await dispatch_workflow_event(org_id, "push", push_context, event_key=push_context["commit_sha"] or "")
         logger.info(f"Workflow dispatch complete for push to {push_context['branch']} ({push_context['commit_sha']})")
 
-    # --- New: pull_request "opened" actions also go through the configurable
-    # workflow engine, in addition to the existing orchestrator run below for
-    # all pull_request actions (unchanged). ---
     if x_github_event == "pull_request" and payload.get("action") == "opened":
         pr = payload.get("pull_request", {})
         pr_context = {
@@ -182,7 +175,6 @@ async def github_webhook(
         await dispatch_workflow_event(org_id, "pull_request_opened", pr_context, event_key=pr_event_key)
         logger.info(f"Workflow dispatch complete for PR #{pr_context['pr_number']} opened")
 
-    # --- Existing behavior: push / pull_request / other issue actions still run the orchestrator ---
     token_res = supabase_admin.table("integrations").select("id").eq("organization_id", org_id).eq("provider", "github").eq("connected", True).order("created_at", desc=True).execute()
     if not token_res.data:
         raise HTTPException(status_code=400, detail="No connected GitHub integration for this org")
@@ -195,7 +187,6 @@ async def github_webhook(
     initial_state = {
         "github_token": access_token,
         "gmail_token": "",
-        "calendar_token": "",
         "org_id": org_id,
         "issues_data": [],
         "emails_data": [],
@@ -231,7 +222,7 @@ def _resolve_generic_secret(header_value, query_value):
 async def trigger_commit_job(job_id: str, x_webhook_secret: str = Header(None), secret: str = Query(None)):
     verify_generic_secret(_resolve_generic_secret(x_webhook_secret, secret))
     job = commit_repo.get_job(job_id)
-    if not job or job.get("organization_id") != settings.TEST_ORG_ID:
+    if not job or not settings.SCHEDULER_ORG_ID or job.get("organization_id") != settings.SCHEDULER_ORG_ID:
         raise HTTPException(status_code=404, detail="Commit job not found")
     run = await commit_service.execute_job(job)
     logger.info(f"Webhook-triggered commit job {job_id} -> {run['status']}")
@@ -242,7 +233,7 @@ async def trigger_commit_job(job_id: str, x_webhook_secret: str = Header(None), 
 async def trigger_email_job(job_id: str, x_webhook_secret: str = Header(None), secret: str = Query(None)):
     verify_generic_secret(_resolve_generic_secret(x_webhook_secret, secret))
     job = email_repo.get_job(job_id)
-    if not job or job.get("organization_id") != settings.TEST_ORG_ID:
+    if not job or not settings.SCHEDULER_ORG_ID or job.get("organization_id") != settings.SCHEDULER_ORG_ID:
         raise HTTPException(status_code=404, detail="Email job not found")
     run = await email_service.execute_job(job)
     logger.info(f"Webhook-triggered email job {job_id} -> {run['status']}")

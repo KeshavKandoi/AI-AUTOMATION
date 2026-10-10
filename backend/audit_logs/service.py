@@ -35,7 +35,7 @@ def log_event(
     Args:
         organization_id: org this event belongs to (required for every log).
         module: which part of AI COO this came from, e.g. "tasks",
-            "workflows", "commit_scheduler", "github", "gmail", "calendar",
+            "workflows", "commit_scheduler", "github", "gmail",
             "human_approval", "auth", "settings". Free text — new modules
             don't need a backend change to start logging.
         action: short machine-readable action name, e.g. "task_created",

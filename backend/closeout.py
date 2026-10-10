@@ -83,44 +83,9 @@ async def close_gmail_loop(task: dict, access_token: str, approved: bool, archiv
     # No Gmail API call here — see docstring above.
 
 
-async def _calendar_patch(access_token: str, event_id: str, payload: dict):
-    async with httpx.AsyncClient() as client:
-        res = await client.patch(
-            f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json=payload
-        )
-    if res.status_code != 200:
-        raise RuntimeError(f"Calendar update failed with status {res.status_code}")
-
-
-async def _calendar_delete(access_token: str, event_id: str):
-    async with httpx.AsyncClient() as client:
-        res = await client.delete(
-            f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{event_id}",
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-    if res.status_code not in (200, 204):
-        raise RuntimeError(f"Calendar delete failed with status {res.status_code}")
-
-
-async def close_calendar_loop(task: dict, access_token: str, approved: bool, decline: bool = False, notes: str = None):
-    source_type, event_id = parse_source_ref(task.get("source_ref", ""))
-    if source_type != "calendar" or not event_id:
-        raise RuntimeError(f"Cannot close Calendar loop — invalid source_ref: {task.get('source_ref')}")
-
-    if approved:
-        if notes:
-            await _calendar_patch(access_token, event_id, {"description": notes})
-    else:
-        if decline:
-            await _calendar_delete(access_token, event_id)
-
-
 CLOSEOUT_HANDLERS = {
     "github": close_github_loop,
     "gmail": close_gmail_loop,
-    "calendar": close_calendar_loop,
 }
 
 

@@ -1,6 +1,5 @@
 """
-Regression tests for _derive_context_label, which fixes save_audit_log and
-create_calendar_event showing generic "Untitled"/"Workflow event" labels for
+Regression tests for _derive_context_label, which fixes save_audit_log showing generic labels for
 push-triggered runs (push contexts have no 'title' field at all -- only
 issue_created/pull_request_opened contexts do).
 """
@@ -47,21 +46,6 @@ def test_save_audit_log_uses_commit_message_for_push_context():
         assert "Untitled" not in summary
 
 
-def test_calendar_event_uses_commit_message_for_push_context():
-    context = {"repo": "acme/repo", "branch": "main", "commit_message": "add feature X"}
-    fake_response = MagicMock()
-    fake_response.status_code = 200
-    fake_response.json.return_value = {"htmlLink": "https://calendar.google.com/x"}
-
-    from unittest.mock import AsyncMock
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value.post = AsyncMock(return_value=fake_response)
-
-    with patch.object(workflow_engine, "_get_org_token", return_value=("ya29.valid-token", None)), \
-         patch.object(workflow_engine.httpx, "AsyncClient", return_value=mock_client):
-        run(workflow_engine._action_create_calendar_event("org-A", context))
-        sent_json = mock_client.__aenter__.return_value.post.call_args.kwargs["json"]
-        assert sent_json["summary"] == "add feature X"
 
 
 def test_save_audit_log_still_uses_real_title_for_issue_context_unchanged():

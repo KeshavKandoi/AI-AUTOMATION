@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, GitBranch, Mail, Calendar as CalendarIcon, ExternalLink } from 'lucide-react'
+import { Check, X, GitBranch, Mail, ExternalLink } from 'lucide-react'
 import { tasksApi } from '@/api/tasks'
 import { useAuthStore } from '@/store/authStore'
 import Badge from '@/components/ui/Badge'
@@ -13,28 +13,16 @@ const priorityTone: Record<string, 'alert' | 'amber' | 'neutral'> = {
   low: 'neutral',
 }
 
-function providerFromSourceRef(sourceRef?: string | null): 'github' | 'gmail' | 'calendar' | null {
+function providerFromSourceRef(sourceRef?: string | null): 'github' | 'gmail' | null {
   if (!sourceRef) return null
   if (sourceRef.startsWith('github:')) return 'github'
   if (sourceRef.startsWith('gmail:')) return 'gmail'
-  if (sourceRef.startsWith('calendar:')) return 'calendar'
   return null
-}
-
-function defaultTimeRange() {
-  const start = new Date(Date.now() + 60 * 60 * 1000)
-  const end = new Date(start.getTime() + 30 * 60 * 1000)
-  const toLocalInput = (d: Date) => {
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-  }
-  return { start: toLocalInput(start), end: toLocalInput(end) }
 }
 
 export default function HumanApproval() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
-  const [calendarTimes, setCalendarTimes] = useState<Record<string, { start: string; end: string }>>({})
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks', orgId],
@@ -60,16 +48,9 @@ export default function HumanApproval() {
     mutationFn: (taskId: string) => tasksApi.resolveGmail(taskId),
     onSettled: invalidate,
   })
-  const resolveCalendarMutation = useMutation({
-    mutationFn: ({ taskId, start, end }: { taskId: string; start: string; end: string }) =>
-      tasksApi.resolveCalendar(taskId, new Date(start).toISOString(), new Date(end).toISOString()),
-    onSettled: invalidate,
-  })
-
   const awaitingApproval = useMemo(() => tasks?.filter((t) => t.status === 'open') ?? [], [tasks])
   const awaitingResolution = useMemo(() => tasks?.filter((t) => t.status === 'approved') ?? [], [tasks])
 
-  const getCalendarTimes = (taskId: string) => calendarTimes[taskId] ?? defaultTimeRange()
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -165,7 +146,6 @@ export default function HumanApproval() {
               <AnimatePresence initial={false}>
                 {awaitingResolution.map((task) => {
                   const provider = providerFromSourceRef(task.source_ref)
-                  const times = getCalendarTimes(task.id)
 
                   return (
                     <motion.div
@@ -217,39 +197,6 @@ export default function HumanApproval() {
                             <Mail size={14} />
                             Send email
                           </Button>
-                        )}
-
-                        {provider === 'calendar' && (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="datetime-local"
-                              value={times.start}
-                              onChange={(e) =>
-                                setCalendarTimes((prev) => ({
-                                  ...prev,
-                                  [task.id]: { ...times, start: e.target.value },
-                                }))
-                              }
-                              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-text-primary)]"
-                            />
-                            <Button
-                              variant="secondary"
-                              onClick={() =>
-                                resolveCalendarMutation.mutate({
-                                  taskId: task.id,
-                                  start: times.start,
-                                  end: times.end,
-                                })
-                              }
-                              loading={
-                                resolveCalendarMutation.isPending &&
-                                resolveCalendarMutation.variables?.taskId === task.id
-                              }
-                            >
-                              <CalendarIcon size={14} />
-                              Create event
-                            </Button>
-                          </div>
                         )}
 
                         {!provider && (

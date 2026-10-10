@@ -1,6 +1,6 @@
 import {
-  LayoutDashboard, MessageSquare, ListTodo, Workflow, GitBranch, Mail,
-  Calendar, GitCommitHorizontal, GitPullRequest, ShieldCheck, ScrollText,
+  LayoutDashboard, MessageSquare, ListTodo, Workflow, GitBranch,
+  GitCommitHorizontal, GitPullRequest, ShieldCheck, ScrollText,
   Plug, Brain, Bell, BarChart3, Settings, Briefcase, GitFork,
 } from 'lucide-react'
 
@@ -17,8 +17,6 @@ export const navItems: NavItem[] = [
   { label: 'Tasks', path: '/tasks', icon: ListTodo },
   { label: 'Workflow Automations', path: '/workflows', icon: Workflow },
   { label: 'GitHub', path: '/integrations/github', icon: GitBranch },
-  { label: 'Import Email', path: '/integrations/gmail', icon: Mail },
-  { label: 'Google Calendar', path: '/integrations/calendar', icon: Calendar },
   { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal },
   { label: 'Open Source', path: '/open-source', icon: GitFork },
   { label: 'Pull Requests', path: '/pull-requests', icon: GitPullRequest },

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator, model_validator
 
 TriggerType = Literal["issue_created", "push", "pull_request_opened"]
-ActionName = Literal["create_task", "send_email", "notify_discord", "create_calendar_event", "save_audit_log"]
+ActionName = Literal["create_task", "send_email", "notify_discord", "save_audit_log"]
 LifetimeMode = Literal["continuous", "run_once", "until_date"]
 
 MAX_WORKFLOW_ACTIONS = 10

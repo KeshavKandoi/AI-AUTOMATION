@@ -2,7 +2,7 @@
 Scheduler entry points for Job Hunter. Wired into scheduler.py on a
 6-hour interval (search) and independently for reminders. Mirrors the
 pattern of commit_scheduler/scheduler_jobs.py and
-calendar_automation/scheduler_jobs.py — a thin orchestration layer that
+the scheduler — a thin orchestration layer that
 calls into service.py, never touches the DB or platform adapters directly.
 """
 from config import logger

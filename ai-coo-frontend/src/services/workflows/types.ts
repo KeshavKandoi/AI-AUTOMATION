@@ -1,5 +1,5 @@
 export type TriggerType = 'issue_created' | 'push' | 'pull_request_opened'
-export type ActionName = 'create_task' | 'send_email' | 'notify_discord' | 'create_calendar_event' | 'save_audit_log'
+export type ActionName = 'create_task' | 'send_email' | 'notify_discord' | 'save_audit_log'
 export type WorkflowStatus = 'active' | 'paused' | 'completed' | 'expired'
 export type LifetimeMode = 'continuous' | 'run_once' | 'until_date'
 export type RunStatus = 'success' | 'partial_failure' | 'skipped_conditions'
@@ -107,7 +107,6 @@ export const ACTION_OPTIONS: { value: ActionName; label: string; description: st
   { value: 'create_task', label: 'Create task', description: 'Adds a task to your task list' },
   { value: 'send_email', label: 'Send email', description: 'Emails your notification address via Gmail' },
   { value: 'notify_discord', label: 'Notify Discord', description: 'Posts a message to your Discord webhook' },
-  { value: 'create_calendar_event', label: 'Create calendar event', description: 'Adds a 30-minute event to your calendar' },
   { value: 'save_audit_log', label: 'Save audit log', description: 'Records the event in your audit log' },
 ]
 

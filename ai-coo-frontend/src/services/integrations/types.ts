@@ -1,4 +1,4 @@
-export type IntegrationProvider = 'github' | 'gmail' | 'calendar'
+export type IntegrationProvider = 'github' | 'gmail'
 
 export interface Integration {
   id: string

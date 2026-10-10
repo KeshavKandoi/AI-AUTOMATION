@@ -21,8 +21,6 @@ import type {
   ProviderHealthResponse,
   ReminderOut,
   SearchTriggerResponse,
-  ImportEmailPayload,
-  ImportEmailResult,
 } from './types'
 
 export const realJobHunterService = {
@@ -144,9 +142,6 @@ export const realJobHunterService = {
     apiClient
       .post<SearchTriggerResponse>('/job-hunter/search/run-now')
       .then((r) => r.data),
-
-  importEmail: (payload: ImportEmailPayload) =>
-    apiClient.post<ImportEmailResult>('/job-hunter/import-email', payload).then((r) => r.data),
 
   // Provider health
   getProviderHealth: () =>

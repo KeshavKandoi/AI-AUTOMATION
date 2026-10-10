@@ -14,10 +14,8 @@ _MODULE_HINTS = {
     "task_": "tasks",
     "github_": "github",
     "email_": "gmail",
-    "calendar_": "calendar",
     "workflow_": "workflows",
     "closeout_": "tasks",
-    "missed_event_": "calendar",
     "gmail_": "gmail",
 }
 

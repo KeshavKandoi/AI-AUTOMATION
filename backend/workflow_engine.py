@@ -70,7 +70,7 @@ def _get_org_email(organization_id: str):
 
 def _derive_context_label(context: dict) -> str:
     """Derives a meaningful, human-readable label for a triggering event,
-    for actions (save_audit_log, create_calendar_event) that need a title
+    for actions (save_audit_log) that need a title
     but whose trigger type may not provide one directly.
 
     issue_created and pull_request_opened contexts already carry a real
@@ -78,7 +78,7 @@ def _derive_context_label(context: dict) -> str:
     below), unchanged in substance from prior behavior. push contexts have
     no 'title' at all (they carry commit_message, repo, branch, commit_sha
     instead), so without this, every push-triggered audit log entry /
-    calendar event silently fell back to a hardcoded generic label
+    task title silently fell back to a hardcoded generic label
     ("Untitled" / "Workflow event") regardless of what was actually pushed
     -- this fixes that by using the real commit message, falling back
     further to repo@branch if even that is missing.
@@ -265,30 +265,6 @@ async def _action_notify_discord(organization_id: str, context: dict) -> dict:
     return {"status": "sent"}
 
 
-async def _action_create_calendar_event(organization_id: str, context: dict) -> dict:
-    access_token, token_error = _get_org_token(organization_id, "calendar")
-    if not access_token:
-        raise RuntimeError(token_error or "Calendar is not connected for this organization")
-
-    start = datetime.now(timezone.utc) + timedelta(hours=1)
-    end = start + timedelta(minutes=30)
-
-    async with httpx.AsyncClient(timeout=20) as client:
-        res = await client.post(
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={
-                "summary": _derive_context_label(context),
-                "description": context.get("description", ""),
-                "start": {"dateTime": start.isoformat()},
-                "end": {"dateTime": end.isoformat()},
-            }
-        )
-    if res.status_code != 200:
-        raise RuntimeError(f"Calendar event failed with status {res.status_code}")
-    return {"event_link": res.json().get("htmlLink")}
-
-
 async def _action_save_audit_log(organization_id: str, context: dict) -> dict:
     log_event(
         organization_id=organization_id,
@@ -306,7 +282,6 @@ ACTION_REGISTRY = {
     "create_task": _action_create_task,
     "send_email": _action_send_email,
     "notify_discord": _action_notify_discord,
-    "create_calendar_event": _action_create_calendar_event,
     "save_audit_log": _action_save_audit_log,
 }
 
@@ -360,7 +335,7 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
     organization_id = workflow["organization_id"]
     started = time.monotonic()
     # Attach the workflow's own name to the context so actions like
-    # save_audit_log / create_calendar_event can show "<workflow name>: <event>"
+    # save_audit_log can show "<workflow name>: <event>"
     # instead of just the raw event details -- copy, never mutate the
     # caller's original context dict.
     context = {**context, "_workflow_name": workflow.get("name")}

@@ -6,7 +6,7 @@ value as the idempotency event_key, and a real GitHub webhook for the same
 commit reports the true commit sha, the mismatch caused a scheduler-dispatched
 event and a real webhook event for the identical commit to be treated as two
 different events -- firing every configured workflow action twice (observed:
-duplicate emails, duplicate calendar events, duplicate audit log entries,
+duplicate emails and duplicate audit log entries,
 duplicate tasks).
 
 This test uses a realistic GitHub Contents API PUT response where the blob
