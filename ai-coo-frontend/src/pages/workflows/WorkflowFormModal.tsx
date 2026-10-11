@@ -137,9 +137,6 @@ function lifetimeClause(mode: LifetimeMode, expiresAtLocal: string): string {
 // Maps each backend-supported condition field (from TRIGGER_FIELDS) to the
 // friendliest input control for its data shape. Every field here must exist
 // in TRIGGER_FIELDS — we never invent a filter the backend can't evaluate.
-// NOTE: `priority` options and branch suggestions are inferred from the one
-// example context we've seen; confirm against the real backend enum/values
-// and adjust if they differ.
 type FieldControl = 'select' | 'multiselect' | 'text' | 'number' | 'boolean' | 'autocomplete'
 
 interface FieldUIConfig {
@@ -149,7 +146,7 @@ interface FieldUIConfig {
 
 const FIELD_UI: Record<TriggerType, Record<string, FieldUIConfig>> = {
   issue_created: {
-    priority: { control: 'select', options: ['low', 'medium', 'high', 'critical'] },
+    priority: { control: 'select', options: ['low', 'medium', 'high'] },
     labels: { control: 'multiselect' },
     repo: { control: 'text' },
     issue_number: { control: 'number' },

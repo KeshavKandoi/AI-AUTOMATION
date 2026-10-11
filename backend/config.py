@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
     GOOGLE_GMAIL_REDIRECT_URI: str
+    GOOGLE_CALENDAR_REDIRECT_URI: str
     DISCORD_WEBHOOK_URL: str = ""
     TEST_ORG_ID: str = ""
     SCHEDULER_ORG_ID: str = ""
@@ -31,6 +32,7 @@ class Settings(BaseSettings):
     AI_CALLS_MAX_PER_ORG_PER_HOUR: int = 60
     DISCORD_POSTS_MAX_PER_ORG_PER_HOUR: int = 60
     GITHUB_WRITES_MAX_PER_ORG_PER_HOUR: int = 120
+    CALENDAR_CREATES_MAX_PER_ORG_PER_HOUR: int = 60
     RESEND_API_KEY: str
     RESEND_FROM_EMAIL: str
     OTP_EXPIRY_MINUTES: int = 10

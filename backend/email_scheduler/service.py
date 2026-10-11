@@ -1,6 +1,7 @@
 import base64
 from email.mime.text import MIMEText
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import httpx
 from fastapi import HTTPException
 
@@ -76,14 +77,14 @@ def get_job_with_runs(job_id: str, organization_id: str) -> dict:
     return {**job, "runs": runs}
 
 
-async def execute_job(job: dict) -> dict:
-    run_date = date.today().isoformat()
+async def execute_job(job: dict, force: bool = False) -> dict:
+    run_date = datetime.now(ZoneInfo("Asia/Kolkata")).date().isoformat()
 
-    if repository.has_run_for_date(job["id"], run_date):
-        return repository.create_run({
+    if not force and repository.has_run_for_date(job["id"], run_date):
+        return {
             "job_id": job["id"], "run_date": run_date, "status": "skipped",
-            "error_message": "Already ran for this date"
-        })
+            "error_message": "An attempt was already recorded for this date"
+        }
 
     try:
         reserve_gmail_send(job["organization_id"], "email_job")

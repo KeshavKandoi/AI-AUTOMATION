@@ -31,5 +31,5 @@ def delete_job(job_id: str, org_id: str = Depends(get_current_org_id)):
 @router.post("/{job_id}/run-now")
 async def run_job_now(job_id: str, org_id: str = Depends(get_current_org_id)):
     job = service.get_job_or_404(job_id, org_id)
-    run = await service.execute_job(job)
+    run = await service.execute_job(job, force=True)
     return {"status": "triggered", "run": run}

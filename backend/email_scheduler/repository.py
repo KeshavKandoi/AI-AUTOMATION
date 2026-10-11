@@ -34,5 +34,5 @@ def get_runs_for_job(job_id: str) -> list[dict]:
     return result.data
 
 def has_run_for_date(job_id: str, run_date: str) -> bool:
-    result = supabase_admin.table("email_job_runs").select("id").eq("job_id", job_id).eq("run_date", run_date).in_("status", ["success", "pending"]).execute()
+    result = supabase_admin.table("email_job_runs").select("id").eq("job_id", job_id).eq("run_date", run_date).limit(1).execute()
     return len(result.data) > 0

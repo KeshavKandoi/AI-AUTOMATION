@@ -46,7 +46,7 @@ async def _github_close(access_token: str, owner_repo: str, issue_number: str):
         raise RuntimeError(f"GitHub close failed with status {res.status_code}")
 
 
-async def close_github_loop(task: dict, access_token: str, approved: bool, resolution: str = None, pr_url: str = None):
+async def close_github_loop(task: dict, access_token: str, approved: bool, resolution: str = None, pr_url: str = None, notes: str = None):
     source_type, identifier = parse_source_ref(task.get("source_ref", ""))
     if source_type != "github" or not identifier or "#" not in identifier:
         raise RuntimeError(f"Cannot close GitHub loop — invalid source_ref: {task.get('source_ref')}")
@@ -57,6 +57,8 @@ async def close_github_loop(task: dict, access_token: str, approved: bool, resol
         body = f"Task completed: {task.get('title')}\n\n{task.get('description', '')}"
         if pr_url:
             body += f"\n\nReference: {pr_url}"
+        if notes:
+            body += f"\n\n{notes}"
         await _github_comment(access_token, owner_repo, issue_number, body)
         if resolution == "resolved":
             await _github_close(access_token, owner_repo, issue_number)
@@ -65,7 +67,13 @@ async def close_github_loop(task: dict, access_token: str, approved: bool, resol
         await _github_comment(access_token, owner_repo, issue_number, body)
 
 
-async def close_gmail_loop(task: dict, access_token: str, approved: bool, archive: bool = False):
+async def close_gmail_loop(
+    task: dict,
+    access_token: str,
+    approved: bool,
+    archive: bool = False,
+    notes: str | None = None,
+):
     """Gmail closeout is intentionally a no-op. WorkForge's Gmail OAuth
     access is send only (gmail.send) and must never
     modify a user's mailbox state — no label changes, no marking read,
@@ -73,7 +81,7 @@ async def close_gmail_loop(task: dict, access_token: str, approved: bool, archiv
     source_ref so a malformed Gmail-sourced task surfaces a clear error,
     then completes successfully without calling the Gmail API.
 
-    `access_token` and `archive` are accepted only to preserve the
+    `access_token`, `archive`, and `notes` are accepted only to preserve the
     uniform (task, access_token, approved, **kwargs) signature that
     run_closeout's CLOSEOUT_HANDLERS dispatch relies on for every source
     type — they are otherwise unused here by design."""

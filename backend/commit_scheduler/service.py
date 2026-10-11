@@ -210,7 +210,8 @@ async def _dispatch_push_workflow_event(job: dict, run: dict) -> None:
     }
     try:
         await dispatch_workflow_event(
-            job["organization_id"], "push", push_context, event_key=commit_sha
+            job["organization_id"], "push", push_context,
+            event_key=f"{commit_sha}:{push_context['branch']}"
         )
     except Exception as e:
         logger.error(

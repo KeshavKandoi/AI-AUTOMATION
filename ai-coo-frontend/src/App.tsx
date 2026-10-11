@@ -20,6 +20,7 @@ import CommitScheduler from '@/pages/commitScheduler/CommitScheduler'
 import PullRequests from '@/pages/pullRequests/PullRequests'
 import OpenSource from '@/pages/openSource/OpenSource'
 import GitHub from '@/pages/github/GitHub'
+import CalendarPage from '@/pages/calendar/Calendar'
 import Workflows from '@/pages/workflows/Workflows'
 import AuditLogs from '@/pages/auditLogs/AuditLogs'
 import Settings from '@/pages/settings/Settings'
@@ -74,6 +75,7 @@ function App() {
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/workflows" element={<Workflows />} />
               <Route path="/integrations/github" element={<GitHub />} />
+              <Route path="/integrations/calendar" element={<CalendarPage />} />
               <Route path="/commit-scheduler" element={<CommitScheduler />} />
               <Route path="/pull-requests" element={<PullRequests />} />
               <Route path="/open-source" element={<OpenSource />} />

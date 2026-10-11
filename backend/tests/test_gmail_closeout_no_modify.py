@@ -14,11 +14,12 @@ def test_gmail_scope_is_send_and_email_only(monkeypatch):
     assert scopes == ["https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/userinfo.email"]
 
 
-def test_removed_routes_are_unavailable():
+def test_calendar_routes_are_registered_and_import_email_route_is_absent():
     client = TestClient(app)
-    for path in ("/calendar/login", "/calendar/callback", "/calendar/events", "/calendar/summary", "/calendar/create-event", "/job-hunter/import-email"):
-        assert client.get(path).status_code in (404, 405)
-        assert client.post(path).status_code in (404, 405)
+    for path in ("/calendar/login", "/calendar/callback", "/calendar/events", "/calendar/summary", "/calendar/create-event"):
+        assert client.get(path).status_code != 404
+    assert client.post("/calendar/create-event").status_code != 404
+    assert client.post("/job-hunter/import-email").status_code in (404, 405)
 
 
 def test_gmail_does_not_read_inbox():
@@ -26,6 +27,5 @@ def test_gmail_does_not_read_inbox():
     production = [p for p in files if "tests" not in p.parts and "venv" not in p.parts]
     source = "\n".join(p.read_text() for p in production)
     assert "gmail.readonly" not in source
-    assert "https://www.googleapis.com/auth/calendar" not in source
     assert "users/me/messages/send" in source
     assert not re.search(r"users/me/messages(?!/send)", source)

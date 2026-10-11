@@ -193,6 +193,94 @@ def test_send_email_success_path_uses_resolved_recipient():
         assert result == {"message_id": "msg-123"}
 
 
+def test_send_email_uses_commit_context_and_builds_valid_message():
+    import base64
+    from email import policy
+    from email.parser import BytesParser
+
+    fake_response = MagicMock(status_code=200)
+    fake_response.json.return_value = {"id": "commit-msg"}
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value.post = AsyncMock(return_value=fake_response)
+    context = {
+        "commit_message": "Fix deployment",
+        "repo": "acme/project",
+        "branch": "main",
+        "author": "octocat",
+        "commit_sha": "abc123",
+    }
+    with patch.object(workflow_engine, "_get_org_token", return_value=("valid-token", None)), \
+         patch.object(workflow_engine, "_get_org_email", return_value="owner@example.com"), \
+         patch.object(workflow_engine.httpx, "AsyncClient", return_value=mock_client):
+        run(workflow_engine._action_send_email("org-1", context))
+
+    call = mock_client.__aenter__.return_value.post.call_args
+    assert call.args[0] == "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+    message = BytesParser(policy=policy.default).parsebytes(base64.urlsafe_b64decode(call.kwargs["json"]["raw"]))
+    assert message["To"] == "owner@example.com"
+    assert message["Subject"] == "Fix deployment"
+    assert "acme/project" in message.get_content()
+    assert "abc123" in message.get_content()
+
+
+def test_send_email_401_returns_reconnect_guidance():
+    fake_response = MagicMock(status_code=401)
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value.post = AsyncMock(return_value=fake_response)
+    with patch.object(workflow_engine, "_get_org_token", return_value=("revoked-token", None)), \
+         patch.object(workflow_engine, "_get_org_email", return_value="owner@example.com"), \
+         patch.object(workflow_engine.httpx, "AsyncClient", return_value=mock_client):
+        with pytest.raises(RuntimeError, match="reconnect Gmail"):
+            run(workflow_engine._action_send_email("org-1", {"title": "Test"}))
+
+
+def test_condition_matching_supports_commit_filters_and_label_intersection():
+    context = {
+        "repo": "acme/project",
+        "branch": "main",
+        "author": "octocat",
+        "commit_message": "Fix deployment",
+        "labels": ["automation", "release"],
+    }
+    conditions = {
+        "logic": "AND",
+        "rules": [
+            {"field": "repo", "op": "eq", "value": "acme/project"},
+            {"field": "branch", "op": "eq", "value": "main"},
+            {"field": "author", "op": "eq", "value": "octocat"},
+            {"field": "labels", "op": "in", "value": ["release"]},
+        ],
+    }
+    assert workflow_engine._match_conditions(conditions, context)
+    conditions["logic"] = "OR"
+    conditions["rules"][0]["value"] = "elsewhere/repo"
+    assert workflow_engine._match_conditions(conditions, context)
+    conditions["rules"] = [{"field": "commit_message", "op": "eq", "value": "not this message"}]
+    assert not workflow_engine._match_conditions(conditions, context)
+
+
+def test_condition_failure_does_not_execute_email_action():
+    workflow = {
+        "id": "wf-1", "organization_id": "org-A", "name": "Release-only",
+        "trigger_type": "push", "conditions": {"branch": "release"},
+        "actions": ["send_email"], "lifetime_mode": "continuous", "status": "active",
+    }
+    handler = AsyncMock()
+    with patch.dict(workflow_engine.ACTION_REGISTRY, {"send_email": handler}):
+        result = run(workflow_engine.execute_workflow(workflow, {"branch": "main"}, record_skipped=False))
+    assert result is None
+    handler.assert_not_awaited()
+
+
+def test_expired_workflow_is_not_eligible_for_execution():
+    from datetime import datetime, timedelta, timezone
+    workflow = {
+        "lifetime_mode": "until_date",
+        "expires_at": (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+    }
+    assert workflow_engine._is_past_expiry(workflow)
+
+
 # ---------------------------------------------------------------------------
 # 5. GitHub PUSH trigger matching: org_id resolved server-side, only that
 #    org's workflows fire

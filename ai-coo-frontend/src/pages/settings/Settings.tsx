@@ -503,7 +503,7 @@ export default function Settings() {
             organization can review.
           </p>
           <p>
-            Connected third-party tokens (GitHub, Gmail) are stored encrypted and are only
+            Connected third-party tokens (GitHub, Gmail, Google Calendar) are stored encrypted and are only
             used to act on your behalf within Workforge — Google user data is never sold or used for
             advertising. See our{' '}
             <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110">Privacy Policy</Link>{' '}

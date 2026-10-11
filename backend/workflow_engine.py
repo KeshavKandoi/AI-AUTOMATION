@@ -128,7 +128,10 @@ def _match_conditions(conditions: dict, context: dict) -> bool:
             actual = context.get(field)
             if op == "in":
                 candidates = expected if isinstance(expected, list) else [expected]
-                results.append(actual in candidates)
+                if isinstance(actual, list):
+                    results.append(any(value in candidates for value in actual))
+                else:
+                    results.append(actual in candidates)
             else:
                 results.append(actual == expected)
         return all(results) if logic == "AND" else any(results)
@@ -139,7 +142,10 @@ def _match_conditions(conditions: dict, context: dict) -> bool:
     for key, expected in conditions.items():
         actual = context.get(key)
         if isinstance(expected, list):
-            if actual not in expected:
+            if isinstance(actual, list):
+                if not any(value in expected for value in actual):
+                    return False
+            elif actual not in expected:
                 return False
         else:
             if actual != expected:
@@ -229,11 +235,24 @@ async def _action_send_email(organization_id: str, context: dict) -> dict:
             problems.append("Could not determine a recipient email — please reconnect Gmail in Settings (new permission required)")
         raise RuntimeError("; ".join(problems))
 
-    body = f"{context.get('title', 'Automation triggered')}\n\n{context.get('description', '')}"
+    subject = context.get("title") or context.get("commit_message") or "Workflow notification"
+    body_lines = [subject]
+    if context.get("description"):
+        body_lines.extend(["", context["description"]])
+    details = [
+        ("Repository", context.get("repo")),
+        ("Branch", context.get("branch")),
+        ("Author", context.get("author")),
+        ("Commit", context.get("commit_sha")),
+    ]
+    detail_lines = [f"{label}: {value}" for label, value in details if value]
+    if detail_lines:
+        body_lines.extend(["", *detail_lines])
+    body = "\n".join(body_lines)
     reserve_gmail_send(organization_id, "workflow")
     mime_msg = MIMEText(body)
     mime_msg["to"] = to_email
-    mime_msg["subject"] = single_line(context.get("title", "Workflow notification"))
+    mime_msg["subject"] = single_line(subject)
     raw = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode()
 
     async with httpx.AsyncClient(timeout=20) as client:
@@ -243,6 +262,16 @@ async def _action_send_email(organization_id: str, context: dict) -> dict:
             json={"raw": raw}
         )
     if res.status_code != 200:
+        if res.status_code == 401:
+            raise RuntimeError("Gmail authorization expired or was revoked — please reconnect Gmail in Settings")
+        if res.status_code == 403:
+            try:
+                reasons = res.json().get("error", {}).get("errors", [])
+                insufficient_scope = any(item.get("reason") == "insufficientPermissions" for item in reasons)
+            except (AttributeError, TypeError, ValueError):
+                insufficient_scope = False
+            if insufficient_scope:
+                raise RuntimeError("Gmail authorization is missing send permission — please reconnect Gmail in Settings")
         raise RuntimeError(f"Gmail send failed with status {res.status_code}")
     return {"message_id": res.json().get("id")}
 
@@ -471,8 +500,8 @@ async def dispatch_workflow_event(organization_id: str, trigger_type: str, conte
     organization identity -- that responsibility stays with the caller.
 
     event_key must uniquely identify this specific occurrence within its
-    (organization, repo, trigger_type) scope -- e.g. a commit SHA for push,
-    or "pr-<number>-<head_sha>" for a pull request -- so that the same real
+    (organization, repo, trigger_type) scope -- e.g. a commit SHA and branch
+    for push, or "pr-<number>-<head_sha>" for a pull request -- so that the same real
     event arriving twice (once as a real webhook, once as an internally
     dispatched event, or via GitHub's own webhook redelivery) executes the
     matching workflow(s) at most once.

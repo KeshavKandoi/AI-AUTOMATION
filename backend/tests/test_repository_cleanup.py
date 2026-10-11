@@ -1,6 +1,5 @@
 """Regression checks for OTP delivery, scheduler isolation, and removed access."""
 from pathlib import Path
-import sqlite3
 from unittest.mock import MagicMock
 
 import pytest
@@ -22,27 +21,6 @@ def test_example_encryption_key_is_valid_for_fernet():
     )
     cipher = Fernet(values["TOKEN_ENCRYPTION_KEY"].encode())
     assert cipher.decrypt(cipher.encrypt(b"test-only")) == b"test-only"
-
-
-def test_calendar_credential_migration_is_repeatable_and_preserves_history():
-    migration = (ROOT / "backend/migrations/retire_calendar_integration.sql").read_text()
-    db = sqlite3.connect(":memory:")
-    db.executescript("""
-        CREATE TABLE integrations (id TEXT PRIMARY KEY, provider TEXT);
-        CREATE TABLE oauth_tokens (integration_id TEXT, access_token TEXT);
-        CREATE TABLE tasks (id TEXT PRIMARY KEY);
-        CREATE TABLE audit_logs (id TEXT PRIMARY KEY);
-        INSERT INTO integrations VALUES ('calendar-id', 'calendar'), ('gmail-id', 'gmail');
-        INSERT INTO oauth_tokens VALUES ('calendar-id', 'retired'), ('gmail-id', 'active');
-        INSERT INTO tasks VALUES ('historical-task');
-        INSERT INTO audit_logs VALUES ('historical-log');
-    """)
-    db.executescript(migration)
-    db.executescript(migration)
-    assert db.execute("SELECT provider FROM integrations").fetchall() == [("gmail",)]
-    assert db.execute("SELECT integration_id FROM oauth_tokens").fetchall() == [("gmail-id",)]
-    assert db.execute("SELECT id FROM tasks").fetchall() == [("historical-task",)]
-    assert db.execute("SELECT id FROM audit_logs").fetchall() == [("historical-log",)]
 
 
 @pytest.mark.parametrize("failure", [False, RuntimeError("provider unavailable")])
@@ -95,11 +73,10 @@ def test_refresh_cookie_is_http_compatible_locally_and_secure_in_production(monk
     assert refresh_cookie_kwargs()["samesite"] == "none"
 
 
-def test_public_security_page_and_removed_feature_references():
+def test_public_security_page_and_import_email_removal():
     client = (ROOT / "ai-coo-frontend/src/api/client.ts").read_text()
     assert "'/security'" in client
     source_files = list((ROOT / "ai-coo-frontend/src").rglob("*.ts")) + list((ROOT / "ai-coo-frontend/src").rglob("*.tsx"))
     source = "\n".join(p.read_text() for p in source_files)
     assert "importEmail" not in source
-    assert "/integrations/calendar" not in source
-    assert "create_calendar_event" not in source
+    assert "/job-hunter/import-email" not in source

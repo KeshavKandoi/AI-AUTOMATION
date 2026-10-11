@@ -12,6 +12,8 @@ from github_helpers import (
     _valid_repo, _allowed_issue_repos,
 )
 from github_oauth import router as github_oauth_router
+from calendar_routes import router as calendar_router
+from calendar_automation.routes import router as lunch_block_router
 
 import orchestrator
 import scheduler
@@ -66,6 +68,8 @@ app.include_router(notifications_router)
 app.include_router(analytics_router)
 app.include_router(job_hunter_router)
 app.include_router(github_oauth_router)
+app.include_router(calendar_router)
+app.include_router(lunch_block_router)
 
 
 @app.on_event("startup")
@@ -581,6 +585,8 @@ async def approve_and_send_email(task_id: str, to_email: str | None = None, arch
                 json={"raw": raw}
             )
         if res.status_code != 200:
+            if res.status_code == 401:
+                raise HTTPException(status_code=401, detail="Gmail authorization expired or was revoked — please reconnect Gmail in Settings")
             raise HTTPException(status_code=400, detail=f"Gmail send failed with status {res.status_code}")
     except GmailSendLimitExceeded as e:
         _release_task(task_id, org_id, "email_sent", "approved")
@@ -647,7 +653,7 @@ def get_integrations_status(org_id: str = Depends(get_current_org_id)):
     latest_by_provider = {}
     for row in result.data:
         provider = row["provider"]
-        if provider in {"github", "gmail"} and provider not in latest_by_provider:
+        if provider in {"github", "gmail", "calendar"} and provider not in latest_by_provider:
             latest_by_provider[provider] = row
 
     return [
@@ -657,7 +663,7 @@ def get_integrations_status(org_id: str = Depends(get_current_org_id)):
 
 # ---------- Integration Disconnect ----------
 
-VALID_PROVIDERS = {"github", "gmail"}
+VALID_PROVIDERS = {"github", "gmail", "calendar"}
 
 
 @app.post("/{provider}/disconnect")

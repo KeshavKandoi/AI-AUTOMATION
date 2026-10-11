@@ -70,7 +70,7 @@ def test_successful_commit_dispatches_push_event_with_real_sha():
     assert called_trigger == "push"
     assert called_context["repo"] == "acme/repo"
     assert called_context["commit_sha"] == "realsha123"
-    assert kwargs["event_key"] == "realsha123"
+    assert kwargs["event_key"] == "realsha123:main"
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ def test_scheduler_and_webhook_dispatch_for_same_commit_execute_workflow_only_on
         # Second: a real GitHub webhook arriving for the SAME commit SHA
         # (simulated directly via dispatch_workflow_event, as webhooks/routes.py would call it).
         run(workflow_engine.dispatch_workflow_event(
-            "org-A", "push", {"repo": "acme/repo", "commit_sha": "shared-sha-999"}, event_key="shared-sha-999"
+            "org-A", "push", {"repo": "acme/repo", "branch": "main", "commit_sha": "shared-sha-999"}, event_key="shared-sha-999:main"
         ))
 
     assert mock_run_workflows.call_count == 1

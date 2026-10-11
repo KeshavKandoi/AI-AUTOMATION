@@ -112,6 +112,13 @@ async def github_webhook(
     if x_github_event not in REACTIVE_EVENTS:
         return {"status": "ignored", "event": x_github_event}
 
+    if x_github_event == "issues" and payload.get("action") != "opened":
+        return {"status": "ignored", "event": x_github_event, "action": payload.get("action")}
+    if x_github_event == "pull_request" and payload.get("action") != "opened":
+        return {"status": "ignored", "event": x_github_event, "action": payload.get("action")}
+    if x_github_event == "push" and payload.get("deleted"):
+        return {"status": "ignored", "event": x_github_event, "reason": "branch_deleted"}
+
     org_id = org["id"]
 
     if x_github_event == "issues" and payload.get("action") == "opened":
@@ -155,7 +162,10 @@ async def github_webhook(
             "commit_count": len(payload.get("commits") or []),
             "timestamp": head_commit.get("timestamp", ""),
         }
-        await dispatch_workflow_event(org_id, "push", push_context, event_key=push_context["commit_sha"] or "")
+        if not push_context["commit_sha"]:
+            return {"status": "ignored", "event": x_github_event, "reason": "missing_commit_sha"}
+        event_key = f"{push_context['commit_sha']}:{push_context['branch']}"
+        await dispatch_workflow_event(org_id, "push", push_context, event_key=event_key)
         logger.info(f"Workflow dispatch complete for push to {push_context['branch']} ({push_context['commit_sha']})")
 
     if x_github_event == "pull_request" and payload.get("action") == "opened":
@@ -177,11 +187,13 @@ async def github_webhook(
 
     token_res = supabase_admin.table("integrations").select("id").eq("organization_id", org_id).eq("provider", "github").eq("connected", True).order("created_at", desc=True).execute()
     if not token_res.data:
-        raise HTTPException(status_code=400, detail="No connected GitHub integration for this org")
+        logger.warning(f"Workflow webhook handled for org {org_id}; no connected GitHub integration for orchestrator actions")
+        return {"status": "triggered", "event": x_github_event, "tasks_created": 0}
     integration_ids = [row["id"] for row in token_res.data]
     oauth_res = supabase_admin.table("oauth_tokens").select("access_token").in_("integration_id", integration_ids).order("created_at", desc=True).execute()
     if not oauth_res.data:
-        raise HTTPException(status_code=400, detail="No GitHub token found for this org")
+        logger.warning(f"Workflow webhook handled for org {org_id}; no GitHub token available for orchestrator actions")
+        return {"status": "triggered", "event": x_github_event, "tasks_created": 0}
     access_token = decrypt_token(oauth_res.data[0]["access_token"])
 
     initial_state = {
