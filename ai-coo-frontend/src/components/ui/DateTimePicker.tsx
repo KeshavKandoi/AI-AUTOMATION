@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
@@ -44,6 +45,9 @@ function toTimeInputValue(d: Date) {
 export default function DateTimePicker({ label, value, onChange, minDate }: DateTimePickerProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 280, maxHeight: 380 })
   const min = minDate ?? new Date()
 
   const [viewMonth, setViewMonth] = useState(() => {
@@ -53,15 +57,65 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
   const [pendingDate, setPendingDate] = useState<Date | null>(value ? startOfDay(value) : null)
   const [pendingTime, setPendingTime] = useState<string>(value ? toTimeInputValue(value) : '09:00')
 
+  useLayoutEffect(() => {
+    if (!open) return
+    const updatePosition = () => {
+      const anchor = triggerRef.current?.getBoundingClientRect()
+      if (!anchor) return
+      const viewport = window.visualViewport
+      const top = viewport?.offsetTop ?? 0
+      const left = viewport?.offsetLeft ?? 0
+      const height = viewport?.height ?? window.innerHeight
+      const width = viewport?.width ?? window.innerWidth
+      const gap = 8
+      const edge = 12
+      const panelWidth = Math.min(280, width - edge * 2)
+      const pageZoom = Number.parseFloat(window.getComputedStyle(document.body).zoom) || 1
+      const below = top + height - anchor.bottom - gap - edge
+      const above = anchor.top - top - gap - edge
+      const placeAbove = below < 340 && above > below
+      const available = Math.max(120, placeAbove ? above : below)
+      const maxHeight = Math.min(380, available)
+      setPosition({
+        top: (placeAbove ? anchor.top - gap - maxHeight : anchor.bottom + gap) / pageZoom,
+        left: Math.max(left + edge, Math.min(anchor.left, left + width - edge - panelWidth)) / pageZoom,
+        width: panelWidth / pageZoom,
+        maxHeight: maxHeight / pageZoom,
+      })
+    }
+    updatePosition()
+    popoverRef.current?.focus()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    window.visualViewport?.addEventListener('resize', updatePosition)
+    window.visualViewport?.addEventListener('scroll', updatePosition)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+      window.visualViewport?.removeEventListener('resize', updatePosition)
+      window.visualViewport?.removeEventListener('scroll', updatePosition)
+    }
+  }, [open])
+
   useEffect(() => {
+    if (!open) return
     const onClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (!containerRef.current?.contains(e.target as Node) && !popoverRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
         setOpen(false)
+        triggerRef.current?.focus()
       }
     }
     document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [open])
 
   const cells = buildMonthGrid(viewMonth)
   const minDay = startOfDay(min)
@@ -87,6 +141,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
     if (composedResult && !isTimeInvalid) {
       onChange(composedResult)
       setOpen(false)
+      triggerRef.current?.focus()
     }
   }
 
@@ -94,8 +149,19 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
     <div className="flex flex-col gap-1.5" ref={containerRef}>
       <label className="text-sm font-medium text-[var(--color-text-muted)]">{label}</label>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => {
+          if (!open) {
+            const base = value ?? min
+            setViewMonth(new Date(base.getFullYear(), base.getMonth(), 1))
+            setPendingDate(value ? startOfDay(value) : null)
+            setPendingTime(value ? toTimeInputValue(value) : '09:00')
+          }
+          setOpen((o) => !o)
+        }}
         className={cn(
           'w-full flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]',
           'px-3.5 py-2.5 text-sm text-left transition-colors',
@@ -107,12 +173,31 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
         {displayLabel}
       </button>
 
-      {open && (
-        <div className="relative z-20">
-          <div className="absolute top-1 left-0 z-[60] w-[min(280px,calc(100vw-2rem))] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl p-3 max-h-[min(380px,60vh)] overflow-y-auto">
-            <div className="flex items-center justify-between mb-2">
+      {open && createPortal(
+          <div
+            ref={popoverRef}
+            role="dialog"
+            aria-label={`${label} date and time`}
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key !== 'Tab') return
+              const controls = Array.from(popoverRef.current?.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button:not(:disabled), input:not(:disabled)') ?? [])
+              if (!controls.length) return
+              if (event.shiftKey && document.activeElement === controls[0]) {
+                event.preventDefault()
+                controls.at(-1)?.focus()
+              } else if (!event.shiftKey && document.activeElement === controls.at(-1)) {
+                event.preventDefault()
+                controls[0].focus()
+              }
+            }}
+            style={{ position: 'fixed', top: position.top, left: position.left, width: position.width, height: position.maxHeight }}
+            className="z-[70] flex flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl p-3"
+          >
+            <div className="flex shrink-0 items-center justify-between mb-2">
               <button
                 type="button"
+                aria-label="Previous month"
                 disabled={!canGoPrevMonth}
                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
                 className="h-7 w-7 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed"
@@ -124,6 +209,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
               </span>
               <button
                 type="button"
+                aria-label="Next month"
                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
                 className="h-7 w-7 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
               >
@@ -131,17 +217,18 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
               </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 mb-1">
+            <div className="grid shrink-0 grid-cols-7 gap-1 mb-1">
               {WEEKDAY_LABELS.map((d, i) => (
-                <div key={i} className="h-6 flex items-center justify-center text-[10px] text-[var(--color-text-faint)]">
+                <div key={i} className="h-5 flex items-center justify-center text-[10px] text-[var(--color-text-faint)]">
                   {d}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-1 mb-3">
-              {cells.map((day, i) => {
-                if (!day) return <div key={i} className="h-8" />
+            <div className="min-h-0 flex-1 overflow-y-auto mb-2">
+              <div className="grid grid-cols-7 gap-1">
+                {cells.map((day, i) => {
+                if (!day) return <div key={i} className="h-7" />
                 const disabled = startOfDay(day) < minDay
                 const isSelected = pendingDate && isSameDay(day, pendingDate)
                 const isToday = isSameDay(day, new Date())
@@ -152,7 +239,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
                     disabled={disabled}
                     onClick={() => setPendingDate(startOfDay(day))}
                     className={cn(
-                      'h-8 rounded-lg text-xs flex items-center justify-center transition-colors',
+                      'h-7 rounded-lg text-xs flex items-center justify-center transition-colors',
                       disabled && 'text-[var(--color-text-faint)] opacity-30 cursor-not-allowed',
                       !disabled && !isSelected && 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]',
                       isSelected && 'bg-[var(--color-signal)] text-[var(--color-void)] font-medium',
@@ -162,11 +249,11 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
                     {day.getDate()}
                   </button>
                 )
-              })}
+                })}
+              </div>
             </div>
 
-            {pendingDate && (
-              <div className="border-t border-[var(--color-border)] pt-3">
+              <div className="shrink-0 border-t border-[var(--color-border)] pt-3">
                 <label className="text-[11px] text-[var(--color-text-faint)] mb-1.5 block">Time</label>
                 <input
                   type="time"
@@ -179,18 +266,19 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
                     Must be in the future.
                   </p>
                 )}
-                <Button
-                  className="w-full min-h-11 mt-2 !bg-[var(--color-signal)] !text-[var(--color-void)] shadow-md"
-                  disabled={isTimeInvalid}
-                  onClick={handleApply}
-                >
-                  Set
-                </Button>
               </div>
-            )}
+            <div className="flex shrink-0 gap-2 bg-[var(--color-surface)] pt-2">
+              <button type="button" onClick={() => { setOpen(false); triggerRef.current?.focus() }} className="flex-1 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">Cancel</button>
+              <Button
+                className="flex-1 min-h-10 !bg-[var(--color-signal)] !text-[var(--color-void)] shadow-md"
+                disabled={!pendingDate || isTimeInvalid}
+                onClick={handleApply}
+              >
+                Set
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        , document.documentElement)}
     </div>
   )
 }

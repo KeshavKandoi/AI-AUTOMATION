@@ -29,7 +29,7 @@ export default function Modal({ open, onClose, title, children, className }: Mod
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-4"
           onClick={onClose}
         >
           <motion.div
@@ -39,7 +39,7 @@ export default function Modal({ open, onClose, title, children, className }: Mod
             transition={{ duration: 0.15 }}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              'w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl',
+              'w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl',
               className
             )}
           >

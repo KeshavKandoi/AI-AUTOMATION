@@ -30,6 +30,7 @@ import Home from '@/pages/home/Home'
 import PrivacyPolicy from '@/pages/legal/PrivacyPolicy'
 import TermsOfService from '@/pages/legal/TermsOfService'
 import Security from '@/pages/legal/Security'
+import PageErrorBoundary from '@/components/ui/PageErrorBoundary'
 
 const queryClient = new QueryClient()
 
@@ -74,7 +75,7 @@ function App() {
               <Route path="/workflows" element={<Workflows />} />
               <Route path="/integrations/github" element={<GitHub />} />
               <Route path="/integrations/calendar" element={<CalendarPage />} />
-              <Route path="/commit-scheduler" element={<CommitScheduler />} />
+              <Route path="/commit-scheduler" element={<PageErrorBoundary><CommitScheduler /></PageErrorBoundary>} />
               <Route path="/pull-requests" element={<PullRequests />} />
               <Route path="/open-source" element={<OpenSource />} />
               <Route path="/approvals" element={<HumanApproval />} />
