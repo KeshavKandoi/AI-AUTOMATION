@@ -1,5 +1,5 @@
 """
-Centralized notifications service. Any module in AI COO (Job Hunter, Commit
+Centralized notifications service. Any module in WorkForge (Job Hunter, Commit
 Scheduler, Workflow Automation, GitHub, Gmail, Analytics,
 etc.) should call notify() below to raise a user-facing notification,
 instead of writing to the notifications table directly.
@@ -42,7 +42,7 @@ def notify(
 
     Args:
         organization_id: org this notification belongs to (required).
-        module: which part of AI COO this came from, e.g. "job_hunter",
+        module: which part of WorkForge this came from, e.g. "job_hunter",
             "commit_scheduler", "github", "gmail".
             Free text — new modules don't need a backend change to start
             publishing notifications.

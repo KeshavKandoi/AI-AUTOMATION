@@ -280,7 +280,9 @@ async def _action_send_email(organization_id: str, context: dict) -> dict:
 
 async def _action_notify_discord(organization_id: str, context: dict) -> dict:
     org_res = supabase_admin.table("organizations").select("discord_webhook_url").eq("id", organization_id).execute()
-    org_webhook = org_res.data[0].get("discord_webhook_url") if org_res.data else None
+    if not org_res.data:
+        raise RuntimeError("Discord organization is unavailable")
+    org_webhook = org_res.data[0].get("discord_webhook_url")
     webhook_url = pick_discord_webhook(organization_id, org_webhook)
     if not webhook_url:
         raise RuntimeError("Discord webhook is not configured for this organization — add one in Settings → Discord notifications")

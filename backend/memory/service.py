@@ -1,5 +1,5 @@
 """
-Business logic for the memory module. Any current or future module (AI COO
+Business logic for the memory module. Any current or future module (WorkForge
 Job Hunter, Workflow Automation, GitHub analysis, Pull Requests, etc.)
 should read/write memory through these functions rather than the repository
 directly, so audit logging and validation stay consistent everywhere.
@@ -106,7 +106,7 @@ def update_memory(memory_id: str, organization_id: str, payload: MemoryUpdate) -
 
 
 def access_memory(memory_id: str, organization_id: str) -> dict:
-    """Called whenever another module reads a specific memory (e.g. AI COO
+    """Called whenever another module reads a specific memory (e.g. WorkForge
     Context retrieval). Bumps access_count / last_accessed_at so the
     Dashboard's 'recently accessed' widget and future ranking logic have
     real signal to work with."""

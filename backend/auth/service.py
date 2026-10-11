@@ -2,6 +2,7 @@ import secrets
 import hashlib
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
+from supabase_auth.errors import AuthApiError, AuthInvalidCredentialsError, AuthWeakPasswordError
 
 from config import settings, get_auth_client, logger
 from email_service import send_otp_email
@@ -222,15 +223,37 @@ def forgot_password(email: str):
 
 
 def reset_password(email: str, otp: str, new_password: str):
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
     if not _verify_otp(email, otp, "password_reset"):
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
-    auth_client = get_auth_client()
     profile = repository.get_user_profile_by_email(email)
     if not profile:
         raise HTTPException(status_code=400, detail="Invalid or expired code")
 
-    auth_client.auth.admin.update_user_by_id(profile["id"], {"password": new_password})
+    _update_and_confirm_password(profile["id"], email, new_password)
+
+
+def _update_and_confirm_password(user_id: str, email: str, new_password: str) -> None:
+    try:
+        get_auth_client().auth.admin.update_user_by_id(user_id, {"password": new_password})
+    except AuthWeakPasswordError:
+        raise HTTPException(status_code=400, detail="New password does not meet the account password policy") from None
+    except Exception as exc:
+        logger.error("Password update failed for user_id=%s (%s)", user_id, type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Could not update password. Please try again.") from None
+
+    try:
+        result = get_auth_client().auth.sign_in_with_password({"email": email, "password": new_password})
+        if not result.user or result.user.id != user_id:
+            raise ValueError("Password verification returned the wrong account")
+    except Exception as exc:
+        logger.error("Password verification failed for user_id=%s (%s)", user_id, type(exc).__name__)
+        raise HTTPException(
+            status_code=502,
+            detail="Password update may have succeeded, but verification failed. Try signing in with the new password.",
+        ) from None
 
 
 def change_password(user_id: str, email: str, current_password: str, new_password: str):
@@ -239,17 +262,25 @@ def change_password(user_id: str, email: str, current_password: str, new_passwor
     e.g. protects against a stolen/leaked token being used to lock the real
     owner out), then updates via the Admin API. Does not touch or invalidate
     the caller's existing session."""
+    if not user_id or not email:
+        raise HTTPException(status_code=401, detail="Session is incomplete. Please sign in again.")
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
     auth_client = get_auth_client()
     try:
-        auth_client.auth.sign_in_with_password({"email": email, "password": current_password})
+        result = auth_client.auth.sign_in_with_password({"email": email, "password": current_password})
+    except AuthInvalidCredentialsError:
+        raise HTTPException(status_code=401, detail="Current password is incorrect") from None
+    except AuthApiError as exc:
+        if str(getattr(exc, "code", "")) == "invalid_credentials":
+            raise HTTPException(status_code=401, detail="Current password is incorrect") from None
+        raise HTTPException(status_code=502, detail="Authentication service is unavailable. Please try again.") from None
     except Exception:
+        raise HTTPException(status_code=502, detail="Authentication service is unavailable. Please try again.") from None
+    if not result.user or result.user.id != user_id:
         raise HTTPException(status_code=401, detail="Current password is incorrect")
 
-    try:
-        auth_client.auth.admin.update_user_by_id(user_id, {"password": new_password})
-    except Exception:
-        logger.exception(f"change_password: update_user_by_id failed for user_id={user_id}")
-        raise HTTPException(status_code=500, detail="Could not update password. Please try again.")
+    _update_and_confirm_password(user_id, email, new_password)
 
 
 def refresh_session(refresh_token: str):

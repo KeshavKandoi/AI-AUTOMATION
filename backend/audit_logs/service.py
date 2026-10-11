@@ -1,5 +1,5 @@
 """
-Centralized audit logging service. Any module in AI COO should record
+Centralized audit logging service. Any module in WorkForge should record
 significant actions by calling log_event() below instead of writing to the
 audit_logs table directly.
 
@@ -34,7 +34,7 @@ def log_event(
 
     Args:
         organization_id: org this event belongs to (required for every log).
-        module: which part of AI COO this came from, e.g. "tasks",
+        module: which part of WorkForge this came from, e.g. "tasks",
             "workflows", "commit_scheduler", "github", "gmail",
             "human_approval", "auth", "settings". Free text — new modules
             don't need a backend change to start logging.

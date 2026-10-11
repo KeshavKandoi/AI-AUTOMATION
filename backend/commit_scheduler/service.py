@@ -201,7 +201,7 @@ async def _dispatch_push_workflow_event(job: dict, run: dict) -> None:
     push_context = {
         "repo": job["repo_full_name"],
         "branch": job["branch"],
-        "author": "Workforge Commit Scheduler",
+        "author": "WorkForge Commit Scheduler",
         "commit_message": job.get("commit_message", ""),
         "commit_sha": commit_sha,
         "files_changed": [],
@@ -227,7 +227,7 @@ async def _dispatch_pull_request_workflow_event(job: dict, pr: dict, head_sha: s
     pr_context = {
         "repo": job["repo_full_name"],
         "title": job.get("commit_message", "Automated PR"),
-        "author": "Workforge Commit Scheduler",
+        "author": "WorkForge Commit Scheduler",
         "source_branch": pr.get("head_branch", ""),
         "target_branch": job["branch"],
         "draft": False,

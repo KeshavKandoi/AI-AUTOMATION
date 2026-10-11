@@ -37,25 +37,11 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
-    @field_validator("new_password")
-    @classmethod
-    def password_strength(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
-
 
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
     otp: str
     new_password: str
-
-    @field_validator("new_password")
-    @classmethod
-    def password_strength(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
 
 
 class UserOut(BaseModel):

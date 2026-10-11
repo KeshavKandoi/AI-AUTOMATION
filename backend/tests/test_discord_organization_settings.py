@@ -71,6 +71,18 @@ def test_missing_webhook_has_useful_setup_message(monkeypatch):
         asyncio.run(workflow_engine._action_notify_discord("org-a", {"title": "test"}))
 
 
+def test_deleted_organization_cannot_use_environment_fallback(monkeypatch):
+    monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "org-a")
+    monkeypatch.setattr(settings, "DISCORD_WEBHOOK_URL", VALID_WEBHOOK)
+    query = MagicMock()
+    query.execute.return_value = MagicMock(data=[])
+    table = MagicMock()
+    table.select.return_value.eq.return_value = query
+    monkeypatch.setattr(supabase_admin, "table", lambda _name: table)
+    with pytest.raises(RuntimeError, match="organization is unavailable"):
+        asyncio.run(workflow_engine._action_notify_discord("org-a", {"title": "test"}))
+
+
 def test_production_fallback_is_scoped_to_configured_organization(monkeypatch):
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "org-a")
