@@ -51,7 +51,9 @@ The GitHub webhook endpoint is `POST /webhooks/github`. Configure the repository
 
 ## Discord notifications
 
-Discord workflow actions use an organization-specific `organizations.discord_webhook_url`. Configure that URL through your organization administration process; it contains the webhook credential and must be treated as a secret. `DISCORD_WEBHOOK_URL` is an optional development fallback restricted to `TEST_ORG_ID` outside production; it is not required for startup, Gmail, Calendar, or GitHub. Discord webhook URLs are host/path validated, and the URL is not returned in API responses or written to logs. Discord webhooks do not use a separate bot API key in this integration.
+Discord workflow actions use the authenticated organization's `organizations.discord_webhook_url`. In Settings → Discord notifications, paste a Discord HTTPS webhook URL and choose **Save webhook**; use **Remove webhook** to clear it. Settings only returns whether a webhook exists and the fixed masked label “Discord webhook ••••••••”, never the URL or token. The backend accepts only HTTPS webhook URLs on `discord.com` or `discordapp.com` with the expected webhook path. Keep the URL private: anyone holding it can post to that channel. It is not written to application logs or audit records.
+
+`DISCORD_WEBHOOK_URL` is an optional development/test fallback, used only outside production and only for `TEST_ORG_ID`. Production deliberately ignores this global value so notifications from different organizations cannot be routed to one shared channel. Configure each production organization's URL in Settings. No Discord bot API key is used.
 
 
 ## Deployment
