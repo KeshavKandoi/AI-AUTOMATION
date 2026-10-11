@@ -74,6 +74,19 @@ def test_get_org_token_no_token_row_gives_reconnect_message():
             assert "No gmail token on record" in reason
 
 
+def test_get_org_token_expired_without_refresh_token_gives_reconnect_message():
+    with patch.object(workflow_engine.supabase_admin, "table") as mock_table:
+        mock_table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value = _fake_result(
+            [{"id": "int-1"}]
+        )
+        with patch.object(workflow_engine, "get_valid_access_token", side_effect=ValueError("Token expired and no refresh_token available — user must re-login")):
+            token, reason = workflow_engine._get_org_token("org-1", "gmail")
+    assert token is None
+    assert "cannot refresh" in reason
+    assert "reconnect gmail in Settings" in reason
+    assert "refresh_token" not in reason
+
+
 def test_get_org_token_success_returns_token_and_no_error():
     with patch.object(workflow_engine.supabase_admin, "table") as mock_table:
         mock_table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value = _fake_result(

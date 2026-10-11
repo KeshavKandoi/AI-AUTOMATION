@@ -21,13 +21,15 @@ def _get_org_token(organization_id: str, provider: str):
     try:
         return get_valid_access_token(integration_id), None
     except ValueError as e:
-        logger.error(f"Token unavailable for org {organization_id} provider {provider}: {e}")
+        logger.error("Token unavailable for org %s provider %s (%s)", organization_id, provider, type(e).__name__)
         reason = str(e)
         if "invalid_grant" in reason or "expired or revoked" in reason:
             return None, f"{provider.capitalize()} authorization expired or was revoked — please reconnect {provider} in Settings"
         if "No token found" in reason:
             return None, f"No {provider} token on record — please reconnect {provider} in Settings"
-        return None, f"{provider.capitalize()} token error: {reason}"
+        if "no refresh_token available" in reason:
+            return None, f"{provider.capitalize()} connection cannot refresh its access token — please reconnect {provider} in Settings"
+        return None, f"{provider.capitalize()} token is unavailable — please reconnect {provider} in Settings"
 
 
 def _get_org_email(organization_id: str):
@@ -64,7 +66,7 @@ def _get_org_email(organization_id: str):
             return None
         return res.json().get("email")
     except httpx.HTTPError as e:
-        logger.error(f"Failed to resolve Gmail account email for org {organization_id}: {e}")
+        logger.error("Failed to resolve Gmail account email for org %s (%s)", organization_id, type(e).__name__)
         return None
 
 
@@ -411,8 +413,8 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
             action_result = await asyncio.wait_for(handler(organization_id, context), timeout=settings.WORKFLOW_ACTION_TIMEOUT_SECONDS)
             executed.append({"action": action_name, "result": action_result})
         except Exception as e:
-            logger.error(f"Workflow action '{action_name}' failed for workflow {workflow['id']}: {e}")
             safe_error = _safe_action_error(e)
+            logger.error("Workflow action '%s' failed for workflow %s: %s", action_name, workflow['id'], safe_error)
             executed.append({"action": action_name, "error": safe_error})
             run_status = "partial_failure"
             error_message = safe_error
