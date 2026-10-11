@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     GOOGLE_GMAIL_REDIRECT_URI: str
     GOOGLE_CALENDAR_REDIRECT_URI: str
     DISCORD_WEBHOOK_URL: str = ""
+    DISCORD_ENV_ORG_ID: str = ""
     TEST_ORG_ID: str = ""
     SCHEDULER_ORG_ID: str = ""
     SCHEDULER_REPOSITORY: str = ""
@@ -99,12 +100,23 @@ def is_valid_discord_webhook(url) -> bool:
     )
 
 
-def pick_discord_webhook(organization_id: str, org_webhook):
+def resolve_discord_webhook(organization_id: str, org_webhook):
+    """Return the effective webhook and its source for this organization only."""
     if org_webhook and is_valid_discord_webhook(org_webhook):
-        return org_webhook
-    if settings.ENVIRONMENT != "production" and settings.TEST_ORG_ID and organization_id == settings.TEST_ORG_ID and is_valid_discord_webhook(settings.DISCORD_WEBHOOK_URL):
-        return settings.DISCORD_WEBHOOK_URL
-    return None
+        return org_webhook, "settings"
+    if (
+        organization_id
+        and settings.DISCORD_ENV_ORG_ID
+        and organization_id == settings.DISCORD_ENV_ORG_ID
+        and is_valid_discord_webhook(settings.DISCORD_WEBHOOK_URL)
+    ):
+        return settings.DISCORD_WEBHOOK_URL, "environment"
+    return None, None
+
+
+def pick_discord_webhook(organization_id: str, org_webhook):
+    webhook_url, _source = resolve_discord_webhook(organization_id, org_webhook)
+    return webhook_url
 
 
 logging.basicConfig(

@@ -275,7 +275,8 @@ def _p4_setup(monkeypatch, module, org_rows):
     from config import settings
     monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
     monkeypatch.setattr(module, "supabase_admin", _P4DB(org_rows))
-    monkeypatch.setattr(settings, "TEST_ORG_ID", "operator-org")
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "operator-org")
     monkeypatch.setattr(settings, "DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/9/global")
     return posts
 

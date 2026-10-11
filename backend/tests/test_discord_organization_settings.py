@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 import workflow_engine
 from auth.dependencies import get_current_org_id
-from config import pick_discord_webhook, settings, supabase_admin
+from config import pick_discord_webhook, resolve_discord_webhook, settings, supabase_admin
 from main import app
 
 
@@ -28,13 +28,15 @@ def test_saved_org_webhook_is_masked_and_used(monkeypatch):
     table.select.return_value.eq.return_value = query
     monkeypatch.setattr(supabase_admin, "table", lambda name: table)
 
-    response = TestClient(app).get("/organization-settings/discord-webhook")
+    response = TestClient(app).get("/organization-settings/discord-webhook?org_id=org-b")
     assert response.status_code == 200
     assert response.json() == {
         "configured": True,
         "masked_url": "Discord webhook ••••••••",
+        "source": "settings",
     }
     assert "placeholder-token" not in response.text
+    table.select.return_value.eq.assert_called_with("id", "org-a")
 
     class Client:
         async def __aenter__(self):
@@ -64,16 +66,80 @@ def test_missing_webhook_has_useful_setup_message(monkeypatch):
 
     response = TestClient(app).get("/organization-settings/discord-webhook")
     assert response.status_code == 200
-    assert response.json() == {"configured": False, "masked_url": None}
+    assert response.json() == {"configured": False, "masked_url": None, "source": None}
     with pytest.raises(RuntimeError, match="add one in Settings"):
         asyncio.run(workflow_engine._action_notify_discord("org-a", {"title": "test"}))
 
 
-def test_global_webhook_fallback_is_ignored_in_production(monkeypatch):
+def test_production_fallback_is_scoped_to_configured_organization(monkeypatch):
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
-    monkeypatch.setattr(settings, "TEST_ORG_ID", "org-a")
+    monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "org-a")
     monkeypatch.setattr(settings, "DISCORD_WEBHOOK_URL", VALID_WEBHOOK)
+    assert pick_discord_webhook("org-a", None) == VALID_WEBHOOK
+    assert pick_discord_webhook("org-b", None) is None
+
+
+def test_environment_fallback_requires_explicit_org_id_and_valid_url(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "DISCORD_WEBHOOK_URL", VALID_WEBHOOK)
+    monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "")
     assert pick_discord_webhook("org-a", None) is None
+    monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "org-a")
+    monkeypatch.setattr(settings, "DISCORD_WEBHOOK_URL", "https://example.invalid/api/webhooks/1/private-token")
+    assert pick_discord_webhook("org-a", None) is None
+
+
+def test_saved_org_webhook_overrides_environment(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "org-a")
+    monkeypatch.setattr(settings, "DISCORD_WEBHOOK_URL", VALID_WEBHOOK)
+    saved = "https://discord.com/api/webhooks/234567890123456789/saved-placeholder"
+    assert resolve_discord_webhook("org-a", saved) == (saved, "settings")
+
+
+def test_status_uses_effective_environment_without_exposing_secret(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "org-a")
+    monkeypatch.setattr(settings, "DISCORD_WEBHOOK_URL", VALID_WEBHOOK)
+    query = MagicMock()
+    query.execute.return_value = MagicMock(data=[{"discord_webhook_url": None}])
+    table = MagicMock()
+    table.select.return_value.eq.return_value = query
+    monkeypatch.setattr(supabase_admin, "table", lambda name: table)
+
+    response = TestClient(app).get("/organization-settings/discord-webhook")
+    assert response.status_code == 200
+    assert response.json() == {
+        "configured": True,
+        "masked_url": "Discord webhook ••••••••",
+        "source": "environment",
+    }
+    assert "placeholder-token" not in response.text
+
+    app.dependency_overrides[get_current_org_id] = lambda: "org-b"
+    other_org_response = TestClient(app).get("/organization-settings/discord-webhook")
+    assert other_org_response.json() == {"configured": False, "masked_url": None, "source": None}
+    table.select.return_value.eq.assert_called_with("id", "org-b")
+
+
+def test_removing_saved_webhook_restores_matching_environment_status(monkeypatch):
+    monkeypatch.setattr(settings, "DISCORD_ENV_ORG_ID", "org-a")
+    monkeypatch.setattr(settings, "DISCORD_WEBHOOK_URL", VALID_WEBHOOK)
+    update = MagicMock()
+    update.select.return_value.execute.return_value = MagicMock(data=[{"id": "org-a"}])
+    table = MagicMock()
+    table.update.return_value.eq.return_value = update
+    monkeypatch.setattr(supabase_admin, "table", lambda name: table)
+
+    response = TestClient(app).put("/organization-settings/discord-webhook", json={"webhook_url": None})
+    assert response.status_code == 200
+    assert response.json() == {
+        "configured": True,
+        "masked_url": "Discord webhook ••••••••",
+        "source": "environment",
+    }
+    assert "placeholder-token" not in response.text
+    table.update.assert_called_once_with({"discord_webhook_url": None})
 
 
 def test_invalid_url_is_rejected_without_echoing_or_saving(monkeypatch):
@@ -104,6 +170,7 @@ def test_settings_update_is_bound_to_authenticated_organization(monkeypatch):
     )
     assert response.status_code == 200
     assert response.json()["configured"] is True
+    assert response.json()["source"] == "settings"
     table.update.return_value.eq.assert_called_once_with("id", "org-a")
     assert "placeholder-token" not in response.text
 
