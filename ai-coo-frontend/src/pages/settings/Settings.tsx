@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api/auth'
+import { organizationSettingsService } from '@/services/organization-settings'
 import Card from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -137,6 +138,20 @@ export default function Settings() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [discordWebhookDraft, setDiscordWebhookDraft] = useState('')
+  const discordWebhookQuery = useQuery({
+    queryKey: ['organization-settings', 'discord-webhook', user?.organization_id],
+    queryFn: organizationSettingsService.getDiscordWebhook,
+    enabled: !!user?.organization_id,
+  })
+  const discordWebhookMutation = useMutation({
+    mutationFn: organizationSettingsService.saveDiscordWebhook,
+    onSuccess: (data) => {
+      setDiscordWebhookDraft('')
+      queryClient.setQueryData(['organization-settings', 'discord-webhook', user?.organization_id], data)
+    },
+  })
 
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
@@ -332,6 +347,63 @@ export default function Settings() {
             onChange={handleInAppNotifsChange}
           />
         </div>
+      </Card>
+
+      <Card className="p-5">
+        <SectionHeader icon={Bell} title="Discord notifications" />
+        <p className="text-xs text-[var(--color-text-muted)] mb-3">
+          Workflow Discord actions use this organization’s private webhook. The webhook URL is never shown after saving.
+        </p>
+        {discordWebhookQuery.data?.configured ? (
+          <p className="text-xs text-[var(--color-text-muted)] mb-3" role="status">
+            Configured: {discordWebhookQuery.data.masked_url}
+          </p>
+        ) : (
+          <p className="text-xs text-[var(--color-alert)] mb-3" role="status">
+            No webhook configured. Workflow Discord notification actions will fail until one is saved here.
+          </p>
+        )}
+        {discordWebhookQuery.isError && (
+          <p className="text-xs text-[var(--color-alert)] mb-3" role="alert">Could not load Discord settings. Refresh and try again.</p>
+        )}
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(event) => {
+            event.preventDefault()
+            discordWebhookMutation.mutate(discordWebhookDraft)
+          }}
+        >
+          <Input
+            label="Discord webhook URL"
+            type="url"
+            autoComplete="off"
+            value={discordWebhookDraft}
+            onChange={(event) => setDiscordWebhookDraft(event.target.value)}
+            placeholder="https://discord.com/api/webhooks/..."
+          />
+          {discordWebhookMutation.isError && (
+            <p className="text-xs text-[var(--color-alert)]" role="alert">
+              {discordWebhookMutation.error instanceof Error && 'response' in discordWebhookMutation.error
+                ? 'Discord webhook could not be saved. Check that it is a valid Discord HTTPS webhook URL.'
+                : 'Discord webhook could not be saved. Try again.'}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={!discordWebhookDraft.trim() || discordWebhookMutation.isPending}>
+              {discordWebhookMutation.isPending ? 'Saving…' : 'Save webhook'}
+            </Button>
+            {discordWebhookQuery.data?.configured && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={discordWebhookMutation.isPending}
+                onClick={() => discordWebhookMutation.mutate(null)}
+              >
+                Remove webhook
+              </Button>
+            )}
+          </div>
+        </form>
       </Card>
 
       {/* Security */}

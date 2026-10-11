@@ -78,13 +78,25 @@ def validate_recipient(email: str) -> str:
 
 def is_valid_discord_webhook(url) -> bool:
     from urllib.parse import urlparse
+    import re
     try:
         parsed = urlparse(str(url or ""))
+        port = parsed.port
     except ValueError:
         return False
     host = (parsed.hostname or "").lower()
-    allowed = host in ("discord.com", "discordapp.com") or host.endswith(".discord.com") or host.endswith(".discordapp.com")
-    return parsed.scheme == "https" and allowed and parsed.path.startswith("/api/webhooks/")
+    allowed = host in ("discord.com", "discordapp.com")
+    path_is_webhook = re.fullmatch(r"/api/webhooks/[0-9]+/[^/]+", parsed.path) is not None
+    return (
+        parsed.scheme == "https"
+        and allowed
+        and port in (None, 443)
+        and not parsed.username
+        and not parsed.password
+        and not parsed.query
+        and not parsed.fragment
+        and path_is_webhook
+    )
 
 
 def pick_discord_webhook(organization_id: str, org_webhook):
