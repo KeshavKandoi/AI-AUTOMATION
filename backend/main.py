@@ -29,6 +29,7 @@ from account.routes import router as account_router
 from auth.routes import router as auth_router
 from notifications.routes import router as notifications_router
 from job_hunter.routes import router as job_hunter_router
+from organization_settings.routes import router as organization_settings_router
 
 app = FastAPI(title="Workforge Backend")
 
@@ -70,6 +71,7 @@ app.include_router(job_hunter_router)
 app.include_router(github_oauth_router)
 app.include_router(calendar_router)
 app.include_router(lunch_block_router)
+app.include_router(organization_settings_router)
 
 
 @app.on_event("startup")

@@ -283,7 +283,7 @@ async def _action_notify_discord(organization_id: str, context: dict) -> dict:
     org_webhook = org_res.data[0].get("discord_webhook_url") if org_res.data else None
     webhook_url = pick_discord_webhook(organization_id, org_webhook)
     if not webhook_url:
-        raise RuntimeError("Discord webhook is not configured for this organization")
+        raise RuntimeError("Discord webhook is not configured for this organization — add one in Settings → Discord notifications")
 
     message = f"**Workflow triggered**\n{single_line(context.get('title', ''))[:500]}"
     try:
