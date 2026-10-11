@@ -501,7 +501,7 @@ def test_phase4_email_job_stops_at_send_limit(monkeypatch):
 
     monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
     monkeypatch.setattr(es, "reserve_gmail_send", blocked)
-    monkeypatch.setattr(es.repository, "has_run_for_date", lambda j, d: False)
+    monkeypatch.setattr(es.repository, "get_run_for_date", lambda j, d: None)
     monkeypatch.setattr(es.repository, "create_run", lambda r: r)
     job = {"id": "j", "organization_id": "org-a", "to_email": "a@example.com", "subject": "s", "body": "b"}
     run = asyncio.run(es.execute_job(job))

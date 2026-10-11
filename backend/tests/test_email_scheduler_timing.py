@@ -21,7 +21,7 @@ def test_scheduled_email_waits_for_configured_send_time_in_ist():
 
 
 def test_recorded_failed_send_is_not_retried_automatically(monkeypatch):
-    monkeypatch.setattr(email_service.repository, "has_run_for_date", lambda job_id, run_date: True)
+    monkeypatch.setattr(email_service.repository, "get_run_for_date", lambda job_id, run_date: {"status": "failed"})
     with patch.object(email_service, "reserve_gmail_send") as reserve, \
          patch.object(email_service.repository, "create_run") as create_run:
         run = __import__("asyncio").run(email_service.execute_job({"id": "job-1"}))
@@ -29,3 +29,11 @@ def test_recorded_failed_send_is_not_retried_automatically(monkeypatch):
     assert run["status"] == "skipped"
     reserve.assert_not_called()
     create_run.assert_not_called()
+
+
+def test_run_now_does_not_repeat_a_successful_same_day_email(monkeypatch):
+    monkeypatch.setattr(email_service.repository, "get_run_for_date", lambda job_id, run_date: {"status": "success"})
+    with patch.object(email_service, "reserve_gmail_send") as reserve:
+        run = __import__("asyncio").run(email_service.execute_job({"id": "job-1"}, force=True))
+    assert run["status"] == "skipped"
+    reserve.assert_not_called()

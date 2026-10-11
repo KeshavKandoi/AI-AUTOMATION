@@ -80,7 +80,8 @@ def get_job_with_runs(job_id: str, organization_id: str) -> dict:
 async def execute_job(job: dict, force: bool = False) -> dict:
     run_date = datetime.now(ZoneInfo("Asia/Kolkata")).date().isoformat()
 
-    if not force and repository.has_run_for_date(job["id"], run_date):
+    existing_run = repository.get_run_for_date(job["id"], run_date)
+    if existing_run and (not force or existing_run.get("status") != "failed"):
         return {
             "job_id": job["id"], "run_date": run_date, "status": "skipped",
             "error_message": "An attempt was already recorded for this date"
