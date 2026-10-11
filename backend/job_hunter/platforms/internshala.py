@@ -28,7 +28,7 @@ from urllib.parse import quote
 from config import logger
 from job_hunter.platforms.playwright_base import PlaywrightJobProvider
 from job_hunter.platforms.base import RawJob
-from job_hunter.platforms.matching import normalize_employment_type, normalize_work_mode
+from job_hunter.platforms.matching import normalize_work_mode
 from job_hunter.platforms.registry import register_provider
 from playwright.async_api import Page
 

@@ -17,7 +17,6 @@ Verified live (2026-08-08) against real career pages:
   falls through to "no ATS detected" for the custom-site fallback adapter
 """
 import re
-from urllib.parse import urlparse
 from playwright.async_api import Page
 from job_hunter.platforms.base import RateLimiter
 

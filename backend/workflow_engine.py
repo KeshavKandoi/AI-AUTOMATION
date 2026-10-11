@@ -3,7 +3,7 @@ import base64
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta, timezone
 import httpx
-from config import supabase_admin, logger, decrypt_token, get_valid_access_token, single_line, pick_discord_webhook, settings, reserve_gmail_send
+from config import supabase_admin, logger, get_valid_access_token, single_line, pick_discord_webhook, settings, reserve_gmail_send
 from audit_logs.service import log_event
 
 

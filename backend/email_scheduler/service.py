@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from email_scheduler import repository
 from email_scheduler.schemas import EmailJobCreate, EmailJobUpdate
-from config import supabase_admin, decrypt_token, get_valid_access_token, logger, single_line, reserve_gmail_send, GmailSendLimitExceeded
+from config import supabase_admin, get_valid_access_token, logger, single_line, reserve_gmail_send, GmailSendLimitExceeded
 
 MAX_ACTIVE_EMAIL_JOBS_PER_ORG = 20
 

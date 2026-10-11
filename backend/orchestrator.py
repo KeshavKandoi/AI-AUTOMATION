@@ -4,7 +4,7 @@ from typing import TypedDict
 from fastapi import APIRouter
 from langgraph.graph import StateGraph, END
 
-from config import settings, supabase_admin, gemini_client, logger, pick_discord_webhook
+from config import supabase_admin, gemini_client, logger, pick_discord_webhook
 
 router = APIRouter()
 

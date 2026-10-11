@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from commit_scheduler import service, git_ops
-from commit_scheduler.schemas import CommitJobCreate, CommitJobUpdate, CommitJobOut, CommitJobRunOut, CommitJobFile
+from commit_scheduler.schemas import CommitJobCreate, CommitJobUpdate, CommitJobFile
 from commit_scheduler import repository
 from auth.dependencies import get_current_org_id
 

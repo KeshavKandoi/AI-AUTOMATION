@@ -4,7 +4,6 @@ and orchestration between repository.py (DB) and git_ops.py (Git provider).
 """
 import httpx
 from datetime import date, datetime, timezone
-from typing import Optional
 from fastapi import HTTPException
 
 from commit_scheduler import repository, git_ops

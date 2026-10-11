@@ -1,5 +1,6 @@
 """Gmail and removed-feature security regression tests."""
 from pathlib import Path
+import re
 from urllib.parse import parse_qs, urlparse
 from fastapi.testclient import TestClient
 from main import app, gmail_login
@@ -25,6 +26,6 @@ def test_gmail_does_not_read_inbox():
     production = [p for p in files if "tests" not in p.parts and "venv" not in p.parts]
     source = "\n".join(p.read_text() for p in production)
     assert "gmail.readonly" not in source
+    assert "https://www.googleapis.com/auth/calendar" not in source
     assert "users/me/messages/send" in source
-    assert "users/me/messages/list" not in source
-    assert "users/me/messages/get" not in source
+    assert not re.search(r"users/me/messages(?!/send)", source)

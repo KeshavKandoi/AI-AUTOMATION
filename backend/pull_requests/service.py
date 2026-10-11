@@ -9,13 +9,12 @@ every other GitHub-touching module in this app already uses. There is no
 path by which one org's request can read or act on another org's token.
 """
 import asyncio
-from datetime import datetime, timezone
 from typing import Optional
 from fastapi import HTTPException
 
 import github_client as gh
 from closeout import _resolve_access_token
-from config import run_gemini, logger
+from config import run_gemini
 from audit_logs.service import log_event
 from notifications.service import notify
 

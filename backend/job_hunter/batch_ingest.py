@@ -32,9 +32,8 @@ from typing import Optional
 
 from config import logger
 from job_hunter import repository
-from job_hunter.service import build_dedup_key, _content_changed, MODULE
+from job_hunter.service import build_dedup_key, _content_changed
 from job_hunter.notifications_shim import notify_job_match  # see below
-from audit_logs.service import log_event
 
 # Configurable batch size -- validated via a real 200-row upsert
 # benchmark (0.93s, no errors). Do not increase without re-benchmarking

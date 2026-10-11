@@ -626,15 +626,13 @@ def test_issues_opened_webhook_goes_through_dedup_dispatch():
     body = json.dumps({"repository": {"full_name": "a/b"}, "action": "opened",
                        "issue": {"number": 7, "title": "t", "body": "b", "labels": [], "html_url": "u"}})
     with patch("webhooks.routes._resolve_org_for_webhook", return_value={"id": "org-a"}), \
-         patch("webhooks.routes.dispatch_workflow_event", new_callable=AsyncMock) as d, \
-         patch("webhooks.routes.run_workflows", new_callable=AsyncMock) as r:
+         patch("webhooks.routes.dispatch_workflow_event", new_callable=AsyncMock) as d:
         res = TestClient(app).post("/webhooks/github", content=body,
                                    headers={"Content-Type": "application/json", "X-GitHub-Event": "issues"})
     assert res.status_code == 200
     d.assert_called_once()
     assert d.call_args.args[1] == "issue_created"
     assert d.call_args.kwargs["event_key"] == "issue-7-opened"
-    r.assert_not_called()
 
 
 def _issue_call(allowed, repo=None):

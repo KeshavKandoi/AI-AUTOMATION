@@ -9,7 +9,6 @@ from config import logger
 from job_hunter import repository, service
 from job_hunter.platforms import registry
 from job_hunter.platforms import __init__ as _register_platforms  # noqa: F401 — triggers adapter registration
-from job_hunter.retry import RetryExhaustedError
 from job_hunter.batch_ingest import ingest_discovered_jobs_batch
 from audit_logs.service import log_event
 

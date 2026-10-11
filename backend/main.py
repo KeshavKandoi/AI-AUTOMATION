@@ -1,16 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
-from fastapi.responses import RedirectResponse
-from jose import jwt, JWTError
+from fastapi import FastAPI, Depends, HTTPException
 import httpx
 from datetime import datetime, timedelta, timezone
 
 import time
-import secrets
-from config import settings, supabase_admin, gemini_client, logger, encrypt_token, decrypt_token, get_valid_access_token, run_gemini
+from config import settings, supabase_admin, logger, encrypt_token, run_gemini
 
 
 from oauth_state import _issue_oauth_state, _consume_oauth_state
-from github_helpers import fetch_github_repos_and_issues, github_get, github_post, github_get_paginated
+from github_helpers import (
+    fetch_github_repos_and_issues, github_post, github_get_paginated,
+    _valid_repo, _allowed_issue_repos,
+)
+from github_oauth import router as github_oauth_router
 
 import orchestrator
 import scheduler
@@ -64,6 +65,7 @@ app.include_router(auth_router)
 app.include_router(notifications_router)
 app.include_router(analytics_router)
 app.include_router(job_hunter_router)
+app.include_router(github_oauth_router)
 
 
 @app.on_event("startup")
@@ -86,56 +88,8 @@ from auth.dependencies import get_current_user, get_current_org_id
 def get_me(user: dict = Depends(get_current_user)):
     return {"id": user.get("sub"), "email": user.get("email")}
 
-# ---------- GitHub OAuth ----------
-
-@app.get("/github/login")
-def github_login(org_id: str = Depends(get_current_org_id)):
-    state = _issue_oauth_state(org_id, "github")
-    url = (
-        f"https://github.com/login/oauth/authorize"
-        f"?client_id={settings.GITHUB_CLIENT_ID}"
-        f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
-        f"&scope=repo,read:user"
-        f"&state={state}"
-    )
-    return {"url": url}
-
-
-@app.get("/github/callback")
-async def github_callback(code: str, state: str):
-    org_id = _consume_oauth_state(state, "github")
-    async with httpx.AsyncClient(timeout=20) as client:
-        token_res = await client.post(
-            "https://github.com/login/oauth/access_token",
-            headers={"Accept": "application/json"},
-            data={
-                "client_id": settings.GITHUB_CLIENT_ID,
-                "client_secret": settings.GITHUB_CLIENT_SECRET,
-                "code": code,
-                "redirect_uri": settings.GITHUB_REDIRECT_URI,
-            },
-        )
-        token_data = token_res.json()
-
-    access_token = token_data.get("access_token")
-    if not access_token:
-        raise HTTPException(status_code=400, detail="GitHub auth failed")
-
-    integration = supabase_admin.table("integrations").insert({
-        "organization_id": org_id, "provider": "github", "connected": True
-    }).execute()
-    integration_id = integration.data[0]["id"]
-
-    supabase_admin.table("oauth_tokens").insert({
-        "integration_id": integration_id, "access_token": encrypt_token(access_token)
-    }).execute()
-
-    return {"status": "connected", "integration_id": integration_id}
-
-
 from org_webhooks import register_github_webhook
 
-from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
 from audit_logs.service import log_event
 
 @app.post("/github/connect-repo")
@@ -393,33 +347,6 @@ async def approve_and_create_issue(task_id: str, repo_full_name: str | None = No
 
 # ---------- Gmail OAuth ----------
 
-def _has_stored_refresh_token(org_id: str, provider: str) -> bool:
-    """Checks whether this organization already has a connected integration
-    with a stored (encrypted) refresh_token for the given provider. Used
-    only to decide whether /login needs to force Google's consent screen —
-    never decrypts or exposes the token itself."""
-    integration_res = supabase_admin.table("integrations") \
-        .select("id") \
-        .eq("organization_id", org_id) \
-        .eq("provider", provider) \
-        .eq("connected", True) \
-        .order("created_at", desc=True) \
-        .limit(1) \
-        .execute()
-    if not integration_res.data:
-        return False
-    integration_id = integration_res.data[0]["id"]
-    token_res = supabase_admin.table("oauth_tokens") \
-        .select("refresh_token") \
-        .eq("integration_id", integration_id) \
-        .order("created_at", desc=True) \
-        .limit(1) \
-        .execute()
-    if not token_res.data:
-        return False
-    return bool(token_res.data[0].get("refresh_token"))
-
-
 @app.get("/gmail/login")
 def gmail_login(org_id: str = Depends(get_current_org_id)):
     prompt_param = "&prompt=consent"
@@ -531,45 +458,12 @@ async def discord_daily_report(org_id: str = Depends(get_current_org_id)):
 
 # ---------- Human Approval Layer ----------
 
-import re as _re
-
-
 def _rate_limit(org_id: str, action: str, setting_name: str):
     from config import reserve_org_action, ActionRateLimited
     try:
         reserve_org_action(org_id, action, getattr(settings, setting_name))
     except ActionRateLimited as e:
         raise HTTPException(status_code=429, detail=str(e))
-
-_REPO_RE = _re.compile(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}")
-
-
-def _valid_repo(name):
-    if not name or not _REPO_RE.fullmatch(name) or any(p in (".", "..") for p in name.split("/")):
-        raise HTTPException(status_code=422, detail="Invalid repository name")
-    return name
-
-
-def _parse_event_time(value: str) -> datetime:
-    if not value or len(value) > 64:
-        raise HTTPException(status_code=422, detail="Invalid event time")
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid event time")
-
-
-def _allowed_issue_repos(task: dict, org_id: str) -> dict:
-    from closeout import parse_source_ref
-    allowed = {}
-    source_type, identifier = parse_source_ref(task.get("source_ref") or "")
-    if source_type == "github" and identifier and "#" in identifier:
-        allowed["source"] = identifier.rsplit("#", 1)[0]
-    res = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
-    if res.data and res.data[0].get("github_repo"):
-        allowed["connected"] = res.data[0]["github_repo"]
-    return allowed
-
 
 def _claim_task(task_id: str, org_id: str, from_status: str, to_status: str):
     res = supabase_admin.table("tasks").update({"status": to_status}) \

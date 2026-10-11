@@ -1,6 +1,28 @@
 import httpx
+import re
 from fastapi import HTTPException
-from config import logger
+from config import logger, supabase_admin
+
+
+_REPO_RE = re.compile(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}")
+
+
+def _valid_repo(name: str) -> str:
+    if not name or not _REPO_RE.fullmatch(name) or any(part in (".", "..") for part in name.split("/")):
+        raise HTTPException(status_code=422, detail="Invalid repository name")
+    return name
+
+
+def _allowed_issue_repos(task: dict, org_id: str) -> dict:
+    from closeout import parse_source_ref
+    allowed = {}
+    source_type, identifier = parse_source_ref(task.get("source_ref") or "")
+    if source_type == "github" and identifier and "#" in identifier:
+        allowed["source"] = identifier.rsplit("#", 1)[0]
+    res = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
+    if res.data and res.data[0].get("github_repo"):
+        allowed["connected"] = res.data[0]["github_repo"]
+    return allowed
 
 async def fetch_github_repos_and_issues(access_token: str):
     """Fetches the user's repos and open issues for repos that have any.

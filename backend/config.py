@@ -177,11 +177,7 @@ def get_valid_access_token(integration_id: str) -> str:
 def run_gemini(prompt: str):
     """Wraps a Gemini generate_content call. Raises a clean 503 on transient
     provider errors (overload, unavailable) instead of letting them surface
-    as unhandled 500s. Logs the real exception for debugging.
-
-    Moved here from main.py (unchanged) so new modules (pull_requests,
-    open_source) can import it without a circular import back into main.py,
-    which imports their routers at module load time."""
+    as unhandled 500s. Logs the real exception for debugging."""
     from fastapi import HTTPException
     from google.genai import errors as genai_errors
     try:

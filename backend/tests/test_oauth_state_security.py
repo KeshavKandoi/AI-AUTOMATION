@@ -6,6 +6,7 @@ leak provider access/refresh tokens to the frontend.
 """
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock, AsyncMock
+from urllib.parse import parse_qs, urlparse
 from fastapi.testclient import TestClient
 
 
@@ -55,7 +56,7 @@ def test_github_login_issues_random_state_not_org_id():
     from main import app
     _override_org(app, org_id="org-victim")
     try:
-        with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
+        with patch("oauth_state.supabase_admin") as sb, patch("github_oauth.supabase_admin", sb):
             insert_result = MagicMock()
             sb.table.return_value.insert.return_value.execute.return_value = insert_result
 
@@ -75,11 +76,30 @@ def test_github_login_issues_random_state_not_org_id():
         _clear(app)
 
 
+def test_github_login_preserves_redirect_scope_and_state():
+    from main import app
+    from config import settings
+    _override_org(app, org_id="org-1")
+    try:
+        with patch("github_oauth._issue_oauth_state", return_value="single-use-state") as issue:
+            response = TestClient(app).get("/github/login")
+        assert response.status_code == 200
+        url = urlparse(response.json()["url"])
+        query = parse_qs(url.query)
+        assert (url.scheme, url.netloc, url.path) == ("https", "github.com", "/login/oauth/authorize")
+        assert query["redirect_uri"] == [settings.GITHUB_REDIRECT_URI]
+        assert query["scope"] == ["repo,read:user"]
+        assert query["state"] == ["single-use-state"]
+        issue.assert_called_once_with("org-1", "github")
+    finally:
+        _clear(app)
+
+
 # ---------------- callback: missing/invalid state ----------------
 
 def test_github_callback_rejects_unknown_state():
     from main import app
-    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
+    with patch("oauth_state.supabase_admin") as sb, patch("github_oauth.supabase_admin", sb):
         empty_result = MagicMock()
         empty_result.data = []
         sb.table.return_value.select.return_value.eq.return_value.execute.return_value = empty_result
@@ -93,7 +113,7 @@ def test_github_callback_rejects_unknown_state():
 
 def test_github_callback_rejects_expired_state():
     from main import app
-    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
+    with patch("oauth_state.supabase_admin") as sb, patch("github_oauth.supabase_admin", sb):
         row = _mock_state_row(provider="github", expired=True)
         select_result = MagicMock(data=[row])
         sb.table.return_value.select.return_value.eq.return_value.execute.return_value = select_result
@@ -107,7 +127,7 @@ def test_github_callback_rejects_expired_state():
 
 def test_github_callback_rejects_state_issued_for_different_provider():
     from main import app
-    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
+    with patch("oauth_state.supabase_admin") as sb, patch("github_oauth.supabase_admin", sb):
         row = _mock_state_row(provider="gmail")
         select_result = MagicMock(data=[row])
         sb.table.return_value.select.return_value.eq.return_value.execute.return_value = select_result
@@ -121,7 +141,7 @@ def test_github_callback_rejects_state_issued_for_different_provider():
 
 def test_github_callback_rejects_replayed_state():
     from main import app
-    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
+    with patch("oauth_state.supabase_admin") as sb, patch("github_oauth.supabase_admin", sb):
         row = _mock_state_row(provider="github", consumed_at=datetime.now(timezone.utc).isoformat())
         select_result = MagicMock(data=[row])
         sb.table.return_value.select.return_value.eq.return_value.execute.return_value = select_result
@@ -136,7 +156,7 @@ def test_github_callback_rejects_replayed_state():
 
 def test_github_callback_rejects_concurrent_replay_race():
     from main import app
-    with patch("oauth_state.supabase_admin") as sb, patch("main.supabase_admin", sb):
+    with patch("oauth_state.supabase_admin") as sb, patch("github_oauth.supabase_admin", sb):
         row = _mock_state_row(provider="github", consumed_at=None)
         select_result = MagicMock(data=[row])
 
@@ -159,10 +179,9 @@ def test_github_callback_uses_org_id_from_state_not_query_param():
     this test guards against a future regression where someone re-adds an
     org_id query param to the callback and wires it in by mistake."""
     from main import app
-    with patch("main.supabase_admin") as sb, \
+    with patch("github_oauth.supabase_admin") as sb, \
          patch("oauth_state.supabase_admin", sb), \
-         patch("main.httpx.AsyncClient") as mock_client_cls, \
-         patch("main.register_github_webhook"):
+         patch("github_oauth.httpx.AsyncClient") as mock_client_cls:
         row = _mock_state_row(provider="github", org_id="org-from-state-row", consumed_at=None)
         select_result = MagicMock(data=[row])
         claim_result = MagicMock(data=[{**row, "consumed_at": "now"}])
@@ -186,6 +205,11 @@ def test_github_callback_uses_org_id_from_state_not_query_param():
         res = client.get("/github/callback", params={"code": "abc", "state": "valid-state"})
 
         assert res.status_code == 200
+        request = mock_http_client.post.call_args
+        assert request.args == ("https://github.com/login/oauth/access_token",)
+        assert request.kwargs["headers"] == {"Accept": "application/json"}
+        assert request.kwargs["data"]["code"] == "abc"
+        assert request.kwargs["data"]["redirect_uri"] == __import__("config").settings.GITHUB_REDIRECT_URI
         insert_calls = [c.args[0] for c in table_mock.insert.call_args_list]
         integrations_insert = next(c for c in insert_calls if "provider" in c)
         assert integrations_insert["organization_id"] == "org-from-state-row"
@@ -195,10 +219,9 @@ def test_github_callback_uses_org_id_from_state_not_query_param():
 
 def test_github_callback_response_never_contains_access_token():
     from main import app
-    with patch("main.supabase_admin") as sb, \
+    with patch("github_oauth.supabase_admin") as sb, \
          patch("oauth_state.supabase_admin", sb), \
-         patch("main.httpx.AsyncClient") as mock_client_cls, \
-         patch("main.register_github_webhook"):
+         patch("github_oauth.httpx.AsyncClient") as mock_client_cls:
         row = _mock_state_row(provider="github", org_id="org-1", consumed_at=None)
         select_result = MagicMock(data=[row])
         claim_result = MagicMock(data=[{**row, "consumed_at": "now"}])

@@ -9,7 +9,6 @@ goes through the parent table first to get the id list, then filters runs
 by that list. This mirrors how workflow_routes.py and commit_scheduler
 already handle it (e.g. get_workflow -> fetch recent_runs by workflow_id).
 """
-from typing import Optional
 from config import supabase_admin
 
 # Analytics reads full ranges rather than paginating like the audit-logs API

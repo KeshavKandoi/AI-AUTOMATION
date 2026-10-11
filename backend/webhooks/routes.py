@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, HTTPException, Header, Query
 
 from config import settings, logger, supabase_admin, decrypt_token
 from orchestrator import coo_graph
-from workflow_engine import run_workflows, dispatch_workflow_event
+from workflow_engine import dispatch_workflow_event
 from commit_scheduler import repository as commit_repo, service as commit_service
 from email_scheduler import repository as email_repo, service as email_service
 
