@@ -116,7 +116,7 @@ export default function Workflows() {
   const runNowMutation = useMutation({
     mutationFn: (workflowId: string) => workflowService.runNow(workflowId, orgId!),
     onSuccess: (run, workflowId) => {
-      setRunNowFeedback({ id: workflowId, status: run.status })
+      setRunNowFeedback({ id: workflowId, status: run.status, error: run.error_message ?? undefined })
       queryClient.invalidateQueries({ queryKey: ['workflows', 'detail', workflowId] })
     },
     onError: (error, workflowId) => {

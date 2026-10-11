@@ -15,6 +15,24 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
+function schedulerErrorMessage(error: unknown): string {
+  const fallback = 'Something went wrong. Please check the fields and try again.'
+  if (!error || typeof error !== 'object' || !('response' in error)) return fallback
+  const response = error.response
+  if (!response || typeof response !== 'object' || !('data' in response)) return fallback
+  const data = response.data
+  if (!data || typeof data !== 'object' || !('detail' in data)) return fallback
+  const detail = data.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .filter((item): item is { msg: string } => !!item && typeof item === 'object' && typeof item.msg === 'string')
+      .map((item) => item.msg)
+    return messages.length ? messages.join('; ') : fallback
+  }
+  return fallback
+}
+
 function selectClass() {
   return 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)] disabled:opacity-50 disabled:cursor-not-allowed'
 }
@@ -352,10 +370,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
 
         {mutation.isError && (
           <ErrorBanner
-            message={
-              (mutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-              'Something went wrong. Please check the fields and try again.'
-            }
+            message={schedulerErrorMessage(mutation.error)}
           />
         )}
 
