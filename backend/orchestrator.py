@@ -182,16 +182,15 @@ async def node_notify_discord(state: COOState) -> COOState:
     tasks = state.get("tasks", [])
 
     if not tasks:
-        report = "**Workforge Run Complete**\n\nNothing found across GitHub. All clear."
+        report = "**WorkForge Run Complete**\n\nNothing found across GitHub. All clear."
     else:
-        report = "**Workforge Run Complete**\n\n**Tasks awaiting your approval:**\n"
+        report = "**WorkForge Run Complete**\n\n**Tasks awaiting your approval:**\n"
         for t in tasks:
             report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')} (source: {t.get('source')}, id: {t.get('id')[:8]})\n"
         report += "\nApprove via /tasks/{id}/approve"
 
     org_res = supabase_admin.table("organizations").select("discord_webhook_url").eq("id", state["org_id"]).execute()
-    org_webhook = org_res.data[0].get("discord_webhook_url") if org_res.data else None
-    webhook_url = pick_discord_webhook(state["org_id"], org_webhook)
+    webhook_url = pick_discord_webhook(state["org_id"], org_res.data[0].get("discord_webhook_url")) if org_res.data else None
     if webhook_url:
         try:
             async with httpx.AsyncClient(timeout=10) as client:

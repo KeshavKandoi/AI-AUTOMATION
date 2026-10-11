@@ -117,7 +117,7 @@ export default function AuditLogs() {
             Audit Logs
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            A complete timeline of every action across Workforge
+            A complete timeline of every action across WorkForge
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
@@ -229,7 +229,7 @@ export default function AuditLogs() {
             description={
               hasActiveFilters || search
                 ? 'Try adjusting your filters or search.'
-                : 'Actions across Workforge will show up here as they happen.'
+                : 'Actions across WorkForge will show up here as they happen.'
             }
           />
         ) : view === 'table' ? (

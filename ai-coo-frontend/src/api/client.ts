@@ -54,6 +54,14 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
+    // An incorrect current password is a form error, not an expired session.
+    if (
+      error.response?.status === 401 &&
+      original?.url === '/auth/change-password' &&
+      error.response?.data?.detail === 'Current password is incorrect'
+    ) {
+      return Promise.reject(error)
+    }
 
     if (error.response?.status === 401 && !original?._retried && !isPublicPath(window.location.pathname)) {
       original._retried = true
