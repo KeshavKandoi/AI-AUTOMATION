@@ -51,9 +51,15 @@ The GitHub webhook endpoint is `POST /webhooks/github`. Configure the repository
 
 ## Discord notifications
 
-Discord workflow actions use the authenticated organization's `organizations.discord_webhook_url`. In Settings → Discord notifications, paste a Discord HTTPS webhook URL and choose **Save webhook**; use **Remove webhook** to clear it. Settings only returns whether a webhook exists and the fixed masked label “Discord webhook ••••••••”, never the URL or token. The backend accepts only HTTPS webhook URLs on `discord.com` or `discordapp.com` with the expected webhook path. Keep the URL private: anyone holding it can post to that channel. It is not written to application logs or audit records.
+Discord workflow actions use the authenticated organization's `organizations.discord_webhook_url` when one is saved in Settings → Discord notifications. This setting takes precedence over the backend environment fallback. Settings and Integrations report the effective source (`settings` or `environment`) and a fixed masked label. They never return the URL or token. Discord is a webhook integration, not an OAuth connection; no Discord bot API key is used.
 
-`DISCORD_WEBHOOK_URL` is an optional development/test fallback, used only outside production and only for `TEST_ORG_ID`. Production deliberately ignores this global value so notifications from different organizations cannot be routed to one shared channel. Configure each production organization's URL in Settings. No Discord bot API key is used.
+To configure the Render environment fallback for **one** organization:
+
+1. Open WorkForge → Settings and copy the **Organization ID** from Account Preferences.
+2. In the Render backend service's environment, set `DISCORD_ENV_ORG_ID` to that exact ID and set `DISCORD_WEBHOOK_URL` to that organization's Discord HTTPS webhook URL. Keep the URL in Render's secret environment settings; do not put it in source control.
+3. Apply the Render environment change and restart/redeploy the backend service. Open WorkForge → Integrations and check that Discord shows **Connected** and **Managed via backend environment**. A missing ID, a nonmatching ID, or an invalid URL leaves Discord unconfigured for that organization.
+
+To override the environment value, save a different webhook in Settings → Discord notifications. Removing the saved webhook restores the environment fallback for the matching organization. The backend accepts only HTTPS webhook URLs on `discord.com` or `discordapp.com` with the expected webhook path. Keep webhook URLs private: anyone holding one can post to its channel. WorkForge does not put webhook URLs in API responses, application logs, or audit records.
 
 
 ## Deployment
