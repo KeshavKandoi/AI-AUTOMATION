@@ -25,6 +25,8 @@ def test_connect_repo_uses_configured_base_url():
     with patch("main.supabase_admin") as sb, \
          patch("main.register_github_webhook", new_callable=AsyncMock) as mock_register, \
          patch("closeout._resolve_access_token", return_value="tok"), \
+         patch("main.github_get_paginated", new_callable=AsyncMock, return_value=[{"full_name": "acme/repo"}]), \
+         patch("main._rate_limit"), \
          patch("main.settings") as mock_settings:
 
         mock_settings.RENDER_BASE_URL = "https://custom-configured-url.example.com"

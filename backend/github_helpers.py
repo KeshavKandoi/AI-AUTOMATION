@@ -79,9 +79,6 @@ async def github_post(url: str, access_token: str, json_body: dict = None):
         raise HTTPException(status_code=502, detail="Couldn't reach GitHub. Please try again shortly.")
 
 
-GITHUB_MAX_PAGES = 20  # hard ceiling (up to 2000 items at per_page=100) -- safety bound, not expected to be hit
-
-
 async def github_get_paginated(url: str, access_token: str, params: dict = None) -> list:
     """GETs every page of a GitHub list endpoint (repos, issues, etc.) and
     returns the concatenated results. Uses per_page=100 and increments page
@@ -95,7 +92,7 @@ async def github_get_paginated(url: str, access_token: str, params: dict = None)
     base_params = dict(params or {})
     base_params["per_page"] = per_page
 
-    while page <= GITHUB_MAX_PAGES:
+    while True:
         page_params = dict(base_params)
         page_params["page"] = page
         res = await github_get(url, access_token, params=page_params)

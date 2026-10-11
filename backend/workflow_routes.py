@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone
-from config import supabase_admin
+from config import supabase_admin, logger
 from workflow_schemas import WorkflowCreate, WorkflowUpdate
 from workflow_engine import execute_workflow, sample_context_for_trigger, _is_past_expiry, WorkflowRateLimited
 from auth.dependencies import get_current_org_id
@@ -88,8 +88,8 @@ async def run_workflow_now(workflow_id: str, context_override: dict | None = Non
         raise HTTPException(status_code=404, detail="Workflow not found")
     workflow = existing.data[0]
 
-    if workflow["status"] in ("completed", "expired"):
-        raise HTTPException(status_code=409, detail=f"Workflow is {workflow['status']} and can no longer run")
+    if workflow["status"] != "active":
+        raise HTTPException(status_code=409, detail=f"Workflow is {workflow['status']} and cannot run manually")
 
     if _is_past_expiry(workflow):
         supabase_admin.table("workflows").update({"status": "expired"}).eq("id", workflow_id).execute()
@@ -105,4 +105,9 @@ async def run_workflow_now(workflow_id: str, context_override: dict | None = Non
         run = await execute_workflow(workflow, context, record_skipped=True)
     except WorkflowRateLimited:
         raise HTTPException(status_code=429, detail="Workflow run limit reached for this organization; try again later")
+    except Exception as exc:
+        logger.error("Manual workflow run failed for workflow %s (%s)", workflow_id, type(exc).__name__)
+        raise HTTPException(status_code=500, detail="Workflow run failed before it could be recorded. Please review backend logs.")
+    if run is None:
+        raise HTTPException(status_code=500, detail="Workflow run did not produce a result")
     return {"status": "triggered", "run": run}

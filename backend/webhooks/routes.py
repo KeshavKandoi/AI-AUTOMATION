@@ -3,8 +3,7 @@ import hashlib
 import json
 from fastapi import APIRouter, Request, HTTPException, Header, Query
 
-from config import settings, logger, supabase_admin, decrypt_token
-from orchestrator import coo_graph
+from config import settings, logger, supabase_admin
 from workflow_engine import dispatch_workflow_event
 from commit_scheduler import repository as commit_repo, service as commit_service
 from email_scheduler import repository as email_repo, service as email_service
@@ -185,36 +184,10 @@ async def github_webhook(
         await dispatch_workflow_event(org_id, "pull_request_opened", pr_context, event_key=pr_event_key)
         logger.info(f"Workflow dispatch complete for PR #{pr_context['pr_number']} opened")
 
-    token_res = supabase_admin.table("integrations").select("id").eq("organization_id", org_id).eq("provider", "github").eq("connected", True).order("created_at", desc=True).execute()
-    if not token_res.data:
-        logger.warning(f"Workflow webhook handled for org {org_id}; no connected GitHub integration for orchestrator actions")
-        return {"status": "triggered", "event": x_github_event, "tasks_created": 0}
-    integration_ids = [row["id"] for row in token_res.data]
-    oauth_res = supabase_admin.table("oauth_tokens").select("access_token").in_("integration_id", integration_ids).order("created_at", desc=True).execute()
-    if not oauth_res.data:
-        logger.warning(f"Workflow webhook handled for org {org_id}; no GitHub token available for orchestrator actions")
-        return {"status": "triggered", "event": x_github_event, "tasks_created": 0}
-    access_token = decrypt_token(oauth_res.data[0]["access_token"])
-
-    initial_state = {
-        "github_token": access_token,
-        "gmail_token": "",
-        "org_id": org_id,
-        "issues_data": [],
-        "emails_data": [],
-        "events_data": [],
-        "tasks": [],
-        "report": ""
-    }
-
-    final_state = await coo_graph.ainvoke(initial_state)
-    logger.info(f"Webhook-triggered orchestrator run complete: {final_state['report']}")
-
-    return {
-        "status": "triggered",
-        "event": x_github_event,
-        "tasks_created": len(final_state["tasks"])
-    }
+    # The verified event has been dispatched to the workflow engine. Do not
+    # fall through into the old global orchestrator, which runs unrelated work
+    # and can fail the webhook response after workflow actions have completed.
+    return {"status": "triggered", "event": x_github_event, "tasks_created": 0}
 
 
 def verify_generic_secret(secret):

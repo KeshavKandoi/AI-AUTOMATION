@@ -109,7 +109,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
 
       {open && (
         <div className="relative z-20">
-          <div className="absolute top-1 left-0 w-[280px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl p-3 max-h-[380px] overflow-y-auto">
+          <div className="absolute top-1 left-0 z-[60] w-[min(280px,calc(100vw-2rem))] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl p-3 max-h-[min(380px,60vh)] overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"
@@ -180,7 +180,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
                   </p>
                 )}
                 <Button
-                  className="w-full mt-2"
+                  className="w-full min-h-11 mt-2 !bg-[var(--color-signal)] !text-[var(--color-void)] shadow-md"
                   disabled={isTimeInvalid}
                   onClick={handleApply}
                 >

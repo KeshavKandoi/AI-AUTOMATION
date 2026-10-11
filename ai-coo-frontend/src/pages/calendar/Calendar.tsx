@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Calendar as CalendarIcon, Sparkles, Plus, AlertCircle, CheckCircle2, Type } from 'lucide-react'
+import { Calendar as CalendarIcon, Sparkles, Plus, AlertCircle, CheckCircle2, Type, RefreshCw, Link2 } from 'lucide-react'
 import { calendarService } from '@/services/calendar'
+import { integrationsService } from '@/services/integrations'
 import { useAuthStore } from '@/store/authStore'
 import Card from '@/components/ui/Card'
 import Skeleton from '@/components/ui/Skeleton'
@@ -42,11 +43,22 @@ export default function CalendarPage() {
   const [eventEnd, setEventEnd] = useState<Date | null>(null)
   const [justCreated, setJustCreated] = useState(false)
 
-  const { data: events, isLoading: eventsLoading, isError: eventsError } = useQuery({
+  const { data: events, isLoading: eventsLoading, isError: eventsError, refetch: refreshEvents, isFetching: eventsFetching } = useQuery({
     queryKey: ['calendar', 'events', orgId],
     queryFn: () => calendarService.getEvents(orgId!),
     enabled: !!orgId,
     retry: false,
+  })
+
+  const { data: integrations } = useQuery({
+    queryKey: ['integrations', orgId],
+    queryFn: () => integrationsService.list(orgId!),
+    enabled: !!orgId,
+  })
+  const calendarConnected = integrations?.some((item) => item.provider === 'calendar' && item.connected) ?? false
+  const connectCalendarMutation = useMutation({
+    mutationFn: () => integrationsService.getLoginUrl('calendar'),
+    onSuccess: (url) => { window.location.href = url },
   })
 
   const {
@@ -94,29 +106,46 @@ export default function CalendarPage() {
     eventTitle.trim().length > 0 && !!eventStart && !!eventEnd && eventEnd > eventStart
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="px-4 py-5 sm:p-6 md:p-8 max-w-6xl mx-auto flex flex-col gap-5 md:gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-3 flex-wrap">
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             Google Calendar
           </h1>
+            <span className="rounded-full border border-[var(--color-signal)]/40 bg-[var(--color-signal-dim)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-signal)]">Production</span>
+          </div>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             Your upcoming events at a glance
           </p>
         </div>
-        <Button onClick={() => setEventModalOpen(true)}>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+        {!calendarConnected && (
+          <Button variant="secondary" loading={connectCalendarMutation.isPending} onClick={() => connectCalendarMutation.mutate()} className="w-full sm:w-auto">
+            <Link2 size={15} /> Connect Calendar
+          </Button>
+        )}
+        <Button onClick={() => setEventModalOpen(true)} className="w-full sm:w-auto">
           <Plus size={15} />
           New event
         </Button>
+        </div>
       </div>
 
+      {connectCalendarMutation.isError && <ErrorBanner message="Couldn't start Calendar connection. Please try again." />}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <div className="flex items-center gap-2 mb-4">
+        <Card className="p-4 sm:p-5 min-w-0">
+          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2 min-w-0">
             <CalendarIcon size={16} className="text-[var(--color-signal)]" />
             <h2 className="text-sm font-medium text-[var(--color-text-primary)]">
               Upcoming events {events && <span className="text-[var(--color-text-faint)]">({events.length})</span>}
             </h2>
+          </div>
+          <Button variant="ghost" className="shrink-0 px-2" aria-label="Refresh events" onClick={() => void refreshEvents()} loading={eventsFetching}>
+            <RefreshCw size={15} /> <span className="hidden sm:inline">Refresh</span>
+          </Button>
           </div>
           {eventsLoading ? (
             <div className="space-y-2">
@@ -143,7 +172,7 @@ export default function CalendarPage() {
           )}
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5 min-w-0">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles size={16} className="text-[var(--color-amber)]" />
             <h2 className="text-sm font-medium text-[var(--color-text-primary)]">AI summary</h2>
@@ -202,7 +231,7 @@ export default function CalendarPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <DateTimePicker label="Starts" value={eventStart} onChange={setEventStart} />
               <DateTimePicker
                 label="Ends"

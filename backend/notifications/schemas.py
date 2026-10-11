@@ -7,7 +7,7 @@ Priority = Literal["low", "normal", "high", "urgent"]
 
 class NotificationCreate(BaseModel):
     organization_id: str
-    module: str                       # e.g. "job_hunter", "commit_scheduler", "chat"
+    module: str                       # e.g. "job_hunter", "commit_scheduler"
     category: Optional[str] = None    # e.g. "new_job_match", "interview_invite", "offer"
     priority: Priority = "normal"
     title: str

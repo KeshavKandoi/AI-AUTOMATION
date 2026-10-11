@@ -104,18 +104,26 @@ async def connect_repo(repo_full_name: str, org_id: str = Depends(get_current_or
     _rate_limit(org_id, "github_write", "GITHUB_WRITES_MAX_PER_ORG_PER_HOUR")
     from closeout import _resolve_access_token
     access_token = _resolve_access_token(org_id, "github")
+    user_repos = await github_get_paginated("https://api.github.com/user/repos", access_token)
+    canonical_repo = next(
+        (str(repo.get("full_name")) for repo in user_repos
+         if str(repo.get("full_name", "")).casefold() == repo_full_name.casefold()),
+        None,
+    )
+    if not canonical_repo:
+        raise HTTPException(status_code=404, detail="Repository is not available to the connected GitHub account")
     result = await register_github_webhook(
         access_token=access_token,
-        repo_full_name=repo_full_name,
+        repo_full_name=canonical_repo,
         org_id=org_id,
         base_url=settings.RENDER_BASE_URL
     )
     if result is None:
         raise HTTPException(status_code=400, detail="Failed to register webhook on GitHub")
 
-    supabase_admin.table("organizations").update({"github_repo": repo_full_name}).eq("id", org_id).execute()
+    supabase_admin.table("organizations").update({"github_repo": canonical_repo}).eq("id", org_id).execute()
 
-    return {"status": "connected", "repo": repo_full_name, "webhook_id": result.get("id")}
+    return {"status": "connected", "repo": canonical_repo, "webhook_id": result.get("id")}
 
 
 @app.get("/github/repos")

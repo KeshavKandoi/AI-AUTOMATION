@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, MessageSquare, ListTodo, Workflow, GitBranch, Calendar,
+  LayoutDashboard, ListTodo, Workflow, GitBranch, Calendar,
   GitCommitHorizontal, GitPullRequest, ShieldCheck, ScrollText,
   Plug, Brain, Bell, BarChart3, Settings, Briefcase, GitFork,
 } from 'lucide-react'
@@ -13,7 +13,6 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Workforge Chat', path: '/chat', icon: MessageSquare, comingSoon: true },
   { label: 'Tasks', path: '/tasks', icon: ListTodo },
   { label: 'Workflow Automations', path: '/workflows', icon: Workflow },
   { label: 'GitHub', path: '/integrations/github', icon: GitBranch },

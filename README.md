@@ -37,6 +37,8 @@ Gmail sends user-configured workflow or scheduled emails and approved task email
 
 The separate Calendar connection requests `https://www.googleapis.com/auth/calendar`. It lists the next ten upcoming events, generates an AI summary, creates events requested by the user, and supports approval-gated task event creation. Calendar integration settings and the calendar page are available after sign-in. Calendar tokens are stored encrypted per organization.
 
+Calendar uses its own OAuth authorization request and requires the Calendar API enabled in Google Cloud. The Calendar page provides connect, refresh, event listing, summary, and event creation controls. The integration is labeled Production in the UI. Keep `GOOGLE_CALENDAR_REDIRECT_URI` configured alongside the Gmail callback URI.
+
 ## GitHub workflow email timing
 
 Connect GitHub and select a repository in the GitHub integration page. The backend registers a webhook at `https://<backend-host>/webhooks/github` using the organization's generated webhook secret. Authorize the GitHub OAuth token with repository and webhook administration access. GitHub should deliver `push`, `issues`, and `pull_request`; WorkForge maps pushes to the `push` workflow trigger, `issues.opened` to `issue_created`, and `pull_request.opened` to `pull_request_opened`.
@@ -44,6 +46,13 @@ Connect GitHub and select a repository in the GitHub integration page. The backe
 A push webhook is verified and dispatched synchronously. Matching active workflows run immediately in the webhook request; a matching `send_email` action sends the Gmail message in that request, rather than creating a scheduled email job. The Commit Scheduler also dispatches a push workflow immediately after its commit succeeds. Separate scheduled email jobs are checked every minute and run once the configured `send_time` is reached (default 09:00); `send_time` is interpreted in Asia/Kolkata (IST), so scheduler delay is up to about one minute while the backend is running. APScheduler is in-process, so the backend must be awake for webhook execution and background schedules. Run one backend replica with one worker while using these schedulers; separate worker processes do not share a scheduler lock. If the service sleeps, webhook delivery can fail or be retried by GitHub, and scheduled work waits until the service runs again.
 
 Workflows are selected by organization, trigger type, and active status. Conditions compare event fields such as repository, branch, commit author, and commit message using the configured AND/OR logic. The event is deduplicated by organization, repository, trigger type, and event key before workflow execution. A failed send is recorded as a partial-failure run and in audit logs; the deduplication claim prevents webhook redelivery from automatically sending the same event again. A failed scheduled email is recorded and is not retried automatically that day; an authorized user can use the job's Run Now action to retry. An active workflow's email action is automatic as described above; users who need per-message approval should use the task approval email action instead.
+
+The GitHub webhook endpoint is `POST /webhooks/github`. Configure the repository webhook for `push`, `issues`, and `pull_request` events, with the secret generated for the connected organization. GitHub signs the raw payload with HMAC SHA-256; WorkForge resolves the organization by matching the signature against stored secrets for that repository. A verified event is dispatched directly to the workflow engine and returns without invoking the unrelated general-purpose orchestrator. Manual workflow Run Now executes the same condition and action engine against sample context; workflows must be active and unexpired. Repositories shown for connection are fetched from the authenticated GitHub account across all API pages, and only those repositories can be selected.
+
+## Discord notifications
+
+Discord workflow actions use an organization-specific `organizations.discord_webhook_url`. Configure that URL through your organization administration process; it contains the webhook credential and must be treated as a secret. `DISCORD_WEBHOOK_URL` is an optional development fallback restricted to `TEST_ORG_ID` outside production; it is not required for startup, Gmail, Calendar, or GitHub. Discord webhook URLs are host/path validated, and the URL is not returned in API responses or written to logs. Discord webhooks do not use a separate bot API key in this integration.
+
 
 ## Deployment
 

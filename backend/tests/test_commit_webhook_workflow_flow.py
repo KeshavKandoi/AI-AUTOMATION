@@ -22,19 +22,10 @@ def test_push_webhook_dispatches_workflow_immediately_with_commit_context():
         },
         "commits": [{"id": "abc123"}],
     }
-    integration_query = MagicMock()
-    integration_query.select.return_value.eq.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value.data = [{"id": "github-int"}]
-    token_query = MagicMock()
-    token_query.select.return_value.in_.return_value.order.return_value.execute.return_value.data = [{"access_token": "encrypted-token"}]
-    tables = {"integrations": integration_query, "oauth_tokens": token_query}
     dispatched = AsyncMock()
-    orchestrated = AsyncMock(return_value={"tasks": [], "report": "ok"})
 
     with patch.object(webhook_routes, "_resolve_org_for_webhook", return_value={"id": "org-a"}), \
-         patch.object(webhook_routes.supabase_admin, "table", side_effect=lambda name: tables[name]), \
-         patch.object(webhook_routes, "decrypt_token", return_value="github-token"), \
-         patch.object(webhook_routes, "dispatch_workflow_event", dispatched), \
-         patch.object(webhook_routes.coo_graph, "ainvoke", orchestrated):
+         patch.object(webhook_routes, "dispatch_workflow_event", dispatched):
         response = TestClient(app).post(
             "/webhooks/github",
             content=json.dumps(payload),
@@ -57,14 +48,14 @@ def test_push_webhook_dispatches_workflow_immediately_with_commit_context():
         },
         event_key="abc123:main",
     )
-    orchestrated.assert_awaited_once()
+    assert response.json() == {"status": "triggered", "event": "push", "tasks_created": 0}
 
 
 def test_unopened_issue_action_is_ignored_without_running_workflows():
     payload = {"action": "closed", "repository": {"full_name": "acme/project"}}
     with patch.object(webhook_routes, "_resolve_org_for_webhook", return_value={"id": "org-a"}), \
          patch.object(webhook_routes, "dispatch_workflow_event", new=AsyncMock()) as dispatched, \
-         patch.object(webhook_routes.coo_graph, "ainvoke", new=AsyncMock()) as orchestrated:
+         patch.object(webhook_routes, "dispatch_workflow_event", new=AsyncMock()) as dispatched:
         response = TestClient(app).post(
             "/webhooks/github",
             content=json.dumps(payload),
@@ -73,4 +64,4 @@ def test_unopened_issue_action_is_ignored_without_running_workflows():
     assert response.status_code == 200
     assert response.json() == {"status": "ignored", "event": "issues", "action": "closed"}
     dispatched.assert_not_awaited()
-    orchestrated.assert_not_awaited()
+    dispatched.assert_not_awaited()

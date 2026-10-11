@@ -26,6 +26,11 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
+function requestErrorMessage(error: unknown): string {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  return typeof detail === 'string' ? detail : 'Workflow run failed. Please try again.'
+}
+
 function runStatusBadge(status: RunStatus) {
   const map: Record<RunStatus, { tone: 'signal' | 'alert' | 'amber'; icon: typeof CheckCircle2 }> = {
     success: { tone: 'signal', icon: CheckCircle2 },
@@ -179,7 +184,7 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
               <Button
                 variant="secondary"
                 loading={runNowMutation.isPending}
-                disabled={workflow.status === 'completed' || workflow.status === 'expired'}
+                disabled={workflow.status !== 'active'}
                 onClick={() => runNowMutation.mutate()}
               >
                 <Play size={13} />
@@ -208,7 +213,7 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
                 {runNowMutation.data.error_message ? ` — ${runNowMutation.data.error_message}` : ''}
               </div>
             )}
-            {runNowMutation.isError && <ErrorBanner message="Failed to trigger this run. Try again." />}
+            {runNowMutation.isError && <ErrorBanner message={requestErrorMessage(runNowMutation.error)} />}
 
             <div>
               <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Conditions</h3>

@@ -1,11 +1,14 @@
 """Regression coverage for Calendar OAuth and organization-scoped API calls."""
 import asyncio
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
 import calendar_routes
 from main import app
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_calendar_oauth_requests_only_calendar_scope(monkeypatch):
@@ -27,6 +30,17 @@ def test_calendar_routes_and_approved_task_event_route_are_registered():
     assert {"get"} <= paths["/calendar/summary"].keys()
     assert {"post"} <= paths["/calendar/create-event"].keys()
     assert {"post"} <= paths["/tasks/{task_id}/approve-and-create-event"].keys()
+
+
+def test_calendar_page_exposes_production_badge_and_primary_controls():
+    page = (ROOT / "ai-coo-frontend/src/pages/calendar/Calendar.tsx").read_text()
+    integration_cards = (ROOT / "ai-coo-frontend/src/pages/integrations/Integrations.tsx").read_text()
+    assert "Production" in page and "Production" in integration_cards
+    assert "Connect Calendar" in page
+    assert "Refresh events" in page
+    assert "Upcoming events" in page
+    assert "Load AI summary" in page
+    assert "New event" in page and "Create event" in page
 
 
 def test_calendar_events_use_current_utc_time_and_format_results(monkeypatch):

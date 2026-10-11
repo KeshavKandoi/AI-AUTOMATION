@@ -11,7 +11,6 @@ import ResetPassword from '@/pages/auth/ResetPassword'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import Dashboard from '@/pages/dashboard/Dashboard'
-import ComingSoon from '@/pages/ComingSoon'
 import Tasks from '@/pages/tasks/Tasks'
 import HumanApproval from '@/pages/approvals/HumanApproval'
 import JobHunter from '@/pages/jobHunter/JobHunter'
@@ -71,7 +70,6 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/chat" element={<ComingSoon title="Workforge Chat" />} />
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/workflows" element={<Workflows />} />
               <Route path="/integrations/github" element={<GitHub />} />

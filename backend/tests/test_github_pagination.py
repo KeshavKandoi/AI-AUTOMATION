@@ -75,6 +75,20 @@ def test_github_get_paginated_stops_on_exact_full_page_then_empty():
         assert mock_get.call_count == 2
 
 
+def test_github_get_paginated_does_not_truncate_after_twenty_pages():
+    import asyncio
+    from main import github_get_paginated
+
+    pages = [[_make_repo((page - 1) * 100 + i) for i in range(100)] for page in range(1, 22)]
+    pages[-1] = [_make_repo(2000)]
+    responses = [MagicMock(json=lambda data=page: data) for page in pages]
+    with patch("github_helpers.github_get", new_callable=AsyncMock) as mock_get:
+        mock_get.side_effect = responses
+        result = asyncio.run(github_get_paginated("https://api.github.com/user/repos", "tok"))
+    assert len(result) == 2001
+    assert mock_get.call_count == 21
+
+
 def test_github_get_paginated_raises_on_error_response_first_page():
     import asyncio
     from main import github_get_paginated

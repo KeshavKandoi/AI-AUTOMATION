@@ -23,23 +23,6 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
-// Accepts "owner/repo", "https://github.com/owner/repo", "https://github.com/owner/repo.git",
-// with or without a trailing slash, and normalizes to "owner/repo". Returns null if invalid.
-function normalizeRepoInput(raw: string): string | null {
-  let value = raw.trim()
-  if (!value) return null
-
-  value = value.replace(/^https?:\/\/(www\.)?github\.com\//i, '')
-  value = value.replace(/^github\.com\//i, '')
-  value = value.replace(/\.git$/i, '')
-  value = value.replace(/\/+$/, '')
-
-  const match = value.match(/^([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)\/([A-Za-z0-9._-]+)$/)
-  if (!match) return null
-
-  return `${match[1]}/${match[2]}`
-}
-
 export default function GitHub() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
@@ -49,8 +32,6 @@ export default function GitHub() {
   const [issueRepo, setIssueRepo] = useState('')
   const [issueTitle, setIssueTitle] = useState('')
   const [issueBody, setIssueBody] = useState('')
-  const [connectRepoInput, setConnectRepoInput] = useState('')
-  const [connectValidationError, setConnectValidationError] = useState<string | null>(null)
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
 
   const invalidateAll = () => {
@@ -106,23 +87,9 @@ export default function GitHub() {
   const connectRepoMutation = useMutation({
     mutationFn: (repoFullName: string) => githubService.connectRepo(orgId!, repoFullName),
     onSuccess: () => {
-      setConnectRepoInput('')
-      setConnectValidationError(null)
       invalidateAll()
     },
   })
-
-  const handleConnectClick = () => {
-    const normalized = normalizeRepoInput(connectRepoInput)
-    if (!normalized) {
-      setConnectValidationError(
-        "Enter a repository as owner/repo or a GitHub URL, e.g. KeshavKandoi/my-repo or https://github.com/KeshavKandoi/my-repo"
-      )
-      return
-    }
-    setConnectValidationError(null)
-    connectRepoMutation.mutate(normalized)
-  }
 
   const disconnectRepoMutation = useMutation({
     mutationFn: () => githubService.disconnectRepo(orgId!),
@@ -162,7 +129,7 @@ export default function GitHub() {
     const q = search.trim().toLowerCase()
     if (!q) return repos
     return repos.filter(
-      (r) => r.name.toLowerCase().includes(q) || (r.language ?? '').toLowerCase().includes(q)
+      (r) => r.full_name.toLowerCase().includes(q) || (r.language ?? '').toLowerCase().includes(q)
     )
   }, [repos, search])
 
@@ -212,24 +179,7 @@ export default function GitHub() {
         ) : (
           <p className="text-sm text-[var(--color-text-faint)] mb-3">No repository connected yet.</p>
         )}
-        <div className="flex gap-2 mt-3">
-          <Input
-            placeholder="owner/repo or https://github.com/owner/repo"
-            value={connectRepoInput}
-            onChange={(e) => {
-              setConnectRepoInput(e.target.value)
-              if (connectValidationError) setConnectValidationError(null)
-            }}
-            className="max-w-xs"
-          />
-          <Button
-            variant="secondary"
-            disabled={!connectRepoInput.trim()}
-            loading={connectRepoMutation.isPending}
-            onClick={handleConnectClick}
-          >
-            {connectedRepo ? 'Reconnect' : 'Connect'}
-          </Button>
+        <div className="flex flex-wrap gap-2 mt-3">
           {connectedRepo && (
             <Button
               variant={confirmingDisconnect ? 'primary' : 'ghost'}
@@ -242,11 +192,6 @@ export default function GitHub() {
             </Button>
           )}
         </div>
-        {connectValidationError && (
-          <div className="mt-2">
-            <ErrorBanner message={connectValidationError} />
-          </div>
-        )}
         {connectRepoMutation.isError && (
           <div className="mt-2">
             <ErrorBanner message="Failed to connect repository. It may already be connected, or the repo name is invalid." />
@@ -393,15 +338,15 @@ export default function GitHub() {
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
             {filteredRepos.map((repo: GitHubRepo) => (
-              <div key={repo.id} className="flex items-center justify-between gap-4 py-3">
+              <div key={repo.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   
                     <a href={repo.html_url}
                     target="_blank"
                     rel="noreferrer"
                     className="text-sm text-[var(--color-text-primary)] hover:underline flex items-center gap-1 w-fit"
-                  >
-                    {repo.name}
+                    >
+                    {repo.full_name}
                     <ExternalLink size={11} />
                   </a>
                   {repo.description && (
@@ -415,6 +360,13 @@ export default function GitHub() {
                   {repo.open_issues_count > 0 && (
                     <Badge tone="amber">{repo.open_issues_count} open</Badge>
                   )}
+                  <Button
+                    variant={connectedRepo === repo.full_name ? 'secondary' : 'primary'}
+                    loading={connectRepoMutation.isPending && connectRepoMutation.variables === repo.full_name}
+                    onClick={() => connectRepoMutation.mutate(repo.full_name)}
+                  >
+                    {connectedRepo === repo.full_name ? 'Connected' : 'Connect'}
+                  </Button>
                   <Button variant="ghost" onClick={() => openIssueModal(repo.full_name)}>
                     <Plus size={13} />
                     Issue

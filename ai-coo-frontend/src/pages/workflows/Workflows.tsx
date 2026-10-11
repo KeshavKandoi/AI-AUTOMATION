@@ -85,7 +85,7 @@ export default function Workflows() {
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
   const [detailWorkflowId, setDetailWorkflowId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [runNowFeedback, setRunNowFeedback] = useState<{ id: string; status: RunStatus } | null>(null)
+  const [runNowFeedback, setRunNowFeedback] = useState<{ id: string; status?: RunStatus; error?: string } | null>(null)
 
   const {
     data: workflows,
@@ -118,6 +118,10 @@ export default function Workflows() {
     onSuccess: (run, workflowId) => {
       setRunNowFeedback({ id: workflowId, status: run.status })
       queryClient.invalidateQueries({ queryKey: ['workflows', 'detail', workflowId] })
+    },
+    onError: (error, workflowId) => {
+      const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      setRunNowFeedback({ id: workflowId, error: typeof detail === 'string' ? detail : 'Workflow run failed. Please try again.' })
     },
   })
 
@@ -196,7 +200,10 @@ export default function Workflows() {
                   <div className="mt-2">
                     <LastRunIndicator workflowId={workflow.id} orgId={orgId!} />
                   </div>
-                  {runNowFeedback?.id === workflow.id && (
+                  {runNowFeedback?.id === workflow.id && runNowFeedback.error && (
+                    <p className="text-xs text-[var(--color-alert)] mt-1">{runNowFeedback.error}</p>
+                  )}
+                  {runNowFeedback?.id === workflow.id && runNowFeedback.status && (
                     <p
                       className={
                         runNowFeedback.status === 'success'
@@ -211,7 +218,7 @@ export default function Workflows() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {workflow.status !== 'completed' && workflow.status !== 'expired' && (
+                  {workflow.status === 'active' && (
                     <Button
                       variant="ghost"
                       loading={runNowMutation.isPending && runNowMutation.variables === workflow.id}
