@@ -153,6 +153,12 @@ export default function Settings() {
     },
   })
 
+  useEffect(() => {
+    if (window.location.hash === '#discord-notifications') {
+      document.getElementById('discord-notifications')?.scrollIntoView()
+    }
+  }, [])
+
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
     : '—'
@@ -294,6 +300,7 @@ export default function Settings() {
         <InfoRow icon={UserIcon} label="Full name" value={user?.full_name || '—'} />
         <InfoRow icon={Mail} label="Email address" value={user?.email || '—'} />
         <InfoRow icon={Building2} label="Organization" value={user?.organization_name || '—'} />
+        <InfoRow icon={Building2} label="Organization ID" value={user?.organization_id || '—'} />
         <InfoRow icon={Calendar} label="Member since" value={memberSince} />
         <p className="text-xs text-[var(--color-text-faint)] mt-3">
           To change your name or organization, visit your Profile page.
@@ -349,22 +356,28 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card className="p-5">
+      <Card id="discord-notifications" className="p-5 scroll-mt-6">
         <SectionHeader icon={Bell} title="Discord notifications" />
         <p className="text-xs text-[var(--color-text-muted)] mb-3">
-          Workflow Discord actions use this organization’s private webhook. The webhook URL is never shown after saving.
+          Workflow Discord actions use this organization’s private webhook. Save one here, or set DISCORD_WEBHOOK_URL and DISCORD_ENV_ORG_ID for this organization in the backend environment. A saved webhook takes precedence.
         </p>
-        {discordWebhookQuery.data?.configured ? (
+        {discordWebhookQuery.isLoading ? (
+          <p className="text-xs text-[var(--color-text-muted)] mb-3" role="status">Checking Discord status…</p>
+        ) : discordWebhookQuery.isError ? (
+          <p className="text-xs text-[var(--color-alert)] mb-3" role="alert">Discord status is unavailable. Refresh and try again.</p>
+        ) : discordWebhookQuery.data?.configured ? (
           <p className="text-xs text-[var(--color-text-muted)] mb-3" role="status">
-            Configured: {discordWebhookQuery.data.masked_url}
+            Configured via {discordWebhookQuery.data.source === 'environment' ? 'backend environment' : 'Settings'}: {discordWebhookQuery.data.masked_url}
           </p>
         ) : (
           <p className="text-xs text-[var(--color-alert)] mb-3" role="status">
-            No webhook configured. Workflow Discord notification actions will fail until one is saved here.
+            No webhook configured for this organization. Save one here or configure both backend environment variables.
           </p>
         )}
-        {discordWebhookQuery.isError && (
-          <p className="text-xs text-[var(--color-alert)] mb-3" role="alert">Could not load Discord settings. Refresh and try again.</p>
+        {discordWebhookQuery.data?.source === 'environment' && (
+          <p className="text-xs text-[var(--color-text-faint)] mb-3">
+            This webhook is managed in the backend environment. Saving a webhook here overrides it; removing a saved webhook restores the environment fallback.
+          </p>
         )}
         <form
           className="flex flex-col gap-3"

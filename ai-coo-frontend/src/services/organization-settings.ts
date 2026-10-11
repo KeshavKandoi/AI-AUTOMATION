@@ -3,6 +3,7 @@ import { apiClient } from '@/api/client'
 export interface DiscordWebhookSettings {
   configured: boolean
   masked_url: string | null
+  source: 'settings' | 'environment' | null
 }
 
 export const organizationSettingsService = {

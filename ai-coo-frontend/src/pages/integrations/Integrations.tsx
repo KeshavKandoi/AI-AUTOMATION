@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle, ShieldCheck } from 'lucide-react'
+import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle, ShieldCheck, MessageCircle } from 'lucide-react'
 import { integrationsService, type IntegrationProvider } from '@/services/integrations'
+import { organizationSettingsService } from '@/services/organization-settings'
 import { useAuthStore } from '@/store/authStore'
 import Card from '@/components/ui/Card'
 import Skeleton from '@/components/ui/Skeleton'
@@ -38,6 +39,11 @@ export default function Integrations() {
   const { data: integrations, isLoading } = useQuery({
     queryKey: ['integrations', orgId],
     queryFn: () => integrationsService.list(orgId!),
+    enabled: !!orgId,
+  })
+  const discordStatus = useQuery({
+    queryKey: ['organization-settings', 'discord-webhook', orgId],
+    queryFn: organizationSettingsService.getDiscordWebhook,
     enabled: !!orgId,
   })
 
@@ -152,6 +158,43 @@ export default function Integrations() {
             </Card>
           )
         })}
+        <Card className="p-5 flex flex-col gap-4">
+          <div className="flex items-start justify-between">
+            <div className="h-10 w-10 rounded-xl bg-[var(--color-surface-hover)] flex items-center justify-center">
+              <MessageCircle size={18} className="text-[var(--color-text-primary)]" />
+            </div>
+            {discordStatus.isLoading && orgId ? (
+              <Skeleton className="h-5 w-20" />
+            ) : discordStatus.isError || !orgId ? (
+              <span className="text-xs text-[var(--color-text-faint)]">Status unavailable</span>
+            ) : discordStatus.data?.configured ? (
+              <span className="flex items-center gap-1.5 text-xs text-[var(--color-signal)]">
+                <CheckCircle2 size={13} /> Connected
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
+                <Circle size={13} /> Not connected
+              </span>
+            )}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-[var(--color-text-primary)]">Discord</h3>
+            <p className="mt-1 text-xs text-[var(--color-text-faint)]">
+              Sends workflow notifications to your organization’s Discord webhook.
+            </p>
+            {discordStatus.data?.configured && (
+              <p className="mt-2 text-xs text-[var(--color-text-faint)]">
+                Managed via {discordStatus.data.source === 'environment' ? 'backend environment' : 'Settings'}.
+              </p>
+            )}
+          </div>
+          <Link
+            to="/settings#discord-notifications"
+            className="mt-auto inline-flex items-center justify-center rounded-lg bg-[var(--color-signal)] px-4 py-2.5 text-sm font-medium text-[var(--color-void)] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--color-signal)]"
+          >
+            {discordStatus.data?.configured ? 'Manage' : 'Configure'}
+          </Link>
+        </Card>
       </div>
     </div>
   )
