@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   User as UserIcon,
   Mail,
-  Building2,
   Calendar,
   KeyRound,
   AlertCircle,
@@ -25,7 +24,6 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api/auth'
-import { organizationSettingsService } from '@/services/organization-settings'
 import Card from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -72,6 +70,11 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof UserIcon; label: s
       </div>
     </div>
   )
+}
+
+function safeApiError(error: unknown, fallback: string): string {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  return typeof detail === 'string' ? detail : fallback
 }
 
 function SectionHeader({ icon: Icon, title, tone }: { icon: typeof UserIcon; title: string; tone?: 'alert' }) {
@@ -138,26 +141,6 @@ export default function Settings() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [discordWebhookDraft, setDiscordWebhookDraft] = useState('')
-  const discordWebhookQuery = useQuery({
-    queryKey: ['organization-settings', 'discord-webhook', user?.organization_id],
-    queryFn: organizationSettingsService.getDiscordWebhook,
-    enabled: !!user?.organization_id,
-  })
-  const discordWebhookMutation = useMutation({
-    mutationFn: organizationSettingsService.saveDiscordWebhook,
-    onSuccess: (data) => {
-      setDiscordWebhookDraft('')
-      queryClient.setQueryData(['organization-settings', 'discord-webhook', user?.organization_id], data)
-    },
-  })
-
-  useEffect(() => {
-    if (window.location.hash === '#discord-notifications') {
-      document.getElementById('discord-notifications')?.scrollIntoView()
-    }
-  }, [])
 
   const memberSince = user?.created_at
     ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
@@ -259,6 +242,7 @@ export default function Settings() {
     setDeleteModalOpen(false)
     setDeletePassword('')
     setDeleteConfirmText('')
+    deleteAccountMutation.reset()
   }
 
   const deleteAccountMutation = useMutation({
@@ -299,11 +283,9 @@ export default function Settings() {
         <SectionHeader icon={UserIcon} title="Account Preferences" />
         <InfoRow icon={UserIcon} label="Full name" value={user?.full_name || '—'} />
         <InfoRow icon={Mail} label="Email address" value={user?.email || '—'} />
-        <InfoRow icon={Building2} label="Organization" value={user?.organization_name || '—'} />
-        <InfoRow icon={Building2} label="Organization ID" value={user?.organization_id || '—'} />
         <InfoRow icon={Calendar} label="Member since" value={memberSince} />
         <p className="text-xs text-[var(--color-text-faint)] mt-3">
-          To change your name or organization, visit your Profile page.
+          To change your name, visit your Profile page.
         </p>
       </Card>
 
@@ -311,7 +293,7 @@ export default function Settings() {
       <Card className="p-5">
         <SectionHeader icon={Sun} title="Appearance" />
         <p className="text-xs text-[var(--color-text-muted)] mb-3">
-          Choose how Workforge looks on this device.
+          Choose how WorkForge looks on this device.
         </p>
         <div className="grid grid-cols-3 gap-2">
           {THEME_OPTIONS.map((opt) => (
@@ -356,69 +338,6 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card id="discord-notifications" className="p-5 scroll-mt-6">
-        <SectionHeader icon={Bell} title="Discord notifications" />
-        <p className="text-xs text-[var(--color-text-muted)] mb-3">
-          Workflow Discord actions use this organization’s private webhook. Save one here, or set DISCORD_WEBHOOK_URL and DISCORD_ENV_ORG_ID for this organization in the backend environment. A saved webhook takes precedence.
-        </p>
-        {discordWebhookQuery.isLoading ? (
-          <p className="text-xs text-[var(--color-text-muted)] mb-3" role="status">Checking Discord status…</p>
-        ) : discordWebhookQuery.isError ? (
-          <p className="text-xs text-[var(--color-alert)] mb-3" role="alert">Discord status is unavailable. Refresh and try again.</p>
-        ) : discordWebhookQuery.data?.configured ? (
-          <p className="text-xs text-[var(--color-text-muted)] mb-3" role="status">
-            Configured via {discordWebhookQuery.data.source === 'environment' ? 'backend environment' : 'Settings'}: {discordWebhookQuery.data.masked_url}
-          </p>
-        ) : (
-          <p className="text-xs text-[var(--color-alert)] mb-3" role="status">
-            No webhook configured for this organization. Save one here or configure both backend environment variables.
-          </p>
-        )}
-        {discordWebhookQuery.data?.source === 'environment' && (
-          <p className="text-xs text-[var(--color-text-faint)] mb-3">
-            This webhook is managed in the backend environment. Saving a webhook here overrides it; removing a saved webhook restores the environment fallback.
-          </p>
-        )}
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(event) => {
-            event.preventDefault()
-            discordWebhookMutation.mutate(discordWebhookDraft)
-          }}
-        >
-          <Input
-            label="Discord webhook URL"
-            type="url"
-            autoComplete="off"
-            value={discordWebhookDraft}
-            onChange={(event) => setDiscordWebhookDraft(event.target.value)}
-            placeholder="https://discord.com/api/webhooks/..."
-          />
-          {discordWebhookMutation.isError && (
-            <p className="text-xs text-[var(--color-alert)]" role="alert">
-              {discordWebhookMutation.error instanceof Error && 'response' in discordWebhookMutation.error
-                ? 'Discord webhook could not be saved. Check that it is a valid Discord HTTPS webhook URL.'
-                : 'Discord webhook could not be saved. Try again.'}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={!discordWebhookDraft.trim() || discordWebhookMutation.isPending}>
-              {discordWebhookMutation.isPending ? 'Saving…' : 'Save webhook'}
-            </Button>
-            {discordWebhookQuery.data?.configured && (
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={discordWebhookMutation.isPending}
-                onClick={() => discordWebhookMutation.mutate(null)}
-              >
-                Remove webhook
-              </Button>
-            )}
-          </div>
-        </form>
-      </Card>
-
       {/* Security */}
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
@@ -457,13 +376,13 @@ export default function Settings() {
             {success && (
               <div className="flex items-center gap-2 rounded-lg bg-[var(--color-signal-dim)] border border-[var(--color-signal)]/30 px-3 py-2 text-xs text-[var(--color-signal)]">
                 <CheckCircle2 size={14} />
-                Password changed successfully.
+                Password changed and verified. Use the new password next time you sign in.
               </div>
             )}
             {changePasswordMutation.isError && (
               <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
                 <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                {(changePasswordMutation.error as any)?.response?.data?.detail ?? 'Could not change password. Please try again.'}
+                {safeApiError(changePasswordMutation.error, 'Could not change password. Please try again.')}
               </div>
             )}
 
@@ -498,7 +417,7 @@ export default function Settings() {
             {otpSuccess && (
               <div className="flex items-center gap-2 rounded-lg bg-[var(--color-signal-dim)] border border-[var(--color-signal)]/30 px-3 py-2 text-xs text-[var(--color-signal)]">
                 <CheckCircle2 size={14} />
-                Password changed successfully.
+                Password changed and verified. Use the new password next time you sign in.
               </div>
             )}
 
@@ -528,7 +447,7 @@ export default function Settings() {
                 {otpResetMutation.isError && (
                   <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
                     <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                    {(otpResetMutation.error as any)?.response?.data?.detail ?? 'Could not reset password. Check the code.'}
+                    {safeApiError(otpResetMutation.error, 'Could not reset password. Check the code.')}
                   </div>
                 )}
 
@@ -578,18 +497,14 @@ export default function Settings() {
         <SectionHeader icon={ShieldCheck} title="Privacy" />
         <div className="flex flex-col gap-3 text-xs text-[var(--color-text-muted)] leading-relaxed">
           <p>
-            Your data is scoped to your organization,{' '}
-            <span className="text-[var(--color-text-primary)]">{user?.organization_name || 'your organization'}</span>.
-            Tasks, memory, commit jobs, and connected integrations are only visible to members of this organization.
+            Your tasks, memories, jobs, and integrations are available only to authorized members.
           </p>
           <p>
-            Conversations, actions, and integration events are recorded in your organization's{' '}
-            <span className="text-[var(--color-text-primary)]">Audit Logs</span>, which any member of your
-            organization can review.
+            Actions and integration events are recorded in <span className="text-[var(--color-text-primary)]">Audit Logs</span>.
           </p>
           <p>
             Connected third-party tokens (GitHub, Gmail, Google Calendar) are stored encrypted and are only
-            used to act on your behalf within Workforge — Google user data is never sold or used for
+            used to act on your behalf within WorkForge — Google user data is never sold or used for
             advertising. See our{' '}
             <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110">Privacy Policy</Link>{' '}
             for exactly what's accessed and why.
@@ -633,8 +548,7 @@ export default function Settings() {
           <div>
             <p className="text-sm text-[var(--color-text-primary)]">Delete account</p>
             <p className="text-xs text-[var(--color-text-faint)] mt-0.5 max-w-md">
-              Permanently deletes your account and all organization data — tasks, memory, commit jobs, connected
-              integrations, audit logs, and everything else. This cannot be undone.
+              Permanently deletes your account. If you are the only member, your organization's jobs, data, and integration credentials are also removed. Shared organization data remains for other members.
             </p>
           </div>
           <Button
@@ -648,17 +562,17 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Modal open={deleteModalOpen} onClose={closeDeleteModal} title="Delete account">
+      <Modal open={deleteModalOpen} onClose={() => { if (!deleteAccountMutation.isPending) closeDeleteModal() }} title="Delete account">
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
             <AlertCircle size={14} className="shrink-0 mt-0.5" />
-            This permanently deletes your account and all organization data. This cannot be undone.
+            This permanently deletes your account. If you are the only member, organization data is also removed. This cannot be undone.
           </div>
 
           {deleteAccountMutation.isError && (
             <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
               <AlertCircle size={14} className="shrink-0 mt-0.5" />
-              {(deleteAccountMutation.error as any)?.response?.data?.detail ?? 'Could not delete account. Please try again.'}
+              {safeApiError(deleteAccountMutation.error, 'Could not delete account. Please try again.')}
             </div>
           )}
 
@@ -690,6 +604,7 @@ export default function Settings() {
             <button
               type="button"
               onClick={closeDeleteModal}
+              disabled={deleteAccountMutation.isPending}
               className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             >
               Cancel

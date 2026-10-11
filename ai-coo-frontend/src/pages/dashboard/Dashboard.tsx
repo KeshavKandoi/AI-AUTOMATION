@@ -4,6 +4,7 @@ import { ListTodo, AlertCircle, Workflow, Activity, Plug } from 'lucide-react'
 import { tasksApi } from '@/api/tasks'
 import { schedulerApi } from '@/api/scheduler'
 import { integrationsApi } from '@/api/integrations'
+import { organizationSettingsService } from '@/services/organization-settings'
 import { auditLogsService, type AuditLogEntry } from '@/services/audit-logs'
 import { getModuleIcon, formatActionLabel } from '@/lib/auditLogDisplay'
 import { memoryService, type MemoryEntry } from '@/services/memory'
@@ -17,7 +18,6 @@ import { formatDistanceToNow } from 'date-fns'
 const PROVIDER_LABELS: Record<string, string> = {
   github: 'GitHub',
   gmail: 'Gmail',
-  discord: 'Discord',
 }
 
 export default function Dashboard() {
@@ -39,6 +39,11 @@ export default function Dashboard() {
     queryFn: () => integrationsApi.list(orgId!).then((r) => r.data),
     enabled: !!orgId,
   })
+  const discordStatus = useQuery({
+    queryKey: ['organization-settings', 'discord-webhook', orgId],
+    queryFn: organizationSettingsService.getDiscordWebhook,
+    enabled: !!orgId,
+  })
 
   const { data: activityData, isLoading: activityLoading } = useQuery({
     queryKey: ['audit-logs', 'dashboard', orgId],
@@ -56,7 +61,7 @@ export default function Dashboard() {
   const highPriority = tasks?.filter((t) => t.priority === 'high').length ?? 0
   const openTasks = tasks?.filter((t) => t.status === 'open').length ?? 0
   const activeJobs = scheduler?.jobs.length ?? 0
-  const connectedCount = integrations?.filter((i) => i.connected).length ?? 0
+  const connectedCount = (integrations?.filter((i) => i.provider !== 'discord' && i.connected).length ?? 0) + (discordStatus.data?.configured ? 1 : 0)
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -65,7 +70,7 @@ export default function Dashboard() {
           Dashboard
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Live status across your Workforge
+          Live status across your WorkForge
         </p>
       </div>
 
@@ -73,7 +78,7 @@ export default function Dashboard() {
         <StatCard label="Open tasks" value={openTasks} icon={ListTodo} tone="signal" loading={tasksLoading} />
         <StatCard label="High priority" value={highPriority} icon={AlertCircle} tone="alert" loading={tasksLoading} />
         <StatCard label="Scheduled jobs" value={activeJobs} icon={Workflow} tone="amber" loading={schedulerLoading} />
-        <StatCard label="Connected integrations" value={connectedCount} icon={Plug} tone="signal" loading={integrationsLoading} />
+        <StatCard label="Connected integrations" value={connectedCount} icon={Plug} tone="signal" loading={integrationsLoading || discordStatus.isLoading} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
@@ -114,15 +119,15 @@ export default function Dashboard() {
 
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
           <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-4">Integrations</h2>
-          {integrationsLoading ? (
+          {integrationsLoading || discordStatus.isLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="h-9 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
               ))}
             </div>
-          ) : integrations && integrations.length > 0 ? (
+          ) : (
             <div className="flex flex-col gap-2">
-              {integrations.map((i) => (
+              {(integrations ?? []).filter((i) => i.provider !== 'discord').map((i) => (
                 <div key={i.id} className="flex items-center justify-between py-1.5">
                   <span className="text-sm text-[var(--color-text-primary)]">
                     {PROVIDER_LABELS[i.provider] ?? i.provider}
@@ -147,9 +152,13 @@ export default function Dashboard() {
                   </span>
                 </div>
               ))}
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-sm text-[var(--color-text-primary)]">Discord</span>
+                <span className={discordStatus.isError ? 'text-xs text-[var(--color-alert)]' : discordStatus.data?.configured ? 'text-xs text-[var(--color-signal)]' : 'text-xs text-[var(--color-text-faint)]'}>
+                  {discordStatus.isError ? 'Status unavailable' : discordStatus.data?.configured ? 'Connected' : 'Not connected'}
+                </span>
+              </div>
             </div>
-          ) : (
-            <p className="text-sm text-[var(--color-text-faint)]">No integrations connected.</p>
           )}
         </div>
       </div>

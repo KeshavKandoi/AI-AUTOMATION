@@ -23,11 +23,11 @@ def send_email(to: str, subject: str, html: str) -> bool:
 
 def send_otp_email(to: str, otp: str, purpose: str) -> bool:
     if purpose == "signup":
-        subject = "Verify your Workforge account"
+        subject = "Verify your WorkForge account"
         heading = "Verify your email"
-        body = "Enter this code to finish creating your Workforge account."
+        body = "Enter this code to finish creating your WorkForge account."
     else:
-        subject = "Reset your Workforge password"
+        subject = "Reset your WorkForge password"
         heading = "Reset your password"
         body = "Enter this code to reset your password."
 

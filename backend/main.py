@@ -31,7 +31,7 @@ from notifications.routes import router as notifications_router
 from job_hunter.routes import router as job_hunter_router
 from organization_settings.routes import router as organization_settings_router
 
-app = FastAPI(title="Workforge Backend")
+app = FastAPI(title="WorkForge Backend")
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -414,7 +414,9 @@ async def gmail_callback(code: str, state: str):
 def _org_discord_webhook(org_id: str):
     from config import pick_discord_webhook
     org_res = supabase_admin.table("organizations").select("discord_webhook_url").eq("id", org_id).execute()
-    org_webhook = org_res.data[0].get("discord_webhook_url") if org_res.data else None
+    if not org_res.data:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    org_webhook = org_res.data[0].get("discord_webhook_url")
     webhook_url = pick_discord_webhook(org_id, org_webhook)
     if not webhook_url:
         raise HTTPException(status_code=400, detail="Discord webhook is not configured for this organization")
@@ -462,7 +464,7 @@ async def discord_daily_report(org_id: str = Depends(get_current_org_id)):
     open_tasks = [t for t in tasks if t.get("status") == "open"]
     done_tasks = [t for t in tasks if t.get("status") == "issue_created"]
 
-    report = f"**Daily Workforge Report**\n\n**Open Tasks:** {len(open_tasks)}\n**Issues Created:** {len(done_tasks)}\n\n**Top Priorities:**\n"
+    report = f"**Daily WorkForge Report**\n\n**Open Tasks:** {len(open_tasks)}\n**Issues Created:** {len(done_tasks)}\n\n**Top Priorities:**\n"
     for t in open_tasks[:5]:
         report += f"- [{t.get('priority', 'medium').upper()}] {t.get('title')}\n"
 

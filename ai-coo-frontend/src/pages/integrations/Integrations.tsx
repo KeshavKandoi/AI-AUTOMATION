@@ -8,6 +8,13 @@ import { useAuthStore } from '@/store/authStore'
 import Card from '@/components/ui/Card'
 import Skeleton from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import Modal from '@/components/ui/Modal'
+
+function discordApiError(error: unknown): string {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  return typeof detail === 'string' ? detail : 'Could not update Discord. Please try again.'
+}
 
 const PROVIDER_META: Record<IntegrationProvider, { label: string; description: string; icon: typeof GitBranch; dataUseNote?: string }> = {
   github: {
@@ -35,6 +42,9 @@ export default function Integrations() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
   const [confirmingProvider, setConfirmingProvider] = useState<IntegrationProvider | null>(null)
+  const [discordModalOpen, setDiscordModalOpen] = useState(false)
+  const [discordWebhookDraft, setDiscordWebhookDraft] = useState('')
+  const [confirmDiscordDisconnect, setConfirmDiscordDisconnect] = useState(false)
 
   const { data: integrations, isLoading } = useQuery({
     queryKey: ['integrations', orgId],
@@ -46,6 +56,24 @@ export default function Integrations() {
     queryFn: organizationSettingsService.getDiscordWebhook,
     enabled: !!orgId,
   })
+  const discordMutation = useMutation({
+    mutationFn: organizationSettingsService.saveDiscordWebhook,
+    onSuccess: (status) => {
+      queryClient.setQueryData(['organization-settings', 'discord-webhook', orgId], status)
+      queryClient.invalidateQueries({ queryKey: ['organization-settings', 'discord-webhook', orgId] })
+      setDiscordWebhookDraft('')
+      setConfirmDiscordDisconnect(false)
+      setDiscordModalOpen(false)
+    },
+  })
+
+  const closeDiscordModal = () => {
+    if (discordMutation.isPending) return
+    setDiscordModalOpen(false)
+    setDiscordWebhookDraft('')
+    setConfirmDiscordDisconnect(false)
+    discordMutation.reset()
+  }
 
   const disconnectMutation = useMutation({
     mutationFn: (provider: IntegrationProvider) => integrationsService.disconnect(provider, orgId!),
@@ -78,7 +106,7 @@ export default function Integrations() {
           Integrations
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Connect services so your Workforge can act on your behalf
+          Connect services so WorkForge can act on your behalf
         </p>
       </div>
 
@@ -184,18 +212,70 @@ export default function Integrations() {
             </p>
             {discordStatus.data?.configured && (
               <p className="mt-2 text-xs text-[var(--color-text-faint)]">
-                Managed via {discordStatus.data.source === 'environment' ? 'backend environment' : 'Settings'}.
+                Managed via {discordStatus.data.source === 'environment' ? 'backend environment' : 'Integrations'}.
               </p>
             )}
           </div>
-          <Link
-            to="/settings#discord-notifications"
-            className="mt-auto inline-flex items-center justify-center rounded-lg bg-[var(--color-signal)] px-4 py-2.5 text-sm font-medium text-[var(--color-void)] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--color-signal)]"
+          <Button
+            type="button"
+            className="mt-auto"
+            onClick={() => setDiscordModalOpen(true)}
           >
             {discordStatus.data?.configured ? 'Manage' : 'Configure'}
-          </Link>
+          </Button>
         </Card>
       </div>
+      <Modal open={discordModalOpen} onClose={closeDiscordModal} title="Discord integration">
+        <div className="flex flex-col gap-4">
+          {discordStatus.isError ? (
+            <p className="text-sm text-[var(--color-alert)]" role="alert">Discord status is unavailable. Refresh the page before changing this integration.</p>
+          ) : discordStatus.data?.configured ? (
+            <p className="text-sm text-[var(--color-text-muted)]" role="status">
+              Connected via {discordStatus.data.source === 'environment' ? 'backend environment' : 'saved webhook'} · {discordStatus.data.masked_url}
+            </p>
+          ) : (
+            <p className="text-sm text-[var(--color-text-muted)]" role="status">Not connected. Add a Discord webhook URL to enable workflow notifications.</p>
+          )}
+          {discordStatus.data?.source === 'environment' && (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              This webhook is managed in the backend environment. To disconnect it, remove DISCORD_WEBHOOK_URL and DISCORD_ENV_ORG_ID from the backend environment and restart the service. You can save a different URL here to override it.
+            </p>
+          )}
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (discordWebhookDraft.trim()) discordMutation.mutate(discordWebhookDraft)
+            }}
+          >
+            <Input
+              label="Discord webhook URL"
+              type="url"
+              autoComplete="off"
+              value={discordWebhookDraft}
+              onChange={(event) => setDiscordWebhookDraft(event.target.value)}
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+            {discordMutation.isError && <p className="text-xs text-[var(--color-alert)]" role="alert">{discordApiError(discordMutation.error)}</p>}
+            <Button type="submit" loading={discordMutation.isPending} disabled={!discordWebhookDraft.trim() || discordStatus.isError}>
+              Save webhook
+            </Button>
+          </form>
+          {discordStatus.data?.source === 'settings' && (
+            <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-2">
+              <p className="text-xs text-[var(--color-text-muted)]">Disconnect removes the saved webhook. If an environment fallback is configured for this organization, it will become active.</p>
+              {confirmDiscordDisconnect ? (
+                <div className="flex gap-2">
+                  <Button type="button" variant="secondary" loading={discordMutation.isPending} onClick={() => discordMutation.mutate(null)}>Confirm disconnect</Button>
+                  <Button type="button" variant="ghost" onClick={() => setConfirmDiscordDisconnect(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <Button type="button" variant="secondary" onClick={() => setConfirmDiscordDisconnect(true)}>Disconnect</Button>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

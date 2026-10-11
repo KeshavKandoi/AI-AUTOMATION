@@ -1,6 +1,6 @@
 """
-Security test: /discord/notify must require authentication and a valid
-organization before posting to the (global) Discord webhook.
+Security test: /discord/notify requires authentication and uses only the
+current organization's effective webhook.
 """
 from unittest.mock import patch, AsyncMock, MagicMock
 from fastapi.testclient import TestClient
