@@ -1,8 +1,9 @@
+import { Link } from 'react-router-dom'
 import LegalPageLayout from './LegalPageLayout'
 import LegalSection from './LegalSection'
 
 const CONTACT_EMAIL = 'testerappp2001@gmail.com'
-const LAST_UPDATED = 'August 23, 2026'
+const LAST_UPDATED = 'October 13, 2026'
 
 export default function TermsOfService() {
   return (
@@ -17,9 +18,9 @@ export default function TermsOfService() {
       <LegalSection number="2" title="Description of WorkForge">
         <p>
           WorkForge is an automation platform that helps you manage tasks, workflows, and optional
-          integrations with services such as GitHub and Gmail. Features include task
-          tracking, workflow automation, scheduled commits, pull request management, and related
-          productivity tools.
+          integrations with services such as GitHub, Gmail, Google Calendar, and Discord. Features
+          include task tracking, workflow automation, scheduled commits, pull request management,
+          calendar event management, and related productivity tools.
         </p>
       </LegalSection>
 
@@ -33,9 +34,17 @@ export default function TermsOfService() {
 
       <LegalSection number="4" title="Google Integrations">
         <p>
-          You may optionally connect Google services (Gmail) to WorkForge. By connecting
-          these services, you authorize WorkForge to access the specific permissions you approve during the
-          Google consent process, solely to provide the corresponding features within the app.
+          You may optionally connect Gmail and Google Calendar to WorkForge. Gmail access is used
+          to send messages you configure or approve; WorkForge does not read your Gmail inbox or
+          messages. Calendar access is used to list upcoming events, check scheduling conflicts,
+          create events you request or approve, and generate summaries. For a Calendar summary,
+          event titles and start and end times are sent to Google Gemini. The exact data accessed,
+          retention, and deletion rules are described in the{' '}
+          <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110 underline">
+            Privacy Policy
+          </Link>
+          . You authorize WorkForge to use the specific permissions approved in Google&apos;s
+          consent process to provide these features.
         </p>
       </LegalSection>
 
@@ -58,9 +67,10 @@ export default function TermsOfService() {
 
       <LegalSection number="7" title="Third-Party Services">
         <p>
-          WorkForge relies on third-party services to operate, including Supabase, Google APIs, GitHub APIs,
-          Render, Resend, and the Google Gemini API. Your use of any connected third-party service is also
-          subject to that provider's own terms.
+          WorkForge relies on third-party services to operate, including Supabase, Google APIs for
+          Gmail and Calendar, the Google Gemini API for AI summaries, GitHub APIs, Discord webhooks,
+          Render, and Resend. Your use of any connected third-party service is also subject to that
+          provider&apos;s own terms.
         </p>
       </LegalSection>
 

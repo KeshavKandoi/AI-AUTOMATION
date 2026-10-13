@@ -17,9 +17,9 @@ export default function PrivacyPolicy() {
         </p>
         <p>
           The Gmail connection requests the{' '}
-          <code>https://www.googleapis.com/auth/gmail.send</code> and{' '}
-          <code>https://www.googleapis.com/auth/userinfo.email</code> scopes. Calendar requests{' '}
-          <code>https://www.googleapis.com/auth/calendar</code>. WorkForge calls Gmail&apos;s send
+          <code className="break-all">https://www.googleapis.com/auth/gmail.send</code> and{' '}
+          <code className="break-all">https://www.googleapis.com/auth/userinfo.email</code>{' '}scopes. Calendar requests{' '}
+          <code className="break-all">https://www.googleapis.com/auth/calendar</code>. WorkForge calls Gmail&apos;s send
           API and Google&apos;s user-info endpoint; it does not list, retrieve, or search inbox
           messages. Calendar access is used to list upcoming events and create events you request
           or approve.
@@ -43,9 +43,11 @@ export default function PrivacyPolicy() {
         <p>
           For a Calendar summary, WorkForge sends the event titles and start and end times returned
           by Calendar to Google Gemini, along with instructions to count events, identify overlaps,
-          and describe what is coming up soonest. The summary is returned to you. WorkForge does not
-          use Google Workspace data to develop, improve, or train generalized or non-personalized
-          AI/ML models. WorkForge does not persist the Calendar summary in its application database.
+          and describe what is coming up soonest. The summary is returned to you. WorkForge itself
+          does not use Google Workspace data to develop, improve, or train generalized or
+          non-personalized AI/ML models. This describes WorkForge&apos;s use; Google&apos;s separate
+          handling of Gemini prompts depends on the API service tier described below. WorkForge
+          does not persist the Calendar summary in its application database.
         </p>
         <p>
           Google provides Gmail, Calendar, and Gemini processing. Supabase provides account

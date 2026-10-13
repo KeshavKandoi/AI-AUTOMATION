@@ -35,6 +35,21 @@ def test_privacy_policy_is_on_the_public_route_and_linked_from_homepage():
     client = (ROOT / "ai-coo-frontend/src/api/client.ts").read_text()
     home = (ROOT / "ai-coo-frontend/src/pages/home/Home.tsx").read_text()
 
-    assert 'path="/privacy"' in app
-    assert "'/privacy'" in client
-    assert 'to="/privacy"' in home
+    for route in ("privacy", "security", "terms"):
+        assert f'path="/{route}"' in app
+        assert f"'/{route}'" in client
+        assert f'to="/{route}"' in home
+
+
+def test_security_and_terms_match_google_disconnect_and_deletion_behavior():
+    security = re.sub(r"\s+", " ", (ROOT / "ai-coo-frontend/src/pages/legal/Security.tsx").read_text())
+    terms = re.sub(r"\s+", " ", (ROOT / "ai-coo-frontend/src/pages/legal/TermsOfService.tsx").read_text())
+
+    assert "does not revoke the grant in your Google Account" in security
+    assert "When the account is the organization&apos;s only member" in security
+    assert "When other members remain" in security
+    assert "retains shared organization records and integration credentials" in security
+    assert "does not revoke" in security
+    assert "Gmail and Google Calendar" in terms
+    assert "WorkForge does not read your Gmail inbox or messages" in terms
+    assert "event titles and start and end times are sent to Google Gemini" in terms
