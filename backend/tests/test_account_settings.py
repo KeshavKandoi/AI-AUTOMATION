@@ -115,6 +115,8 @@ class FakeQuery:
         self.db.calls.append((self.table, self.operation, tuple(self.filters)))
         if self.table == "user_profiles" and self.operation == "select":
             return SimpleNamespace(data=[{"id": uid} for uid in self.db.members])
+        if self.table == "integrations" and self.operation == "select":
+            return SimpleNamespace(data=[{"id": "integration-1"}])
         if self.table == "user_profiles" and self.operation == "delete":
             return SimpleNamespace(data=[{"id": "user-1"}])
         if self.table == "organizations" and self.operation == "delete":
@@ -161,6 +163,7 @@ def test_sole_member_deletion_removes_jobs_tokens_and_org(monkeypatch):
 
     deleted_tables = {table for table, action, _ in db.calls if action == "delete"}
     assert {"commit_jobs", "email_jobs", "scheduled_commits", "integrations", "organizations"} <= deleted_tables
+    assert ("oauth_tokens", "delete", (("integration_id", "integration-1"),)) in db.calls
     auth.auth.admin.delete_user.assert_called_once_with("user-1")
 
 
