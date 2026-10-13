@@ -41,20 +41,21 @@ export default function PrivacyPolicy() {
           your Google Calendar and is subject to Google&apos;s handling of that account.
         </p>
         <p>
-          For a Calendar summary, WorkForge sends the event titles and start and end times returned
-          by Calendar to Google Gemini, along with instructions to count events, identify overlaps,
-          and describe what is coming up soonest. The summary is returned to you. WorkForge itself
-          does not use Google Workspace data to develop, improve, or train generalized or
-          non-personalized AI/ML models. This describes WorkForge&apos;s use; Google&apos;s separate
-          handling of Gemini prompts depends on the API service tier described below. WorkForge
-          does not persist the Calendar summary in its application database.
+          When you request a Calendar summary and upcoming events are available, WorkForge sends up
+          to 10 event titles and their start and end dates or times to an external AI service
+          provider. It also sends instructions to count events, identify overlapping times, and
+          describe what is coming up soonest. The provider returns a summary to WorkForge, which
+          returns it to you. WorkForge does not store the prompt or generated summary in its
+          application database. WorkForge&apos;s code does not determine whether the external provider
+          retains prompts or uses them to improve or train models; that depends on the production
+          provider configuration and terms, which must be checked before making a provider-wide
+          no-training statement.
         </p>
         <p>
-          Google provides Gmail, Calendar, and Gemini processing. Supabase provides account
+          Google provides Gmail and Calendar services. An external AI service provider processes
+          Calendar summary prompts when you request that feature. Supabase provides account
           authentication, database, and storage services for WorkForge. WorkForge does not sell
-          Google user data or use it for advertising. Google&apos;s handling of Gemini prompts
-          depends on the Gemini API service tier used by WorkForge; see the retention and AI
-          details below.
+          Google user data or use it for advertising.
         </p>
       </LegalSection>
 
@@ -102,33 +103,15 @@ export default function PrivacyPolicy() {
           </li>
         </ul>
         <p>
-          WorkForge&apos;s Calendar summary feature uses the Gemini Developer API. Google states that
-          for Paid Services, prompts and responses are not used to improve Google products, although
-          they may be logged for a limited period for abuse monitoring. For Unpaid Services, Google
-          states that submitted content and responses may be used to provide, improve, and develop
-          Google products and machine-learning technologies. WorkForge&apos;s code cannot determine
-          whether its deployed Gemini project has active billing, so WorkForge cannot promise that
-          Google will not use these prompts for product or model improvement unless the deployment
-          is confirmed to use Paid Services. Google&apos;s{' '}
-          <a
-            className="text-[var(--color-signal)] underline"
-            href="https://ai.google.dev/gemini-api/terms"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Gemini API terms
-          </a>{' '}
-          and{' '}
-          <a
-            className="text-[var(--color-signal)] underline"
-            href="https://ai.google.dev/gemini-api/docs/zdr"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Gemini retention documentation
-          </a>{' '}
-          describe the current handling. Google does not give a single fixed retention period for
-          prompts submitted under Unpaid Services.
+          WorkForge does not control or set the external AI service provider&apos;s prompt retention
+          or model-improvement practices. Those practices depend on the provider and production
+          account configuration. WorkForge cannot confirm from this application&apos;s code how long
+          the provider retains prompts or whether the provider uses them for generalized model
+          improvement. Check the deployed provider account&apos;s data-handling terms and settings
+          before relying on a no-training representation. This does not change WorkForge&apos;s own
+          retention rule: the Calendar prompt and generated summary are not stored in WorkForge&apos;s
+          application database. Calendar integration credentials and Calendar automation settings
+          and run records follow the WorkForge retention and deletion rules above.
         </p>
       </LegalSection>
 

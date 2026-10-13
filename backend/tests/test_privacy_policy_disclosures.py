@@ -14,20 +14,30 @@ def test_public_privacy_policy_discloses_google_data_use_retention_and_controls(
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/calendar",
         "does not list, retrieve, or search inbox",
-        "event titles and start and end times",
-        "Google Gemini",
+        "up to 10 event titles and their start and end dates or times",
+        "external AI service provider",
+        "identify overlapping times",
+        "does not store the prompt or generated summary",
+        "does not determine whether the external provider retains prompts or uses them",
+        "before making a provider-wide no-training statement",
         "encrypted before storage",
         "automatic WorkForge expiry period",
         "Disconnecting Gmail or Calendar",
         "does not revoke Google",
         "only member of the organization",
         "your user attribution removed",
-        "does not use Google Workspace data to develop, improve, or train generalized",
-        "Unpaid Services",
-        "Paid Services",
     ]
     for disclosure in required_disclosures:
         assert disclosure in source
+
+    for unsupported_or_model_specific_claim in (
+        "Google Gemini",
+        "Gemini API",
+        "Paid Services",
+        "Unpaid Services",
+        "does not use Google Workspace data to develop, improve, or train generalized",
+    ):
+        assert unsupported_or_model_specific_claim not in source
 
 
 def test_privacy_policy_is_on_the_public_route_and_linked_from_homepage():
@@ -52,4 +62,6 @@ def test_security_and_terms_match_google_disconnect_and_deletion_behavior():
     assert "does not revoke" in security
     assert "Gmail and Google Calendar" in terms
     assert "WorkForge does not read your Gmail inbox or messages" in terms
-    assert "event titles and start and end times are sent to Google Gemini" in terms
+    assert "external AI service provider" in terms
+    assert "up to 10 event titles and their start and end dates or times" in terms
+    assert "Google Gemini" not in terms

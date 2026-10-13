@@ -38,8 +38,10 @@ export default function TermsOfService() {
           to send messages you configure or approve; WorkForge does not read your Gmail inbox or
           messages. Calendar access is used to list upcoming events, check scheduling conflicts,
           create events you request or approve, and generate summaries. For a Calendar summary,
-          event titles and start and end times are sent to Google Gemini. The exact data accessed,
-          retention, and deletion rules are described in the{' '}
+          WorkForge sends up to 10 event titles and their start and end dates or times to an
+          external AI service provider to identify overlaps and summarize upcoming events. WorkForge
+          does not store the prompt or generated summary in its application database. The exact
+          data accessed, retention, and deletion rules are described in the{' '}
           <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110 underline">
             Privacy Policy
           </Link>
@@ -68,9 +70,9 @@ export default function TermsOfService() {
       <LegalSection number="7" title="Third-Party Services">
         <p>
           WorkForge relies on third-party services to operate, including Supabase, Google APIs for
-          Gmail and Calendar, the Google Gemini API for AI summaries, GitHub APIs, Discord webhooks,
-          Render, and Resend. Your use of any connected third-party service is also subject to that
-          provider&apos;s own terms.
+          Gmail and Calendar, an external AI service provider for optional Calendar summaries,
+          GitHub APIs, Discord webhooks, Render, and Resend. Your use of any connected third-party
+          service is also subject to that provider&apos;s own terms.
         </p>
       </LegalSection>
 
