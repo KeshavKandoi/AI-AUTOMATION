@@ -14,12 +14,15 @@ def test_public_privacy_policy_discloses_google_data_use_retention_and_controls(
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/calendar",
         "does not list, retrieve, or search inbox",
-        "up to 10 event titles and their start and end dates or times",
+        "up to 10 upcoming event titles and their start and end dates or times",
         "external AI service provider",
-        "identify overlapping times",
-        "does not store the prompt or generated summary",
-        "does not determine whether the external provider retains prompts or uses them",
-        "before making a provider-wide no-training statement",
+        "identify potential scheduling overlaps",
+        "does not store the Calendar summary prompts or generated summaries",
+        "does not use Google Workspace API data to develop, improve, or train generalized",
+        "prohibit using these prompts and responses to train or improve generalized models",
+        "limited period for security and abuse monitoring",
+        "https://developers.google.com/terms/api-services-user-data-policy",
+        "including its Limited Use requirements",
         "encrypted before storage",
         "automatic WorkForge expiry period",
         "Disconnecting Gmail or Calendar",
@@ -35,7 +38,9 @@ def test_public_privacy_policy_discloses_google_data_use_retention_and_controls(
         "Gemini API",
         "Paid Services",
         "Unpaid Services",
-        "does not use Google Workspace data to develop, improve, or train generalized",
+        "WorkForge&apos;s code does not determine",
+        "Check the deployed provider account",
+        "before relying on a no-training representation",
     ):
         assert unsupported_or_model_specific_claim not in source
 
@@ -63,5 +68,13 @@ def test_security_and_terms_match_google_disconnect_and_deletion_behavior():
     assert "Gmail and Google Calendar" in terms
     assert "WorkForge does not read your Gmail inbox or messages" in terms
     assert "external AI service provider" in terms
-    assert "up to 10 event titles and their start and end dates or times" in terms
+    assert "up to 10 upcoming event titles and their start and end dates or times" in terms
     assert "Google Gemini" not in terms
+
+
+def test_calendar_summary_requires_action_and_discloses_external_transfer():
+    calendar = re.sub(r"\s+", " ", (ROOT / "ai-coo-frontend/src/pages/calendar/Calendar.tsx").read_text())
+    assert "enabled: false" in calendar
+    assert "onClick={handleLoadSummary}" in calendar
+    assert "Upcoming event titles and times will be sent to an external AI service provider" in calendar
+    assert 'to="/privacy"' in calendar

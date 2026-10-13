@@ -41,21 +41,36 @@ export default function PrivacyPolicy() {
           your Google Calendar and is subject to Google&apos;s handling of that account.
         </p>
         <p>
-          When you request a Calendar summary and upcoming events are available, WorkForge sends up
-          to 10 event titles and their start and end dates or times to an external AI service
-          provider. It also sends instructions to count events, identify overlapping times, and
-          describe what is coming up soonest. The provider returns a summary to WorkForge, which
-          returns it to you. WorkForge does not store the prompt or generated summary in its
-          application database. WorkForge&apos;s code does not determine whether the external provider
-          retains prompts or uses them to improve or train models; that depends on the production
-          provider configuration and terms, which must be checked before making a provider-wide
-          no-training statement.
+          When you request a Calendar summary, WorkForge sends up to 10 upcoming event titles and
+          their start and end dates or times to an external AI service provider. This information
+          is processed to summarize upcoming events and identify potential scheduling overlaps.
+          WorkForge displays the resulting summary to you and does not store the Calendar summary
+          prompts or generated summaries in its application database.
+        </p>
+        <p>
+          WorkForge does not use Google Workspace API data to develop, improve, or train generalized
+          or non-personalized artificial intelligence or machine learning models. Our AI service
+          provider processes this data under terms that prohibit using these prompts and responses
+          to train or improve generalized models. The provider may retain prompts and responses for
+          a limited period for security and abuse monitoring.
         </p>
         <p>
           Google provides Gmail and Calendar services. An external AI service provider processes
           Calendar summary prompts when you request that feature. Supabase provides account
           authentication, database, and storage services for WorkForge. WorkForge does not sell
           Google user data or use it for advertising.
+        </p>
+        <p>
+          WorkForge&apos;s use and transfer of information received from Google APIs adheres to the{' '}
+          <a
+            className="text-[var(--color-signal)] underline"
+            href="https://developers.google.com/terms/api-services-user-data-policy"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Google API Services User Data Policy
+          </a>
+          , including its Limited Use requirements.
         </p>
       </LegalSection>
 
@@ -102,17 +117,6 @@ export default function PrivacyPolicy() {
             for the other members.
           </li>
         </ul>
-        <p>
-          WorkForge does not control or set the external AI service provider&apos;s prompt retention
-          or model-improvement practices. Those practices depend on the provider and production
-          account configuration. WorkForge cannot confirm from this application&apos;s code how long
-          the provider retains prompts or whether the provider uses them for generalized model
-          improvement. Check the deployed provider account&apos;s data-handling terms and settings
-          before relying on a no-training representation. This does not change WorkForge&apos;s own
-          retention rule: the Calendar prompt and generated summary are not stored in WorkForge&apos;s
-          application database. Calendar integration credentials and Calendar automation settings
-          and run records follow the WorkForge retention and deletion rules above.
-        </p>
       </LegalSection>
 
       <LegalSection number="4" title="Disconnecting integrations and deleting data">

@@ -37,11 +37,12 @@ export default function TermsOfService() {
           You may optionally connect Gmail and Google Calendar to WorkForge. Gmail access is used
           to send messages you configure or approve; WorkForge does not read your Gmail inbox or
           messages. Calendar access is used to list upcoming events, check scheduling conflicts,
-          create events you request or approve, and generate summaries. For a Calendar summary,
-          WorkForge sends up to 10 event titles and their start and end dates or times to an
-          external AI service provider to identify overlaps and summarize upcoming events. WorkForge
-          does not store the prompt or generated summary in its application database. The exact
-          data accessed, retention, and deletion rules are described in the{' '}
+          create events you request or approve, and generate summaries when you request them. For
+          a Calendar summary, WorkForge sends up to 10 upcoming event titles and their start and
+          end dates or times to an external AI service provider to identify potential scheduling
+          overlaps and summarize upcoming events. WorkForge does not store the prompt or generated
+          summary in its application database. The exact data accessed, retention, and deletion
+          rules are described in the{' '}
           <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110 underline">
             Privacy Policy
           </Link>

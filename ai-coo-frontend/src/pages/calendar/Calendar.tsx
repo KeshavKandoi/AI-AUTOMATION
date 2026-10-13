@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calendar as CalendarIcon, Sparkles, Plus, AlertCircle, CheckCircle2, Type, RefreshCw, Link2 } from 'lucide-react'
 import { calendarService } from '@/services/calendar'
@@ -179,9 +180,13 @@ export default function CalendarPage() {
           </div>
           {!summaryRequested ? (
             <div className="flex flex-col items-center justify-center py-6">
-              <p className="text-xs text-[var(--color-text-faint)] mb-3 text-center">
-                Get an AI-generated overview of your schedule
+              <p className="text-xs text-[var(--color-text-faint)] mb-2 text-center">
+                Generate a summary using AI. Upcoming event titles and times will be sent to an
+                external AI service provider to produce your summary.
               </p>
+              <Link to="/privacy" className="text-xs text-[var(--color-signal)] underline mb-3">
+                Read the Privacy Policy
+              </Link>
               <Button variant="secondary" onClick={handleLoadSummary}>
                 <Sparkles size={14} />
                 Load AI summary
