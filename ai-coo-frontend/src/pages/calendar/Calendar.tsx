@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Calendar as CalendarIcon, Sparkles, Plus, AlertCircle, CheckCircle2, Type, RefreshCw, Link2 } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, AlertCircle, CheckCircle2, Type, RefreshCw, Link2 } from 'lucide-react'
 import { calendarService } from '@/services/calendar'
 import { integrationsService } from '@/services/integrations'
 import { useAuthStore } from '@/store/authStore'
@@ -37,7 +36,6 @@ export default function CalendarPage() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
 
-  const [summaryRequested, setSummaryRequested] = useState(false)
   const [eventModalOpen, setEventModalOpen] = useState(false)
   const [eventTitle, setEventTitle] = useState('')
   const [eventStart, setEventStart] = useState<Date | null>(null)
@@ -62,18 +60,6 @@ export default function CalendarPage() {
     onSuccess: (url) => { window.location.href = url },
   })
 
-  const {
-    data: summary,
-    isLoading: summaryLoading,
-    isError: summaryError,
-    refetch: fetchSummary,
-  } = useQuery({
-    queryKey: ['calendar', 'summary', orgId],
-    queryFn: () => calendarService.getSummary(orgId!),
-    enabled: false,
-    retry: false,
-  })
-
   const createEventMutation = useMutation({
     mutationFn: () =>
       calendarService.createEvent(orgId!, eventTitle, eventStart!.toISOString(), eventEnd!.toISOString()),
@@ -89,11 +75,6 @@ export default function CalendarPage() {
       }, 1200)
     },
   })
-
-  const handleLoadSummary = () => {
-    setSummaryRequested(true)
-    fetchSummary()
-  }
 
   const closeModal = () => {
     setEventModalOpen(false)
@@ -135,7 +116,7 @@ export default function CalendarPage() {
 
       {connectCalendarMutation.isError && <ErrorBanner message="Couldn't start Calendar connection. Please try again." />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <Card className="p-4 sm:p-5 min-w-0">
           <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2 min-w-0">
@@ -170,45 +151,6 @@ export default function CalendarPage() {
                 </div>
               ))}
             </div>
-          )}
-        </Card>
-
-        <Card className="p-4 sm:p-5 min-w-0">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={16} className="text-[var(--color-amber)]" />
-            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">AI summary</h2>
-          </div>
-          {!summaryRequested ? (
-            <div className="flex flex-col items-center justify-center py-6">
-              <p className="text-xs text-[var(--color-text-faint)] mb-2 text-center">
-                Generate a summary using AI. Upcoming event titles and times will be sent to an
-                external AI service provider to produce your summary.
-              </p>
-              <Link to="/privacy" className="text-xs text-[var(--color-signal)] underline mb-3">
-                Read the Privacy Policy
-              </Link>
-              <Button variant="secondary" onClick={handleLoadSummary}>
-                <Sparkles size={14} />
-                Load AI summary
-              </Button>
-            </div>
-          ) : summaryLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          ) : summaryError ? (
-            <div className="flex flex-col gap-2">
-              <ErrorBanner message="Couldn't load AI summary." />
-              <Button variant="ghost" onClick={() => fetchSummary()}>
-                Try again
-              </Button>
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-line leading-relaxed">
-              {summary}
-            </p>
           )}
         </Card>
       </div>

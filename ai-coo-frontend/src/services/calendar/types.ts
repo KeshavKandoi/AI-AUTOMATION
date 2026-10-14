@@ -36,7 +36,6 @@ export interface LunchBlockSettingsWithRuns extends LunchBlockSettings {
 
 export interface CalendarService {
   getEvents(orgId: string): Promise<CalendarEvent[]>
-  getSummary(orgId: string): Promise<string>
   createEvent(orgId: string, summary: string, startTime: string, endTime: string): Promise<CreateEventResult>
   getLunchBlockSettings(orgId: string): Promise<LunchBlockSettingsWithRuns | null>
   upsertLunchBlockSettings(settings: LunchBlockSettings): Promise<LunchBlockSettings>

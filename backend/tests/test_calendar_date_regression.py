@@ -27,7 +27,7 @@ def test_calendar_routes_and_approved_task_event_route_are_registered():
     assert {"get"} <= paths["/calendar/login"].keys()
     assert {"get"} <= paths["/calendar/callback"].keys()
     assert {"get"} <= paths["/calendar/events"].keys()
-    assert {"get"} <= paths["/calendar/summary"].keys()
+    assert "/calendar/summary" not in paths
     assert {"post"} <= paths["/calendar/create-event"].keys()
     assert {"post"} <= paths["/tasks/{task_id}/approve-and-create-event"].keys()
 
@@ -39,7 +39,7 @@ def test_calendar_page_exposes_production_badge_and_primary_controls():
     assert "Connect Calendar" in page
     assert "Refresh events" in page
     assert "Upcoming events" in page
-    assert "Load AI summary" in page
+    assert "Load AI summary" not in page
     assert "New event" in page and "Create event" in page
 
 
@@ -81,14 +81,20 @@ def test_calendar_create_event_posts_to_google_calendar(monkeypatch):
     assert client.post.call_args.kwargs["json"]["summary"] == "Planning"
 
 
-def test_calendar_summary_handles_empty_calendar(monkeypatch):
-    monkeypatch.setattr(calendar_routes, "_rate_limit", lambda *args: None)
-    async def no_events(org_id):
-        return {"event_count": 0, "events": []}
-    monkeypatch.setattr(calendar_routes, "calendar_events", no_events)
-    assert asyncio.run(calendar_routes.calendar_summary("org-1")) == {
-        "summary": "No upcoming events. Calendar is clear."
-    }
+def test_retired_calendar_summary_cannot_read_events_or_call_ai(monkeypatch):
+    from fastapi.testclient import TestClient
+    import config
+
+    ai = MagicMock(side_effect=AssertionError("Calendar must not call AI"))
+    events = AsyncMock(side_effect=AssertionError("Retired endpoint must not fetch events"))
+    monkeypatch.setattr(config, "run_gemini", ai)
+    monkeypatch.setattr(config.gemini_client.models, "generate_content", ai)
+    monkeypatch.setattr(calendar_routes, "calendar_events", events)
+    client = TestClient(app)
+    for method in (client.get, client.post):
+        assert method("/calendar/summary").status_code == 404
+    ai.assert_not_called()
+    events.assert_not_called()
 
 
 def test_calendar_oauth_callback_stores_encrypted_tokens(monkeypatch):

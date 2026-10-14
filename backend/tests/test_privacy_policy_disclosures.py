@@ -14,13 +14,8 @@ def test_public_privacy_policy_discloses_google_data_use_retention_and_controls(
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/calendar",
         "does not list, retrieve, or search inbox",
-        "up to 10 upcoming event titles and their start and end dates or times",
-        "external AI service provider",
-        "identify potential scheduling overlaps",
-        "does not store the Calendar summary prompts or generated summaries",
+        "Calendar event data retrieved by these features is not sent to an AI service",
         "does not use Google Workspace API data to develop, improve, or train generalized",
-        "prohibit using these prompts and responses to train or improve generalized models",
-        "limited period for security and abuse monitoring",
         "https://developers.google.com/terms/api-services-user-data-policy",
         "including its Limited Use requirements",
         "encrypted before storage",
@@ -68,13 +63,15 @@ def test_security_and_terms_match_google_disconnect_and_deletion_behavior():
     assert "Gmail and Google Calendar" in terms
     assert "WorkForge does not read your Gmail inbox or messages" in terms
     assert "external AI service provider" in terms
-    assert "up to 10 upcoming event titles and their start and end dates or times" in terms
+    assert "Calendar event data retrieved by these features is not sent to an AI service" in terms
     assert "Google Gemini" not in terms
 
 
-def test_calendar_summary_requires_action_and_discloses_external_transfer():
-    calendar = re.sub(r"\s+", " ", (ROOT / "ai-coo-frontend/src/pages/calendar/Calendar.tsx").read_text())
-    assert "enabled: false" in calendar
-    assert "onClick={handleLoadSummary}" in calendar
-    assert "Upcoming event titles and times will be sent to an external AI service provider" in calendar
-    assert 'to="/privacy"' in calendar
+def test_calendar_summary_is_removed_from_frontend_service_and_page():
+    calendar = (ROOT / "ai-coo-frontend/src/pages/calendar/Calendar.tsx").read_text()
+    service = (ROOT / "ai-coo-frontend/src/services/calendar/real.ts").read_text()
+    types = (ROOT / "ai-coo-frontend/src/services/calendar/types.ts").read_text()
+    assert "Load AI summary" not in calendar
+    assert "handleLoadSummary" not in calendar
+    assert "/calendar/summary" not in service
+    assert "getSummary" not in service + types + calendar

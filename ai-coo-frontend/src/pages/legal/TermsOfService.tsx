@@ -3,7 +3,7 @@ import LegalPageLayout from './LegalPageLayout'
 import LegalSection from './LegalSection'
 
 const CONTACT_EMAIL = 'testerappp2001@gmail.com'
-const LAST_UPDATED = 'October 13, 2026'
+const LAST_UPDATED = 'October 15, 2026'
 
 export default function TermsOfService() {
   return (
@@ -36,13 +36,10 @@ export default function TermsOfService() {
         <p>
           You may optionally connect Gmail and Google Calendar to WorkForge. Gmail access is used
           to send messages you configure or approve; WorkForge does not read your Gmail inbox or
-          messages. Calendar access is used to list upcoming events, check scheduling conflicts,
-          create events you request or approve, and generate summaries when you request them. For
-          a Calendar summary, WorkForge sends up to 10 upcoming event titles and their start and
-          end dates or times to an external AI service provider to identify potential scheduling
-          overlaps and summarize upcoming events. WorkForge does not store the prompt or generated
-          summary in its application database. The exact data accessed, retention, and deletion
-          rules are described in the{' '}
+          messages. Calendar access is used to list upcoming events and create events you request,
+          approve, or configure in Calendar automation. Calendar event data retrieved by these
+          features is not sent to an AI service. Data access, retention, and deletion rules are
+          described in the{' '}
           <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110 underline">
             Privacy Policy
           </Link>
@@ -71,7 +68,7 @@ export default function TermsOfService() {
       <LegalSection number="7" title="Third-Party Services">
         <p>
           WorkForge relies on third-party services to operate, including Supabase, Google APIs for
-          Gmail and Calendar, an external AI service provider for optional Calendar summaries,
+          Gmail and Calendar, an external AI service provider for GitHub summaries and task suggestions,
           GitHub APIs, Discord webhooks, Render, and Resend. Your use of any connected third-party
           service is also subject to that provider&apos;s own terms.
         </p>

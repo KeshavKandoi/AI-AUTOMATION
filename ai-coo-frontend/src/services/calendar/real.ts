@@ -14,11 +14,6 @@ export const realCalendarService: CalendarService = {
       .get<{ event_count: number; events: CalendarEvent[] }>('/calendar/events', { params: { org_id: orgId } })
       .then((r) => r.data.events),
 
-  getSummary: (orgId) =>
-    apiClient
-      .get<{ summary: string }>('/calendar/summary', { params: { org_id: orgId } })
-      .then((r) => r.data.summary),
-
   createEvent: (orgId, summary, startTime, endTime) =>
     apiClient
       .post<CreateEventResult>('/calendar/create-event', undefined, {

@@ -1,7 +1,7 @@
 import LegalPageLayout from './LegalPageLayout'
 import LegalSection from './LegalSection'
 
-const LAST_UPDATED = 'October 13, 2026'
+const LAST_UPDATED = 'October 15, 2026'
 
 export default function PrivacyPolicy() {
   return (
@@ -35,30 +35,25 @@ export default function PrivacyPolicy() {
           WorkForge does not read messages from the inbox.
         </p>
         <p>
-          WorkForge fetches upcoming Calendar events to display them, summarize what is coming up,
-          and check for overlapping times or scheduling conflicts. It may create a Calendar event
-          using the title, time, and other details you request or approve. The event is created in
-          your Google Calendar and is subject to Google&apos;s handling of that account.
-        </p>
-        <p>
-          When you request a Calendar summary, WorkForge sends up to 10 upcoming event titles and
-          their start and end dates or times to an external AI service provider. This information
-          is processed to summarize upcoming events and identify potential scheduling overlaps.
-          WorkForge displays the resulting summary to you and does not store the Calendar summary
-          prompts or generated summaries in its application database.
+          WorkForge fetches upcoming Calendar events to display them and check whether an
+          automated calendar block already exists. It creates events using the title, time, and
+          other details you request, approve, or configure in Calendar automation. Events are
+          created in your Google Calendar. Calendar event data retrieved by these features is not
+          sent to an AI service. Calendar AI summaries are no longer available.
         </p>
         <p>
           WorkForge does not use Google Workspace API data to develop, improve, or train generalized
-          or non-personalized artificial intelligence or machine learning models. Our AI service
-          provider processes this data under terms that prohibit using these prompts and responses
-          to train or improve generalized models. The provider may retain prompts and responses for
-          a limited period for security and abuse monitoring.
+          or non-personalized artificial intelligence or machine learning models.
         </p>
         <p>
-          Google provides Gmail and Calendar services. An external AI service provider processes
-          Calendar summary prompts when you request that feature. Supabase provides account
-          authentication, database, and storage services for WorkForge. WorkForge does not sell
-          Google user data or use it for advertising.
+          Google provides Gmail and Calendar services. Supabase provides account authentication,
+          database, and storage services for WorkForge. WorkForge does not sell Google user data
+          or use it for advertising.
+        </p>
+        <p>
+          Other AI features process GitHub repository information, issues, pull requests, and
+          saved memory context through an external AI service provider to produce summaries and
+          task suggestions. These features do not retrieve Calendar events or Gmail inbox messages.
         </p>
         <p>
           WorkForge&apos;s use and transfer of information received from Google APIs adheres to the{' '}
@@ -96,9 +91,9 @@ export default function PrivacyPolicy() {
             Disconnecting the integration deletes its stored token records.
           </li>
           <li>
-            <strong>Calendar data and summaries:</strong> upcoming event details and generated
-            summaries are processed to serve the request and are not saved in WorkForge&apos;s
-            application database by the listing and summary endpoints. Calendar automation stores
+            <strong>Calendar data:</strong> upcoming event details are processed to serve the
+            request and are not saved in WorkForge&apos;s application database by the event-listing
+            endpoint. Calendar automation stores
             the block settings you configure and run records, including dates, status, and an event
             ID when it creates an event. Events created by WorkForge remain in Google Calendar until
             you remove them there.

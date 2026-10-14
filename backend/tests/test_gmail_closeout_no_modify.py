@@ -16,7 +16,7 @@ def test_gmail_scope_is_send_and_email_only(monkeypatch):
 
 def test_calendar_routes_are_registered_and_import_email_route_is_absent():
     client = TestClient(app)
-    for path in ("/calendar/login", "/calendar/callback", "/calendar/events", "/calendar/summary", "/calendar/create-event"):
+    for path in ("/calendar/login", "/calendar/callback", "/calendar/events", "/calendar/create-event"):
         assert client.get(path).status_code != 404
     assert client.post("/calendar/create-event").status_code != 404
     assert client.post("/job-hunter/import-email").status_code in (404, 405)

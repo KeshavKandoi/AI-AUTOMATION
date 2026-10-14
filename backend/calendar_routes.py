@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from auth.dependencies import get_current_org_id, get_current_user
 from audit_logs.service import log_event
 from calendar_automation.service import _get_calendar_token_for_org
-from config import encrypt_token, logger, reserve_org_action, settings, supabase_admin, run_gemini
+from config import encrypt_token, logger, reserve_org_action, settings, supabase_admin
 from oauth_state import _consume_oauth_state, _issue_oauth_state
 
 router = APIRouter()
@@ -109,24 +109,6 @@ async def calendar_events(org_id: str = Depends(get_current_org_id)):
         for event in events
     ]
     return {"event_count": len(formatted), "events": formatted}
-
-
-@router.get("/calendar/summary")
-async def calendar_summary(org_id: str = Depends(get_current_org_id)):
-    _rate_limit(org_id, "ai_call", "AI_CALLS_MAX_PER_ORG_PER_HOUR")
-    events_response = await calendar_events(org_id)
-    if not events_response["events"]:
-        return {"summary": "No upcoming events. Calendar is clear."}
-    prompt = f"""You are an AI assistant summarizing a founder's upcoming calendar.
-Here is the event data: {events_response['events']}
-
-Give a short summary covering:
-- How many upcoming events
-- Any potential scheduling conflicts (overlapping times)
-- What's coming up soonest
-Keep it under 150 words."""
-    response = run_gemini(prompt)
-    return {"summary": response.text}
 
 
 @router.post("/calendar/create-event")
