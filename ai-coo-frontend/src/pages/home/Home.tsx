@@ -112,21 +112,21 @@ export default function Home() {
             <div className="absolute -top-56 left-[8%] h-[34rem] w-[34rem] rounded-full bg-pink-500/[0.10] blur-[120px]" />
             <div className="absolute right-[-10rem] top-24 h-[30rem] w-[30rem] rounded-full bg-fuchsia-600/[0.10] blur-[120px]" />
           </div>
-          <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-28 lg:pt-28">
+          <div className="mx-auto grid max-w-7xl items-start gap-10 px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20">
             <AnimatedContent>
               <h1 className="max-w-3xl font-[family-name:var(--font-display)] text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
                 Make the work around your projects <span className="text-[var(--color-signal)]">flow.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg sm:leading-8">
-                WorkForge connects the tools you choose and runs workflows from events you define. Set the conditions, choose the actions, and keep a clear record of each run.
+                Connect GitHub, Gmail, Calendar, and Discord. Turn project events into tasks, emails, and notifications with conditions and approvals you control.
               </p>
-              <p className="mt-4 text-xs leading-5 text-[var(--color-text-faint)]">
+              <p className="mt-5 text-sm leading-6 text-[var(--color-text-muted)]">
                 Connect only the services you want. Read how WorkForge uses Google data in the{' '}
                 <Link to="/privacy" className="text-[var(--color-signal)] underline underline-offset-4">Privacy Policy</Link>.
               </p>
-              <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 border-t border-[var(--color-border)] pt-5 text-xs text-[var(--color-text-faint)]">
+              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-[var(--color-border)] pt-5 text-sm text-[var(--color-text-muted)]">
                 <span className="inline-flex items-center gap-2"><Check size={14} className="text-[var(--color-signal)]" /> You choose the triggers</span>
-                <span className="inline-flex items-center gap-2"><Check size={14} className="text-[var(--color-signal)]" /> Organization-scoped integrations</span>
+                <span className="inline-flex items-center gap-2"><Check size={14} className="text-[var(--color-signal)]" /> Connections for your workspace</span>
                 <span className="inline-flex items-center gap-2"><Check size={14} className="text-[var(--color-signal)]" /> Run history and audit logs</span>
               </div>
             </AnimatedContent>
@@ -159,7 +159,8 @@ export default function Home() {
                 itemSize={190}
                 duration={30}
                 rotation={-7}
-                depth={0.3}
+                depth={0.08}
+                hoverSpeed={0}
                 showPath
                 pathColor="rgba(255, 0, 110, 0.22)"
                 pathWidth={1.5}
@@ -195,6 +196,30 @@ export default function Home() {
               ))}
             </div>
           </div>
+        </section>
+
+        <section id="product-preview" className="mx-auto max-w-7xl scroll-mt-24 px-5 py-16 sm:px-8 lg:py-20">
+          <AnimatedContent>
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">Inside WorkForge</p>
+              <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">See your workflows in one place.</h2>
+              <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Review triggers, conditions, actions, and recent results from the Workflow Automations page.</p>
+            </div>
+            <figure className="mt-8 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl shadow-black/30">
+              <div className="overflow-x-auto">
+                <img
+                  src="/workflow-automations-demo.png"
+                  alt="WorkForge Workflow Automations page showing three example workflows with their triggers, actions, statuses, and recent results"
+                  width={1440}
+                  height={650}
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-auto min-w-[720px] w-full"
+                />
+              </div>
+              <figcaption className="border-t border-[var(--color-border)] px-5 py-3 text-xs text-[var(--color-text-muted)]">Actual WorkForge interface shown with example data. <span className="sm:hidden">Swipe to see more.</span></figcaption>
+            </figure>
+          </AnimatedContent>
         </section>
 
         <section id="how-it-works" className="scroll-mt-24">
