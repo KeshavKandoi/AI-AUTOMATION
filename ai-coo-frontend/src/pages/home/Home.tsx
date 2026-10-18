@@ -76,23 +76,22 @@ const STEPS = [
 ]
 
 export default function Home() {
-  const user = useAuthStore((s) => s.user)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   return (
     <div className="home-page min-h-screen overflow-hidden bg-[var(--color-void)] text-[var(--color-text-primary)]">
       <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-void)]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 px-5 py-3.5 sm:px-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 px-5 py-3.5 sm:px-8 md:grid-cols-[1fr_auto_1fr]">
           <BrandLogo size="lg" />
-          <div className="order-3 w-full md:order-2 md:w-auto"><PillNav /></div>
+          <div className="col-span-2 row-start-2 justify-self-center md:col-span-1 md:col-start-2 md:row-auto"><PillNav /></div>
           {isAuthenticated ? (
-            <Link to="/dashboard" className="order-2 ml-auto inline-flex items-center gap-2 rounded-xl bg-[var(--color-signal)] px-4 py-2.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110 md:order-3">
+            <Link to="/dashboard" className="col-start-2 row-start-1 inline-flex items-center justify-self-end gap-2 rounded-xl bg-[var(--color-signal)] px-4 py-2.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110 md:col-start-3 md:row-auto">
               <LayoutDashboard size={16} /> Workspace
             </Link>
           ) : (
-            <div className="order-2 ml-auto flex items-center gap-3 md:order-3">
+            <div className="col-start-2 row-start-1 flex items-center justify-self-end gap-3 md:col-start-3 md:row-auto">
               <Link to="/login" className="hidden text-sm font-medium text-[var(--color-text-muted)] transition hover:text-white sm:inline">Sign in</Link>
-              <Link to="/signup" className="rounded-xl bg-[var(--color-signal)] px-4 py-2.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Get started</Link>
+              <Link to="/signup" className="rounded-xl bg-[var(--color-signal)] px-4 py-2.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Sign up</Link>
             </div>
           )}
         </div>
@@ -112,22 +111,6 @@ export default function Home() {
               <p className="mt-6 max-w-2xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg sm:leading-8">
                 WorkForge connects the tools you choose and runs workflows from events you define. Set the conditions, choose the actions, and keep a clear record of each run.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                {isAuthenticated ? (
-                  <Link to="/dashboard" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-signal)] px-5 py-3.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">
-                    Open {user?.organization_name || 'your workspace'} <ArrowRight size={16} />
-                  </Link>
-                ) : (
-                  <>
-                    <Link to="/signup" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-signal)] px-5 py-3.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">
-                      Create your workspace <ArrowRight size={16} />
-                    </Link>
-                    <Link to="/login" className="inline-flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/50 px-5 py-3.5 text-sm font-semibold text-[var(--color-text-primary)] transition hover:bg-[var(--color-surface-hover)]">
-                      Sign in
-                    </Link>
-                  </>
-                )}
-              </div>
               <p className="mt-4 text-xs leading-5 text-[var(--color-text-faint)]">
                 Connect only the services you want. Read how WorkForge uses Google data in the{' '}
                 <Link to="/privacy" className="text-[var(--color-signal)] underline underline-offset-4">Privacy Policy</Link>.
