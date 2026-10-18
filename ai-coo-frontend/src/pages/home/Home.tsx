@@ -5,6 +5,7 @@ import OrbitImages from '@/components/ui/OrbitImages'
 import BrandLogo from '@/components/BrandLogo'
 import {
   ArrowRight,
+  BriefcaseBusiness,
   CalendarDays,
   Check,
   CircleDot,
@@ -12,6 +13,7 @@ import {
   GitCommitHorizontal,
   LayoutDashboard,
   Mail,
+  MessageCircle,
   ScrollText,
   ShieldCheck,
   Workflow,
@@ -75,7 +77,15 @@ const STEPS = [
   },
 ]
 
-const ORBIT_ITEMS = Array.from({ length: 5 }, () => '/workforge-icon.svg')
+const ORBIT_ITEMS = [
+  { src: '/workforge-icon.svg', alt: 'Workflow preview' },
+  { src: '/workforge-icon.svg', alt: 'GitHub' },
+  { src: '/workforge-icon.svg', alt: 'Gmail' },
+  { src: '/workforge-icon.svg', alt: 'Google Calendar' },
+  { src: '/workforge-icon.svg', alt: 'Commit Scheduler' },
+  { src: '/workforge-icon.svg', alt: 'Job Hunter' },
+  { src: '/workforge-icon.svg', alt: 'Discord' },
+]
 
 export default function Home() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -128,33 +138,48 @@ export default function Home() {
               <div aria-hidden="true" className="absolute inset-8 rounded-full bg-pink-500/10 blur-3xl" />
               <OrbitImages
                 images={ORBIT_ITEMS}
-                renderItem={(_, index) => index === 0 ? (
+                renderItem={(_, index) => {
+                  if (index > 0) {
+                    const orbitalFeatures = [
+                      { name: 'GitHub', icon: GitBranch },
+                      { name: 'Gmail', icon: Mail },
+                      { name: 'Calendar', icon: CalendarDays },
+                      { name: 'Commit Scheduler', icon: GitCommitHorizontal },
+                      { name: 'Job Hunter', icon: BriefcaseBusiness },
+                      { name: 'Discord', icon: MessageCircle },
+                    ]
+                    const feature = orbitalFeatures[index - 1]
+                    const FeatureIcon = feature.icon
+                    return (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-[var(--color-signal)] shadow-xl shadow-black/30">
+                        <FeatureIcon size={28} />
+                        <span className="text-center text-[11px] font-medium leading-tight text-[var(--color-text-primary)]">{feature.name}</span>
+                      </div>
+                    )
+                  }
+                  return (
                   <div className="flex h-full w-full flex-col justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl shadow-black/40 sm:p-5">
                     <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-faint)]">Workflow preview</p>
                     <h2 className="mt-1 text-sm font-semibold sm:text-base">A flow you define</h2>
                     <div className="mt-3 space-y-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/80 p-3">
-                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-hover)]"><GitBranch size={14} /></span><span className="text-[11px] font-medium sm:text-xs">A commit is pushed</span></div>
+                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-hover)]"><GitBranch size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Commit pushed</span></div>
                       <div className="ml-3.5 h-3 border-l border-dashed border-[var(--color-border-hover)]" />
-                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300"><CircleDot size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Your conditions match</span></div>
+                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300"><CircleDot size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Conditions match</span></div>
                       <div className="ml-3.5 h-3 border-l border-dashed border-[var(--color-border-hover)]" />
                       <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><Workflow size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Run selected actions</span></div>
                     </div>
-                    <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-[var(--color-surface-hover)]/60 px-2.5 py-2 text-[9px] text-[var(--color-text-muted)]"><ScrollText size={12} className="shrink-0 text-[var(--color-signal)]" /> Execution recorded in audit logs</div>
+                    <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-[var(--color-surface-hover)]/60 px-2.5 py-2 text-[9px] text-[var(--color-text-muted)]"><ScrollText size={12} className="shrink-0 text-[var(--color-signal)]" /> Task · Email · Discord</div>
                   </div>
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-signal)] shadow-xl shadow-black/30">
-                    {index === 1 ? <GitBranch size={28} /> : index === 2 ? <Mail size={28} /> : index === 3 ? <CalendarDays size={28} /> : <ScrollText size={28} />}
-                    <span className="text-[11px] font-medium text-[var(--color-text-primary)]">{['', 'GitHub', 'Gmail', 'Calendar', 'Audit logs'][index]}</span>
-                  </div>
-                )}
+                  )
+                }}
                 shape="ellipse"
                 baseWidth={1000}
                 radiusX={350}
                 radiusY={130}
-                itemSize={210}
+                itemSize={190}
                 duration={30}
                 rotation={-7}
-                depth={0.5}
+                depth={0.3}
                 showPath
                 pathColor="rgba(255, 0, 110, 0.22)"
                 pathWidth={1.5}
