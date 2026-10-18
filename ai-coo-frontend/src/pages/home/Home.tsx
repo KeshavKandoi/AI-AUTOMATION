@@ -7,6 +7,7 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   CalendarDays,
+  ChevronDown,
   GitBranch,
   GitCommitHorizontal,
   Mail,
@@ -19,37 +20,31 @@ import { useAuthStore } from '@/store/authStore'
 const FEATURES = [
   {
     icon: Workflow,
-    number: '01',
     title: 'Workflows that follow your rules',
     description: 'Choose a GitHub event, add conditions, then select the actions WorkForge should run.',
   },
   {
     icon: GitBranch,
-    number: '02',
     title: 'GitHub project connections',
     description: 'Connect an account and select a repository for issue, pull request, and push workflows.',
   },
   {
     icon: Mail,
-    number: '03',
     title: 'Email you configure',
     description: 'Send workflow updates with Gmail. WorkForge does not read your inbox or messages.',
   },
   {
     icon: CalendarDays,
-    number: '04',
     title: 'Google Calendar actions',
     description: 'View upcoming events and create events you request or approve.',
   },
   {
     icon: GitCommitHorizontal,
-    number: '05',
     title: 'Scheduled commits',
     description: 'Plan repository work on a schedule and review each job from the scheduler.',
   },
   {
     icon: ShieldCheck,
-    number: '06',
     title: 'Human review and history',
     description: 'Keep approval steps in your process and see workflow results in audit logs.',
   },
@@ -165,12 +160,9 @@ export default function Home() {
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((feature, index) => (
-                <AnimatedContent key={feature.number} delay={index * 0.04}>
+                <AnimatedContent key={feature.title} delay={index * 0.04}>
                   <article className="group h-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-void)]/70 p-5 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-signal)]/40 hover:bg-[var(--color-surface)]/70 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><feature.icon size={18} /></span>
-                      <span className="font-mono text-xs text-[var(--color-text-faint)]">{feature.number}</span>
-                    </div>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><feature.icon size={18} /></span>
                     <h3 className="mt-5 text-base font-semibold">{feature.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{feature.description}</p>
                   </article>
@@ -227,41 +219,6 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="google-data" className="scroll-mt-24 bg-[var(--color-surface)]/25">
-          <AnimatedContent className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-24">
-            <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">Google data use</p>
-                <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Clear permissions. Purposeful use.</h2>
-                <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">Gmail and Google Calendar are optional connections. WorkForge requests the permissions needed for the features described here; you approve each connection in Google.</p>
-                <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">WorkForge does not read Gmail inbox messages. Calendar events are used for event listing and the Calendar actions you request. Calendar event data is not sent to an AI service.</p>
-                <Link to="/privacy" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-signal)] underline underline-offset-4 hover:brightness-110">Read the Privacy Policy <ArrowRight size={15} /></Link>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-void)]/75 p-5 sm:p-6">
-                  <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-400/10 text-red-300"><Mail size={18} /></span><h3 className="text-lg font-semibold">Gmail</h3></div>
-                  <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">WorkForge sends emails you configure or approve. The connected Google account email identifies the account and can be used as the default recipient when you have not set another recipient.</p>
-                  <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">Requested Google scopes</p>
-                  <code className="mt-2 block break-all rounded-lg bg-[var(--color-surface)] p-3 text-xs leading-5 text-[var(--color-signal)]">https://www.googleapis.com/auth/gmail.send<br />https://www.googleapis.com/auth/userinfo.email</code>
-                  <p className="mt-3 text-xs leading-5 text-[var(--color-text-faint)]">Message addresses, subject, and body are sent to Google for delivery and to the recipients you choose. WorkForge does not access your inbox.</p>
-                </article>
-                <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-void)]/75 p-5 sm:p-6">
-                  <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><CalendarDays size={18} /></span><h3 className="text-lg font-semibold">Google Calendar</h3></div>
-                  <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">WorkForge lists upcoming events and creates events you request, approve, or configure in Calendar automation. The event listing displays up to 10 upcoming events.</p>
-                  <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">Requested Google scope</p>
-                  <code className="mt-2 block break-all rounded-lg bg-[var(--color-surface)] p-3 text-xs leading-5 text-[var(--color-signal)]">https://www.googleapis.com/auth/calendar</code>
-                  <p className="mt-3 text-xs leading-5 text-[var(--color-text-faint)]">Event details are processed for those Calendar features and are not sent to an AI service.</p>
-                </article>
-              </div>
-            </div>
-            <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/55 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <div className="flex items-start gap-3"><ShieldCheck size={18} className="mt-0.5 shrink-0 text-[var(--color-signal)]" /><p className="text-sm leading-6 text-[var(--color-text-muted)]">OAuth credentials are encrypted in WorkForge’s database. Disconnecting removes stored tokens, but does not revoke Google’s account grant; you can revoke it in your Google Account permissions.</p></div>
-              <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer" className="shrink-0 text-sm font-semibold text-[var(--color-signal)] underline underline-offset-4">Manage Google access</a>
-            </div>
-            <p className="mt-5 text-xs leading-5 text-[var(--color-text-faint)]">WorkForge’s use and transfer of information received from Google APIs follows the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noreferrer" className="text-[var(--color-signal)] underline underline-offset-4">Google API Services User Data Policy and Limited Use requirements</a>. See our <Link to="/privacy" className="text-[var(--color-signal)] underline underline-offset-4">Privacy Policy</Link> for retention and account deletion details.</p>
-          </AnimatedContent>
-        </section>
-
         <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-20">
           <AnimatedContent className="relative overflow-hidden rounded-[1.75rem] border border-[var(--color-signal)]/20 bg-gradient-to-br from-[var(--color-signal-dim)] via-[var(--color-surface)] to-[var(--color-surface)] p-7 sm:p-10 lg:p-12">
             <div aria-hidden="true" className="absolute -right-10 -top-24 h-72 w-72 rounded-full bg-pink-300/[0.09] blur-3xl" />
@@ -274,6 +231,36 @@ export default function Home() {
               )}
             </div>
           </AnimatedContent>
+        </section>
+
+        <section aria-labelledby="faq-heading" className="mx-auto max-w-7xl px-5 pb-20 pt-8 sm:px-8 lg:pb-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">WorkForge, clearly explained</p>
+            <h2 id="faq-heading" className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Get to know WorkForge.</h2>
+            <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">A few quick answers about connecting services and running workflows.</p>
+          </div>
+          <div className="mx-auto mt-9 grid max-w-4xl gap-3">
+            <details className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/55 p-5 sm:p-6">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-semibold [&::-webkit-details-marker]:hidden">What can WorkForge automate?<ChevronDown size={18} className="shrink-0 text-[var(--color-signal)] transition-transform group-open:rotate-180" /></summary>
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">You can create workflows from supported GitHub events, add conditions, and choose actions such as creating tasks, sending email, notifying Discord, or recording run details.</p>
+            </details>
+            <details className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/55 p-5 sm:p-6">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-semibold [&::-webkit-details-marker]:hidden">Do I have to connect every service?<ChevronDown size={18} className="shrink-0 text-[var(--color-signal)] transition-transform group-open:rotate-180" /></summary>
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">No. Connect only the services needed for the workflows you choose. Gmail and Google Calendar are optional and ask for their own Google authorization.</p>
+            </details>
+            <details className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/55 p-5 sm:p-6">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-semibold [&::-webkit-details-marker]:hidden">Does WorkForge read my Gmail inbox?<ChevronDown size={18} className="shrink-0 text-[var(--color-signal)] transition-transform group-open:rotate-180" /></summary>
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">No. Gmail access is used to send configured or approved messages. WorkForge does not read inbox messages.</p>
+            </details>
+            <details className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/55 p-5 sm:p-6">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-semibold [&::-webkit-details-marker]:hidden">Where can I review workflow activity?<ChevronDown size={18} className="shrink-0 text-[var(--color-signal)] transition-transform group-open:rotate-180" /></summary>
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">Open Workflow Automations to review workflows and recent runs. Audit Logs provides a record of workflow activity and action results.</p>
+            </details>
+            <details className="group rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/55 p-5 sm:p-6">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-semibold [&::-webkit-details-marker]:hidden">How do I see what Google permissions are used?<ChevronDown size={18} className="shrink-0 text-[var(--color-signal)] transition-transform group-open:rotate-180" /></summary>
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--color-text-muted)]">Visit <Link to="/google-data" className="text-[var(--color-signal)] underline underline-offset-4">Google data use</Link> for the requested scopes and how those connections work.</p>
+            </details>
+          </div>
         </section>
       </main>
 
