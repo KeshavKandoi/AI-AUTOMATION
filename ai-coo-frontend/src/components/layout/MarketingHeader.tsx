@@ -18,7 +18,7 @@ export default function MarketingHeader() {
           </Link>
         ) : (
           <div className="col-start-2 row-start-1 flex items-center justify-self-end gap-3 md:col-start-3 md:row-auto">
-            <Link to="/login" className="hidden text-sm font-medium text-[var(--color-text-muted)] transition hover:text-white sm:inline">Sign in</Link>
+            <Link to="/login" className="hidden rounded-xl border border-[var(--color-signal)]/35 bg-[var(--color-signal-dim)] px-4 py-2.5 text-sm font-semibold text-[var(--color-signal)] transition hover:border-[var(--color-signal)]/60 hover:bg-[var(--color-signal)]/20 sm:inline">Sign in</Link>
             <Link to="/signup" className="rounded-xl bg-[var(--color-signal)] px-4 py-2.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Sign up</Link>
           </div>
         )}

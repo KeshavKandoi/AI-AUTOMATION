@@ -2,10 +2,10 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 
 const LINKS = [
+  { path: '/', label: 'Home' },
   { path: '/features', label: 'Features' },
-  { path: '/how-it-works', label: 'How it works' },
+  { path: '/how-it-works', label: 'How to use' },
   { path: '/connections', label: 'Integrations' },
-  { path: '/google-data', label: 'Google data use' },
 ]
 
 export default function PillNav() {
@@ -24,7 +24,7 @@ export default function PillNav() {
             key={path}
             to={path}
             aria-current={selected ? 'page' : undefined}
-            className={`group relative isolate shrink-0 overflow-hidden rounded-full py-2 pl-6 pr-3.5 text-xs font-medium transition-colors sm:pr-4 sm:text-sm ${selected ? 'text-[var(--color-void)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'}`}
+            className={`group relative isolate shrink-0 overflow-hidden rounded-full py-2 pl-6 pr-3.5 font-medium transition-colors sm:pr-4 ${path === '/how-it-works' ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'} ${selected ? 'text-[var(--color-void)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'}`}
           >
             {selected && (
               <motion.span
