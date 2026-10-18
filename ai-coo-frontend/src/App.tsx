@@ -27,6 +27,7 @@ import Memory from '@/pages/memory/Memory'
 import Notifications from '@/pages/notifications/Notifications'
 import Analytics from '@/pages/analytics/Analytics'
 import Home from '@/pages/home/Home'
+import { FeaturesPage, HowItWorksPage, ConnectionsPage, GoogleDataPage } from '@/pages/home/MarketingPages'
 import PrivacyPolicy from '@/pages/legal/PrivacyPolicy'
 import TermsOfService from '@/pages/legal/TermsOfService'
 import Security from '@/pages/legal/Security'
@@ -70,6 +71,10 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route path="/connections" element={<ConnectionsPage />} />
+          <Route path="/google-data" element={<GoogleDataPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-otp" element={<VerifyOtp />} />

@@ -59,6 +59,39 @@ body {
   --color-signal-dim: rgba(255, 0, 102, 0.14);
 }
 
+.star-border-card {
+  position: relative;
+  isolation: isolate;
+}
+
+.star-border-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--star-angle, 0deg), transparent 0deg, transparent 265deg, rgba(255, 255, 255, 0.08) 300deg, #ff0066 330deg, #ffd1e3 342deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: star-border-travel 5s linear infinite;
+}
+
+@property --star-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes star-border-travel {
+  to { --star-angle: 360deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star-border-card::before { animation: none; }
+}
+
 ::selection {
   background-color: var(--color-signal-dim);
   color: var(--color-signal);

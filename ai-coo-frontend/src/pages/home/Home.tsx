@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 import AnimatedContent from '@/components/ui/AnimatedContent'
-import PillNav from '@/components/ui/PillNav'
+import MarketingHeader from '@/components/layout/MarketingHeader'
+import MarketingFooter from '@/components/layout/MarketingFooter'
 import OrbitImages from '@/components/ui/OrbitImages'
-import BrandLogo from '@/components/BrandLogo'
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -10,7 +10,6 @@ import {
   Check,
   GitBranch,
   GitCommitHorizontal,
-  LayoutDashboard,
   Mail,
   MessageCircle,
   ShieldCheck,
@@ -89,22 +88,7 @@ export default function Home() {
 
   return (
     <div className="home-page min-h-screen overflow-hidden bg-[var(--color-void)] text-[var(--color-text-primary)]">
-      <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-void)]/90 backdrop-blur-xl">
-        <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 px-5 py-3.5 sm:px-8 md:grid-cols-[1fr_auto_1fr]">
-          <BrandLogo size="lg" />
-          <div className="col-span-2 row-start-2 justify-self-center md:col-span-1 md:col-start-2 md:row-auto"><PillNav /></div>
-          {isAuthenticated ? (
-            <Link to="/dashboard" className="col-start-2 row-start-1 inline-flex items-center justify-self-end gap-2 rounded-xl bg-[var(--color-signal)] px-4 py-2.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110 md:col-start-3 md:row-auto">
-              <LayoutDashboard size={16} /> Workspace
-            </Link>
-          ) : (
-            <div className="col-start-2 row-start-1 flex items-center justify-self-end gap-3 md:col-start-3 md:row-auto">
-              <Link to="/login" className="hidden text-sm font-medium text-[var(--color-text-muted)] transition hover:text-white sm:inline">Sign in</Link>
-              <Link to="/signup" className="rounded-xl bg-[var(--color-signal)] px-4 py-2.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Sign up</Link>
-            </div>
-          )}
-        </div>
-      </header>
+      <MarketingHeader />
 
       <main>
         <section className="relative isolate">
@@ -147,7 +131,7 @@ export default function Home() {
                   const feature = orbitalFeatures[index]
                   const FeatureIcon = feature.icon
                   return (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-[var(--color-signal)] shadow-xl shadow-black/30">
+                    <div className="star-border-card flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl bg-[var(--color-surface)] px-2 text-[var(--color-signal)] shadow-xl shadow-black/30">
                       <FeatureIcon size={28} />
                       <span className="text-center text-[11px] font-medium leading-tight text-[var(--color-text-primary)]">{feature.name}</span>
                     </div>
@@ -295,46 +279,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)]/20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr_1fr] md:gap-8 lg:py-16">
-          <div className="max-w-sm">
-            <BrandLogo size="lg" />
-            <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">Workflow automation for project work, connected services, and the follow-up in between.</p>
-            <p className="mt-4 text-xs text-[var(--color-text-faint)]">You choose what to connect and what each workflow is allowed to do.</p>
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold">Product</h2>
-            <div className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-text-muted)]">
-              <a href="#features" className="transition hover:text-[var(--color-text-primary)]">Features</a>
-              <a href="#how-it-works" className="transition hover:text-[var(--color-text-primary)]">How it works</a>
-              <Link to="/signup" className="transition hover:text-[var(--color-text-primary)]">Create an account</Link>
-              <Link to="/login" className="transition hover:text-[var(--color-text-primary)]">Sign in</Link>
-            </div>
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold">Google connections</h2>
-            <div className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-text-muted)]">
-              <a href="#google-data" className="transition hover:text-[var(--color-text-primary)]">Google data use</a>
-              <Link to="/privacy" className="transition hover:text-[var(--color-text-primary)]">Privacy Policy</Link>
-              <Link to="/security" className="transition hover:text-[var(--color-text-primary)]">Security</Link>
-              <Link to="/terms" className="transition hover:text-[var(--color-text-primary)]">Terms of Service</Link>
-            </div>
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold">Support</h2>
-            <div className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-text-muted)]">
-              <a href="mailto:testerappp2001@gmail.com" className="transition hover:text-[var(--color-text-primary)]">Contact WorkForge</a>
-              <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer" className="transition hover:text-[var(--color-text-primary)]">Google Account permissions</a>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-[var(--color-border)]">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-5 text-xs text-[var(--color-text-faint)] sm:flex-row sm:items-center sm:justify-between sm:px-8">
-            <span>© {new Date().getFullYear()} WorkForge</span>
-            <span>Google services are optional and require your authorization.</span>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   )
 }

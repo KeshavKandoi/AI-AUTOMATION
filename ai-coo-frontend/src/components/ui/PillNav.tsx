@@ -1,49 +1,29 @@
-import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 
 const LINKS = [
-  { id: 'features', label: 'Features' },
-  { id: 'how-it-works', label: 'How it works' },
-  { id: 'google-data', label: 'Google data use' },
+  { path: '/features', label: 'Features' },
+  { path: '/how-it-works', label: 'How it works' },
+  { path: '/connections', label: 'Integrations' },
+  { path: '/google-data', label: 'Google data use' },
 ]
 
 export default function PillNav() {
-  const [active, setActive] = useState(LINKS[0].id)
+  const { pathname } = useLocation()
   const reduceMotion = useReducedMotion()
-
-  useEffect(() => {
-    const sections = LINKS.map(({ id }) => document.getElementById(id)).filter(
-      (section): section is HTMLElement => section !== null,
-    )
-    if (!sections.length) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
-        if (visible) setActive(visible.target.id)
-      },
-      { rootMargin: '-20% 0px -65% 0px', threshold: [0, 0.2, 0.5, 0.8] },
-    )
-
-    sections.forEach((section) => observer.observe(section))
-    return () => observer.disconnect()
-  }, [])
 
   return (
     <nav
-      aria-label="Homepage sections"
+      aria-label="About WorkForge"
       className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      {LINKS.map(({ id, label }) => {
-        const selected = active === id
+      {LINKS.map(({ path, label }) => {
+        const selected = pathname === path
         return (
-          <a
-            key={id}
-            href={`#${id}`}
-            aria-current={selected ? 'location' : undefined}
-            onClick={() => setActive(id)}
+          <Link
+            key={path}
+            to={path}
+            aria-current={selected ? 'page' : undefined}
             className={`group relative isolate shrink-0 overflow-hidden rounded-full py-2 pl-6 pr-3.5 text-xs font-medium transition-colors sm:pr-4 sm:text-sm ${selected ? 'text-[var(--color-void)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'}`}
           >
             {selected && (
@@ -74,7 +54,7 @@ export default function PillNav() {
               <span className="block transition-transform duration-200 group-hover:-translate-y-5 motion-reduce:transition-none">{label}</span>
               <span aria-hidden="true" className="absolute inset-x-0 top-full transition-transform duration-200 group-hover:-translate-y-5 motion-reduce:transition-none">{label}</span>
             </span>
-          </a>
+          </Link>
         )
       })}
     </nav>

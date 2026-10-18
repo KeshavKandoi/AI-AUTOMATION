@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/store/authStore'
 
 // Public visitors can load these routes without probing the refresh endpoint.
-const PUBLIC_PATHS = ['/', '/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password', '/privacy', '/terms', '/security']
+const PUBLIC_PATHS = ['/', '/features', '/how-it-works', '/connections', '/google-data', '/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password', '/privacy', '/terms', '/security']
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.includes(pathname)
