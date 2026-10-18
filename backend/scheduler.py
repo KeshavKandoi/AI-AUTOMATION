@@ -94,7 +94,7 @@ def start_scheduler():
     scheduler.add_job(
         run_search_for_all_orgs,
         "interval",
-        hours=6,
+        hours=24,
         id="job_hunter_search_job",
         next_run_time=datetime.now(timezone.utc),
         coalesce=True,

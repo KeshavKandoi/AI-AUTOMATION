@@ -45,6 +45,8 @@ def list_jobs(
     employment_type: str | None = None,
     work_mode: str | None = None,
     search: str | None = None,
+    role: str | None = None,
+    job_type: str | None = None,
     roles: str | None = None,
     skills: str | None = None,
     org_id: str = Depends(get_current_org_id),
@@ -57,6 +59,7 @@ def list_jobs(
     return service.list_jobs(
         org_id, limit=limit, offset=offset,
         employment_type=employment_type, work_mode=work_mode, search=search,
+        role=role, job_type=job_type,
         roles=roles_list, skills=skills_list,
     )
 
@@ -153,11 +156,11 @@ async def run_search_now(org_id: str = Depends(get_current_org_id)):
     """Triggers an immediate search sweep for this org without blocking
     the HTTP request for the several minutes a full sweep can take.
     Reuses the existing live AsyncIOScheduler instance (the same one
-    running the 6-hourly run_search_for_all_orgs job) as the execution
+    running the daily run_search_for_all_orgs job) as the execution
     mechanism, rather than introducing a second background-task system —
     scheduling an async callable this way is already how every other
     scheduled job in this app runs. Reuses the existing has_running_search
-    staleness-aware guard (already relied on by the 6-hourly sweep) so a
+    staleness-aware guard (already relied on by the daily sweep) so a
     manual trigger racing the scheduled job, or two manual triggers close
     together, can never overlap. replace_existing=True on a per-org job id
     additionally coalesces rapid double-clicks onto a single scheduled run

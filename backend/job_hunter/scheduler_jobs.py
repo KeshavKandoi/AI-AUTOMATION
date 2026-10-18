@@ -1,6 +1,6 @@
 """
 Scheduler entry points for Job Hunter. Wired into scheduler.py on a
-6-hour interval (search) and independently for reminders. Mirrors the
+24-hour interval (search) and independently for reminders. Mirrors the
 pattern of commit_scheduler/scheduler_jobs.py and
 the scheduler — a thin orchestration layer that
 calls into service.py, never touches the DB or platform adapters directly.
@@ -149,11 +149,11 @@ async def run_search_for_org(organization_id: str) -> dict:
 
 
 async def run_search_for_all_orgs() -> dict:
-    """Called every 6 hours by the scheduler. Loops every org with
+    """Called every 24 hours by the scheduler. Loops every org with
     completed Job Hunter onboarding; one org's failure never blocks the
     rest since run_search_for_org catches its own exceptions."""
     org_ids = repository.list_orgs_with_preferences()
-    logger.info(f"[job_hunter] Starting 6-hourly search sweep for {len(org_ids)} orgs")
+    logger.info(f"[job_hunter] Starting daily search sweep for {len(org_ids)} orgs")
 
     results = {}
     for org_id in org_ids:

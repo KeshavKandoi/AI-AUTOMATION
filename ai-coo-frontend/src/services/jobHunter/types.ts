@@ -129,6 +129,8 @@ export interface JobListResponse {
 }
 
 export interface JobListFilters {
+  role?: string
+  job_type?: string
   employment_type?: string
   work_mode?: string
   search?: string

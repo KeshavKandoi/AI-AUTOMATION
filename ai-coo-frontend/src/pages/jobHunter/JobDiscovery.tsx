@@ -26,7 +26,13 @@ import Modal from '@/components/ui/Modal'
 // the onboarding form — kept as a local copy since JobHunterOnboarding
 // doesn't export them.
 const EMPLOYMENT_TYPES = ['Internship', 'Full-time', 'Part-time', 'Contract', 'Freelance']
-const WORK_MODES = ['Remote', 'Hybrid', 'Onsite']
+const WORK_MODES = ['Remote', 'Hybrid', 'On-site']
+const JOB_CATEGORIES = [
+  ['engineering', 'Engineering'], ['design', 'Design'], ['marketing', 'Marketing'],
+  ['product', 'Product'], ['data', 'Data & AI'], ['sales', 'Sales'],
+  ['operations', 'Operations'], ['finance', 'Finance'], ['people', 'People & HR'],
+  ['support', 'Customer Support'],
+] as const
 const PAGE_SIZE = 20
 
 type ViewMode = 'for_you' | 'all'
@@ -76,6 +82,9 @@ export default function JobDiscovery() {
   const [viewMode, setViewMode] = useState<ViewMode>('all')
   const [searchDraft, setSearchDraft] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
+  const [roleDraft, setRoleDraft] = useState('')
+  const [appliedRole, setAppliedRole] = useState('')
+  const [jobType, setJobType] = useState('')
   const [employmentType, setEmploymentType] = useState('')
   const [workMode, setWorkMode] = useState('')
   const [offset, setOffset] = useState(0)
@@ -101,6 +110,8 @@ export default function JobDiscovery() {
       employment_type: employmentType || undefined,
       work_mode: workMode || undefined,
       search: appliedSearch || undefined,
+      role: appliedRole || undefined,
+      job_type: jobType || undefined,
     }
     if (viewMode === 'for_you' && preferences) {
       return {
@@ -110,11 +121,11 @@ export default function JobDiscovery() {
       }
     }
     return base
-  }, [viewMode, preferences, employmentType, workMode, appliedSearch])
+  }, [viewMode, preferences, employmentType, workMode, appliedSearch, appliedRole, jobType])
 
   useEffect(() => {
     setOffset(0)
-  }, [viewMode, employmentType, workMode, appliedSearch])
+  }, [viewMode, employmentType, workMode, appliedSearch, appliedRole, jobType])
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['job-hunter', 'jobs', filters, offset],
@@ -153,11 +164,18 @@ export default function JobDiscovery() {
   const clearFilters = () => {
     setSearchDraft('')
     setAppliedSearch('')
+    setRoleDraft('')
+    setAppliedRole('')
+    setJobType('')
     setEmploymentType('')
     setWorkMode('')
   }
 
-  const hasTempFilters = !!(employmentType || workMode || appliedSearch)
+  const hasTempFilters = !!(employmentType || workMode || appliedSearch || appliedRole || jobType)
+  const applySearch = () => {
+    setAppliedRole(roleDraft.trim())
+    setAppliedSearch(searchDraft.trim())
+  }
   const total = data?.total ?? 0
   const items = data?.items ?? []
   const rangeStart = total === 0 ? 0 : offset + 1
@@ -166,10 +184,7 @@ export default function JobDiscovery() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header: view toggle + last-synced indicator (replaces the old
-          prominent "Run search" primary action — the six-hour background
-          sweep keeps the database fresh automatically; a manual refresh
-          is now a small secondary action further down). */}
+      {/* View toggle and source refresh status. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
           <button
@@ -235,7 +250,7 @@ export default function JobDiscovery() {
         <p className="text-sm text-[var(--color-text-muted)]">
           {total > 0
             ? `${total} ${viewMode === 'for_you' ? 'matching' : ''} job${total === 1 ? '' : 's'} in the database`
-            : 'No jobs found — the background sweep refreshes the database every 6 hours'}
+            : 'No jobs found — sources refresh automatically every 24 hours'}
         </p>
       </div>
 
@@ -248,41 +263,65 @@ export default function JobDiscovery() {
       )}
       {runSearchMutation.isError && <ErrorBanner message="Couldn't trigger a refresh. Please try again." />}
 
-      <Card className="p-4 flex flex-col gap-3">
-        <div className="flex flex-wrap gap-2">
-          <div className="flex-1 min-w-[200px] flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3">
-            <Search size={14} className="text-[var(--color-text-faint)] shrink-0" />
-            <input
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') setAppliedSearch(searchDraft.trim())
-              }}
-              placeholder={viewMode === 'for_you' ? 'Narrow your matches further...' : 'Search job title, company, skills...'}
-              className="flex-1 bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none py-2.5"
-            />
-          </div>
-          <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={selectClass()}>
-            <option value="">Any employment type</option>
-            {EMPLOYMENT_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-          <select value={workMode} onChange={(e) => setWorkMode(e.target.value)} className={selectClass()}>
-            <option value="">Any work mode</option>
-            {WORK_MODES.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-          <Button variant="secondary" onClick={() => setAppliedSearch(searchDraft.trim())}>
-            Search
-          </Button>
-          {hasTempFilters && (
-            <Button variant="ghost" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          )}
+      <Card className="p-4 sm:p-5 flex flex-col gap-4">
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Find a role</h2>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Filter jobs already found across connected sources.</p>
         </div>
+        <form onSubmit={(e) => { e.preventDefault(); applySearch() }} className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)] lg:col-span-2">
+              Role or job title
+              <input
+                value={roleDraft}
+                onChange={(e) => setRoleDraft(e.target.value)}
+                placeholder="e.g. Backend Engineer"
+                className={selectClass() + ' w-full'}
+              />
+            </label>
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+              Role category
+              <select value={jobType} onChange={(e) => setJobType(e.target.value)} className={selectClass()}>
+                <option value="">All categories</option>
+                {JOB_CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+              Work mode
+              <select value={workMode} onChange={(e) => setWorkMode(e.target.value)} className={selectClass()}>
+                <option value="">Any work mode</option>
+                {WORK_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+              Employment type
+              <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={selectClass()}>
+                <option value="">Any employment type</option>
+                {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)] lg:col-span-2">
+              Company or title keyword
+              <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 focus-within:border-[var(--color-signal)]">
+                <Search size={14} className="text-[var(--color-text-faint)] shrink-0" />
+                <input
+                  value={searchDraft}
+                  onChange={(e) => setSearchDraft(e.target.value)}
+                  placeholder="e.g. Acme or Engineer"
+                  className="flex-1 bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none py-2.5"
+                />
+              </div>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" variant="secondary">Search jobs</Button>
+            {hasTempFilters && (
+              <Button type="button" variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+        </form>
       </Card>
 
       {isLoading ? (
@@ -308,7 +347,7 @@ export default function JobDiscovery() {
                 ? 'Try widening your filters or clearing them.'
                 : viewMode === 'for_you'
                   ? 'No jobs currently match your saved preferences. Try All Jobs, or update your Preferences.'
-                  : 'The background sweep refreshes the database automatically every 6 hours.'
+                  : 'The background sweep refreshes the database automatically every 24 hours.'
             }
           />
         </Card>

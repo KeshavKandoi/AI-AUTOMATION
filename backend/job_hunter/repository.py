@@ -30,6 +30,21 @@ def upsert_preferences(organization_id: str, row: dict) -> dict:
 # Jobs
 # ---------------------------------------------------------------------------
 
+# Derived from titles because existing job rows have no category column.
+# Keep these server-side so the UI cannot submit arbitrary database filters.
+JOB_CATEGORY_PATTERNS = {
+    "engineering": r"engineer|developer|programmer|software|devops|sre|architect|qa|security",
+    "design": r"design|designer|ux|ui|creative|art director",
+    "marketing": r"marketing|growth|seo|content|brand|social media|copywriter",
+    "product": r"product manager|product owner|product lead|product analyst",
+    "data": r"data|analytics|analyst|scientist|machine learning|\mai\M|research",
+    "sales": r"sales|business development|account executive|revenue",
+    "operations": r"operations|project manager|program manager|logistics|supply chain",
+    "finance": r"finance|financial|accountant|accounting|audit|tax",
+    "people": r"recruit|human resources|\mhr\M|talent|people operations",
+    "support": r"support|customer success|customer service|helpdesk",
+}
+
 def get_existing_by_dedup_keys(organization_id: str, dedup_keys: list[str]) -> dict[str, dict]:
     """Batch version of get_job_by_dedup_key -- one SELECT ... WHERE
     dedup_key IN (...) instead of N individual lookups. Returns a dict
@@ -115,6 +130,8 @@ def list_jobs(
     employment_type: Optional[str] = None,
     work_mode: Optional[str] = None,
     search: Optional[str] = None,
+    role: Optional[str] = None,
+    job_type: Optional[str] = None,
     include_inactive: bool = False,
     roles: Optional[list[str]] = None,
     skills: Optional[list[str]] = None,
@@ -143,6 +160,10 @@ def list_jobs(
         query = query.eq("employment_type", employment_type)
     if work_mode:
         query = query.eq("work_mode", work_mode)
+    if job_type and job_type in JOB_CATEGORY_PATTERNS:
+        query = query.filter("job_title", "imatch", JOB_CATEGORY_PATTERNS[job_type])
+    if role:
+        query = query.ilike("job_title", f"%{role}%")
     if search:
         query = query.or_(f"job_title.ilike.%{search}%,company_name.ilike.%{search}%")
     if roles or skills:
@@ -398,7 +419,7 @@ def mark_reminder_notified(reminder_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Search runs (6-hourly sweep audit trail)
+# Search runs (daily sweep audit trail)
 # ---------------------------------------------------------------------------
 
 def create_search_run(organization_id: str, platforms: list[str]) -> dict:
@@ -470,7 +491,7 @@ def list_orgs_with_recent_successful_search(since_iso: str) -> list[str]:
 
 def list_orgs_with_preferences() -> list[str]:
     """Every org that has completed Job Hunter onboarding — the scheduler
-    loops over these every 6 hours."""
+    loops over these every 24 hours."""
     result = supabase_admin.table("job_hunter_preferences") \
         .select("organization_id").eq("onboarding_completed", True).execute()
     return [row["organization_id"] for row in result.data]
@@ -629,7 +650,7 @@ def delete_attachment_row(attachment_id: str) -> None:
 def has_running_search(organization_id: str) -> bool:
     """Checks if a search sweep is already in progress for this org —
     used to prevent overlapping sweeps (manual /run-now trigger racing
-    the 6-hourly scheduled job, or two manual triggers close together).
+    the daily scheduled job, or two manual triggers close together).
     A run is considered stale (and treated as NOT blocking) if it's been
     'running' for more than 6 hours, since that almost certainly means
     a previous process crashed mid-sweep without reaching finish_search_run

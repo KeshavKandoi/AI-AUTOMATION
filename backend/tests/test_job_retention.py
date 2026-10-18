@@ -46,6 +46,35 @@ def test_list_jobs_include_inactive_skips_active_filter():
     assert ("organization_id", "org1") in eq_calls, "organization_id filter must still apply"
 
 
+def test_list_jobs_combines_role_job_type_work_mode_and_employment_type():
+    from job_hunter import repository
+
+    mock_query = MagicMock()
+    mock_query.eq.return_value = mock_query
+    mock_query.ilike.return_value = mock_query
+    mock_query.filter.return_value = mock_query
+    mock_query.order.return_value = mock_query
+    mock_query.range.return_value = mock_query
+    mock_query.execute.return_value = MagicMock(data=[], count=0)
+
+    with patch("job_hunter.repository.supabase_admin") as sb:
+        sb.table.return_value.select.return_value = mock_query
+        repository.list_jobs(
+            "org1", role="Backend Engineer", job_type="engineering",
+            work_mode="Remote", employment_type="Full-time",
+        )
+
+    eq_calls = [call.args for call in mock_query.eq.call_args_list]
+    assert ("organization_id", "org1") in eq_calls
+    assert ("is_active", True) in eq_calls
+    assert ("work_mode", "Remote") in eq_calls
+    assert ("employment_type", "Full-time") in eq_calls
+    mock_query.ilike.assert_called_once_with("job_title", "%Backend Engineer%")
+    mock_query.filter.assert_called_once_with(
+        "job_title", "imatch", repository.JOB_CATEGORY_PATTERNS["engineering"]
+    )
+
+
 def test_purge_expired_jobs_deletes_expired_untracked_listing_and_sources():
     from job_hunter import repository
 

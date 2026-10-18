@@ -1,7 +1,7 @@
 """
 Business logic for Job Hunter: preferences, job discovery/dedup/merge, and
 application tracking. Platform adapters (LinkedIn, Indeed, Greenhouse, etc.)
-and the 6-hourly scheduler call ingest_discovered_job() — they never touch
+and the daily scheduler call ingest_discovered_job() — they never touch
 the repository or notifications/audit_logs directly, so every discovery
 path gets consistent dedup, audit logging, and notification behavior for
 free.
