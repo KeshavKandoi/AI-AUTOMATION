@@ -2,9 +2,11 @@
 All Supabase access for the job_hunter module lives here.
 service.py should never call supabase_admin directly — only through this file.
 """
+from datetime import datetime
 from typing import Optional
 from config import supabase_admin
 from job_hunter.retry import retry_db_call
+from job_hunter.retention import job_is_within_retention
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +43,7 @@ def get_existing_by_dedup_keys(organization_id: str, dedup_keys: list[str]) -> d
         return {}
     result = retry_db_call(
         lambda: supabase_admin.table("job_hunter_jobs")
-            .select("id, dedup_key, work_mode, employment_type, is_active, description, salary_min, salary_max")
+            .select("id, dedup_key, work_mode, employment_type, is_active, description, salary_min, salary_max, posted_at, first_discovered_at")
             .eq("organization_id", organization_id)
             .in_("dedup_key", dedup_keys)
             .execute(),
@@ -170,23 +172,69 @@ def get_last_completed_search_run(organization_id: str) -> Optional[dict]:
     return result.data[0] if result.data else None
 
 
-def mark_stale_jobs_inactive(stale_before_iso: str, organization_id: Optional[str] = None) -> int:
-    """Soft-expires active jobs not rediscovered since stale_before_iso.
-    Never deletes rows -- only flips is_active to false. Idempotent by
-    construction: only touches rows that are currently is_active=true AND
-    past the threshold, so running this repeatedly (e.g. the daily
-    cleanup job firing more than once, or overlapping with a manual
-    trigger) simply re-selects an empty or smaller set on subsequent
-    runs rather than causing any incorrect state change. Returns the
-    number of jobs newly marked inactive."""
-    query = supabase_admin.table("job_hunter_jobs") \
-        .update({"is_active": False}) \
-        .eq("is_active", True) \
-        .lt("last_seen_at", stale_before_iso)
-    if organization_id:
-        query = query.eq("organization_id", organization_id)
-    result = query.execute()
-    return len(result.data)
+def purge_expired_jobs(organization_id: str, now: Optional[datetime] = None) -> dict:
+    """Permanently remove expired discovery listings for one organization.
+
+    Age is based on source posted_at, falling back to first_discovered_at;
+    last_seen_at is intentionally ignored so a refresh cannot keep an old
+    listing alive. Application records are retained: linked expired jobs
+    are hidden from discovery, while their job row remains as history.
+    """
+    from datetime import datetime, timezone
+
+    current = now or datetime.now(timezone.utc)
+    expired_ids: list[str] = []
+    page_size = 1000
+    offset = 0
+    while True:
+        page = supabase_admin.table("job_hunter_jobs") \
+            .select("id, posted_at, first_discovered_at") \
+            .eq("organization_id", organization_id) \
+            .range(offset, offset + page_size - 1) \
+            .execute().data
+        expired_ids.extend(
+            row["id"] for row in page
+            if not job_is_within_retention(row.get("posted_at"), row.get("first_discovered_at"), current)
+        )
+        if len(page) < page_size:
+            break
+        offset += page_size
+
+    if not expired_ids:
+        return {"deleted": 0, "retained_for_applications": 0}
+
+    # Keep listings referenced by a saved/application tracker so retention
+    # does not erase the user's application history or its attached notes.
+    tracked_ids: set[str] = set()
+    for start in range(0, len(expired_ids), page_size):
+        chunk = expired_ids[start:start + page_size]
+        apps = supabase_admin.table("job_hunter_applications") \
+            .select("job_id") \
+            .eq("organization_id", organization_id) \
+            .in_("job_id", chunk) \
+            .execute().data
+        tracked_ids.update(app["job_id"] for app in apps)
+
+    expired_untracked = [job_id for job_id in expired_ids if job_id not in tracked_ids]
+    # Hide tracked listings from discovery, but preserve them for the
+    # application tracker. Delete source rows first for deployments whose
+    # foreign key does not cascade.
+    for start in range(0, len(expired_ids), page_size):
+        chunk = expired_ids[start:start + page_size]
+        tracked_chunk = [job_id for job_id in chunk if job_id in tracked_ids]
+        if tracked_chunk:
+            supabase_admin.table("job_hunter_jobs").update({"is_active": False}) \
+                .eq("organization_id", organization_id).in_("id", tracked_chunk).execute()
+
+    deleted = 0
+    for start in range(0, len(expired_untracked), page_size):
+        chunk = expired_untracked[start:start + page_size]
+        supabase_admin.table("job_hunter_job_sources").delete() \
+            .in_("job_id", chunk).execute()
+        result = supabase_admin.table("job_hunter_jobs").delete() \
+            .eq("organization_id", organization_id).in_("id", chunk).select("id").execute()
+        deleted += len(result.data or [])
+    return {"deleted": deleted, "retained_for_applications": len(tracked_ids)}
 
 
 def add_job_source(row: dict) -> Optional[dict]:

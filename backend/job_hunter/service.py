@@ -13,6 +13,7 @@ from fastapi import HTTPException
 
 from config import logger
 from job_hunter import repository
+from job_hunter.retention import job_is_within_retention
 from job_hunter.schemas import JobHunterPreferencesCreate, JobHunterPreferencesUpdate
 from audit_logs.service import log_event
 from notifications.service import notify
@@ -140,6 +141,14 @@ def ingest_discovered_job(
             **({"salary_min": salary_min} if salary_min is not None else {}),
             **({"salary_max": salary_max} if salary_max is not None else {}),
         }
+        effective_posted_at = posted_at or existing.get("posted_at")
+        if posted_at and not existing.get("posted_at"):
+            updates["posted_at"] = posted_at
+        should_be_active = job_is_within_retention(
+            effective_posted_at, existing.get("first_discovered_at")
+        )
+        if existing.get("is_active") is not should_be_active:
+            updates["is_active"] = should_be_active
         # Self-heal previously-NULL work_mode/employment_type once a
         # provider fix supplies a real, explicit value on a later sweep.
         # Never overwrites an existing non-NULL value -- a reliable value
@@ -149,17 +158,6 @@ def ingest_discovered_job(
             updates["work_mode"] = work_mode
         if not existing.get("employment_type") and employment_type:
             updates["employment_type"] = employment_type
-        # Reactivation: a job that had gone stale (is_active=false, no
-        # longer rediscovered within JOB_HUNTER_STALE_AFTER_DAYS) but is
-        # now successfully rediscovered again is genuinely back -- flip
-        # it active again alongside the last_seen_at refresh already
-        # happening above. This only runs on a SUCCESSFUL rediscovery
-        # (we're inside the `if existing:` branch after a real dedup-key
-        # match found via get_job_by_dedup_key) -- a failed/skipped
-        # ingestion never reaches this code path at all, so activity
-        # state is never touched on failure, by construction.
-        if existing.get("is_active") is False:
-            updates["is_active"] = True
         repository.update_job(job["id"], updates)
         is_new = False
     else:
@@ -183,6 +181,7 @@ def ingest_discovered_job(
             "company_info": company_info,
             "original_apply_url": original_apply_url,
             "posted_at": posted_at,
+            "is_active": job_is_within_retention(posted_at),
         })
         is_new = True
         content_changed = False

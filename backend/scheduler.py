@@ -102,9 +102,8 @@ def start_scheduler():
         misfire_grace_time=3600,
     )
     scheduler.add_job(run_due_reminders, "interval", minutes=15, id="job_hunter_reminders_job")
-    # Recheck stale listings on the same cadence as discovery. This only
-    # flips is_active on already-ingested rows (never deletes or scrapes)
-    # and runs only for organizations with a recent successful sweep.
+    # Purge listings older than five days on the discovery cadence; only
+    # organizations with a recent successful sweep are eligible.
     scheduler.add_job(run_stale_job_cleanup, "interval", hours=6, id="job_hunter_stale_cleanup_job")
     scheduler.start()
     scheduler.pause_job("orchestrator_job")

@@ -10,16 +10,13 @@ from job_hunter import repository, service
 from job_hunter.platforms import registry
 from job_hunter.platforms import __init__ as _register_platforms  # noqa: F401 — triggers adapter registration
 from job_hunter.batch_ingest import ingest_discovered_jobs_batch
+from job_hunter.retention import JOB_HUNTER_RETENTION_DAYS
 from audit_logs.service import log_event
 
 MODULE = "job_hunter"
 
-# How many days a job can go without being rediscovered by any provider
-# sweep before it's soft-expired (is_active set to false). Configurable
-# in one place -- change this value to adjust retention behavior without
-# hunting for it scattered through the codebase. Soft expiration only:
-# see repository.mark_stale_jobs_inactive() -- rows are never deleted.
-JOB_HUNTER_STALE_AFTER_DAYS = 5
+# Kept as an alias for existing imports and tests.
+JOB_HUNTER_STALE_AFTER_DAYS = JOB_HUNTER_RETENTION_DAYS
 
 
 async def run_search_for_org(organization_id: str) -> dict:
@@ -168,30 +165,23 @@ async def run_search_for_all_orgs() -> dict:
 
 
 async def run_stale_job_cleanup() -> dict:
-    """Daily task (wired into scheduler.py separately from the 6-hour
-    scrape interval -- this does NOT touch or replace that schedule) that
-    soft-expires jobs not rediscovered within JOB_HUNTER_STALE_AFTER_DAYS.
-    Idempotent: repository.mark_stale_jobs_inactive() only updates rows
-    that are currently active AND past the threshold, so running this
-    multiple times (e.g. a missed run catching up, or manual trigger) is
-    always safe -- it never re-processes already-inactive rows or
-    produces incorrect state. Never deletes anything."""
-    from datetime import datetime, timezone, timedelta
-    stale_before = (datetime.now(timezone.utc) - timedelta(days=JOB_HUNTER_STALE_AFTER_DAYS)).isoformat()
+    """Permanently purge listings older than five days after a recent
+    successful source refresh. Application-tracked rows are retained as
+    inactive history so notes and application records remain usable."""
+    from datetime import datetime, timezone
     # Require a recent complete sweep before expiring anything. If the
     # crawler is down, old listings remain available instead of being
     # hidden merely because no refresh could run.
     recent_success_cutoff = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
     org_ids = repository.list_orgs_with_recent_successful_search(recent_success_cutoff)
-    count = sum(
-        repository.mark_stale_jobs_inactive(stale_before, organization_id=org_id)
-        for org_id in org_ids
-    )
-    if count:
-        logger.info(f"[job_hunter] Stale-job cleanup: marked {count} job(s) inactive (not seen in {JOB_HUNTER_STALE_AFTER_DAYS}+ days)")
+    results = [repository.purge_expired_jobs(org_id) for org_id in org_ids]
+    deleted = sum(result["deleted"] for result in results)
+    retained = sum(result["retained_for_applications"] for result in results)
+    if deleted or retained:
+        logger.info(f"[job_hunter] Retention cleanup: deleted {deleted} expired listing(s); kept {retained} for application history")
     else:
-        logger.info(f"[job_hunter] Stale-job cleanup: no jobs past the {JOB_HUNTER_STALE_AFTER_DAYS}-day threshold")
-    return {"marked_inactive": count, "threshold_days": JOB_HUNTER_STALE_AFTER_DAYS}
+        logger.info(f"[job_hunter] Retention cleanup: no listings older than {JOB_HUNTER_RETENTION_DAYS} days")
+    return {"deleted": deleted, "retained_for_applications": retained, "threshold_days": JOB_HUNTER_RETENTION_DAYS}
 
 
 async def run_due_reminders() -> int:

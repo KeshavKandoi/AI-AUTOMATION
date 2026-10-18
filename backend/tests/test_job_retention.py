@@ -1,8 +1,6 @@
 """
-Tests for the job retention/soft-expiration system: is_active field,
-mark_stale_jobs_inactive(), reactivation on rediscovery, and default
-active-only filtering in list_jobs(). Never deletes rows -- confirms
-the soft-expiration contract throughout.
+Tests for five-day job listing expiration, source refresh retention,
+reactivation rules, and active-only filtering in list_jobs().
 """
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone, timedelta
@@ -48,56 +46,67 @@ def test_list_jobs_include_inactive_skips_active_filter():
     assert ("organization_id", "org1") in eq_calls, "organization_id filter must still apply"
 
 
-def test_mark_stale_jobs_inactive_only_updates_active_past_threshold():
-    """The cleanup query must only ever flip is_active=false, and must be
-    scoped to currently-active rows past the threshold -- confirming it
-    never deletes and never touches already-inactive rows redundantly."""
+def test_purge_expired_jobs_deletes_expired_untracked_listing_and_sources():
     from job_hunter import repository
 
     mock_query = MagicMock()
     mock_query.eq.return_value = mock_query
-    mock_query.lt.return_value = mock_query
-    mock_query.execute.return_value = MagicMock(data=[{"id": "1"}, {"id": "2"}])
-
-    with patch("job_hunter.repository.supabase_admin") as sb:
-        sb.table.return_value.update.return_value = mock_query
-        count = repository.mark_stale_jobs_inactive("2026-01-01T00:00:00+00:00")
-
-    assert count == 2
-    sb.table.return_value.update.assert_called_once_with({"is_active": False})
-    mock_query.eq.assert_called_once_with("is_active", True)
-    mock_query.lt.assert_called_once_with("last_seen_at", "2026-01-01T00:00:00+00:00")
-
-
-def test_mark_stale_jobs_inactive_is_idempotent():
-    """Running the cleanup twice in a row (simulating an overlapping or
-    repeated trigger) must be safe -- the second run naturally finds
-    fewer or zero matching rows since the first run already flipped them,
-    never causing an error or incorrect double-update."""
-    from job_hunter import repository
-
-    call_results = [
-        MagicMock(data=[{"id": "1"}, {"id": "2"}]),  # first run: 2 stale jobs found
-        MagicMock(data=[]),                            # second run: none left (already inactive)
+    mock_query.in_.return_value = mock_query
+    mock_query.range.return_value = mock_query
+    mock_query.select.return_value = mock_query
+    mock_query.execute.side_effect = [
+        MagicMock(data=[{"id": "expired", "posted_at": "2026-01-01T00:00:00+00:00", "first_discovered_at": "2026-01-01T00:00:00+00:00"}]),
+        MagicMock(data=[]),  # no application tracker references it
+        MagicMock(data=[]),  # source rows deleted
+        MagicMock(data=[{"id": "expired"}]),  # listing deleted
     ]
-    mock_query = MagicMock()
-    mock_query.eq.return_value = mock_query
-    mock_query.lt.return_value = mock_query
-    mock_query.execute.side_effect = call_results
 
     with patch("job_hunter.repository.supabase_admin") as sb:
+        sb.table.return_value.select.return_value = mock_query
+        sb.table.return_value.delete.return_value = mock_query
+        now = datetime(2026, 1, 7, tzinfo=timezone.utc)
+        result = repository.purge_expired_jobs("org1", now=now)
+
+    assert result == {"deleted": 1, "retained_for_applications": 0}
+    assert sb.table.call_args_list[0].args == ("job_hunter_jobs",)
+    assert sb.table.call_args_list[-1].args == ("job_hunter_jobs",)
+    # Expiration is queried by posted_at/first_discovered_at and job IDs;
+    # source rows are removed before the listing row.
+    assert sb.table.call_args_list[-2].args == ("job_hunter_job_sources",)
+
+
+def test_purge_expired_jobs_keeps_application_history_and_hides_listing():
+    from job_hunter import repository
+
+    mock_query = MagicMock()
+    mock_query.eq.return_value = mock_query
+    mock_query.in_.return_value = mock_query
+    mock_query.range.return_value = mock_query
+    mock_query.execute.side_effect = [
+        MagicMock(data=[{"id": "tracked", "posted_at": "2026-01-01T00:00:00+00:00", "first_discovered_at": None}]),
+        MagicMock(data=[{"job_id": "tracked"}]),
+        MagicMock(data=[]),
+    ]
+
+    with patch("job_hunter.repository.supabase_admin") as sb:
+        sb.table.return_value.select.return_value = mock_query
         sb.table.return_value.update.return_value = mock_query
-        first = repository.mark_stale_jobs_inactive("2026-01-01T00:00:00+00:00")
-        second = repository.mark_stale_jobs_inactive("2026-01-01T00:00:00+00:00")
+        result = repository.purge_expired_jobs("org1", now=datetime(2026, 1, 7, tzinfo=timezone.utc))
 
-    assert first == 2
-    assert second == 0, "second run must be a safe no-op, not an error or incorrect state"
+    assert result == {"deleted": 0, "retained_for_applications": 1}
+    sb.table.return_value.update.assert_called_once_with({"is_active": False})
+    sb.table.return_value.delete.assert_not_called()
 
 
-def test_stale_jobs_are_soft_expired_after_five_days():
+def test_jobs_expire_after_five_days_by_posted_date_not_last_seen():
     from job_hunter.scheduler_jobs import JOB_HUNTER_STALE_AFTER_DAYS
+    from job_hunter.retention import job_is_within_retention
 
     assert JOB_HUNTER_STALE_AFTER_DAYS == 5
+    now = datetime(2026, 1, 7, tzinfo=timezone.utc)
+    assert not job_is_within_retention("2026-01-01T00:00:00+00:00", "2026-01-06T00:00:00+00:00", now)
+    assert job_is_within_retention("2026-01-03T00:00:00+00:00", "2026-01-03T00:00:00+00:00", now)
+    assert job_is_within_retention(None, "2026-01-06T00:00:00+00:00", now)
 
 
 def test_provider_health_marks_old_status_as_stale():

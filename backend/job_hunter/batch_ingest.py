@@ -33,6 +33,7 @@ from typing import Optional
 from config import logger
 from job_hunter import repository
 from job_hunter.service import build_dedup_key, _content_changed
+from job_hunter.retention import job_is_within_retention
 from job_hunter.notifications_shim import notify_job_match  # see below
 
 # Configurable batch size -- validated via a real 200-row upsert
@@ -68,12 +69,14 @@ def _build_upsert_row(organization_id: str, raw_job, dedup_key: str, existing: O
         "benefits": raw_job.benefits,
         "company_info": raw_job.company_info,
         "original_apply_url": raw_job.original_apply_url,
-        "posted_at": raw_job.posted_at,
+        "posted_at": raw_job.posted_at or (existing or {}).get("posted_at"),
         "last_seen_at": datetime.now(timezone.utc).isoformat(),
-        # Reactivation: every rediscovered job (whether it was already
-        # active or had gone stale) is explicitly set active here --
-        # empirically verified safe/correct (see module docstring).
-        "is_active": True,
+        # Rediscovery refreshes metadata, not the posting's age. Old source
+        # listings remain expired even when a provider returns them again.
+        "is_active": job_is_within_retention(
+            raw_job.posted_at or (existing or {}).get("posted_at"),
+            (existing or {}).get("first_discovered_at"),
+        ),
     }
 
     # work_mode self-heal: never overwrite an existing non-NULL value

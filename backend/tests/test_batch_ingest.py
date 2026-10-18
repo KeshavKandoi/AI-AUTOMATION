@@ -107,15 +107,25 @@ def test_work_mode_self_heal_uses_new_value_when_existing_is_null():
     assert row["work_mode"] == "Remote"
 
 
-def test_every_row_is_active_true_for_reactivation():
-    """Every upsert row must explicitly set is_active=True -- this is the
-    reactivation mechanism verified safe against real Supabase upsert
-    behavior (empirically confirmed default_to_null=False preserves
-    omitted columns, but is_active is intentionally NOT omitted -- it's
-    always explicitly set to reactivate any previously-stale job)."""
+def test_new_listing_without_posted_date_is_active():
+    """A new listing with no source timestamp gets its retention window
+    from the database's first_discovered_at value."""
     raw_job = _make_raw_job()
     row = _build_upsert_row("org1", raw_job, "dk1", existing=None)
     assert row["is_active"] is True
+
+
+def test_old_posting_stays_inactive_when_rediscovered():
+    """Refreshing metadata must not extend the listing's five-day age."""
+    raw_job = _make_raw_job()
+    raw_job.posted_at = "2020-01-01T00:00:00+00:00"
+    existing = {
+        "is_active": False,
+        "posted_at": "2020-01-01T00:00:00+00:00",
+        "first_discovered_at": "2026-10-18T00:00:00+00:00",
+    }
+    row = _build_upsert_row("org1", raw_job, "dk1", existing)
+    assert row["is_active"] is False
 
 
 def test_batch_upsert_failure_marks_entire_batch_as_permanent_failure():
