@@ -8,13 +8,11 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   Check,
-  CircleDot,
   GitBranch,
   GitCommitHorizontal,
   LayoutDashboard,
   Mail,
   MessageCircle,
-  ScrollText,
   ShieldCheck,
   Workflow,
 } from 'lucide-react'
@@ -78,7 +76,6 @@ const STEPS = [
 ]
 
 const ORBIT_ITEMS = [
-  { src: '/workforge-icon.svg', alt: 'Workflow preview' },
   { src: '/workforge-icon.svg', alt: 'GitHub' },
   { src: '/workforge-icon.svg', alt: 'Gmail' },
   { src: '/workforge-icon.svg', alt: 'Google Calendar' },
@@ -139,37 +136,21 @@ export default function Home() {
               <OrbitImages
                 images={ORBIT_ITEMS}
                 renderItem={(_, index) => {
-                  if (index > 0) {
-                    const orbitalFeatures = [
-                      { name: 'GitHub', icon: GitBranch },
-                      { name: 'Gmail', icon: Mail },
-                      { name: 'Calendar', icon: CalendarDays },
-                      { name: 'Commit Scheduler', icon: GitCommitHorizontal },
-                      { name: 'Job Hunter', icon: BriefcaseBusiness },
-                      { name: 'Discord', icon: MessageCircle },
-                    ]
-                    const feature = orbitalFeatures[index - 1]
-                    const FeatureIcon = feature.icon
-                    return (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-[var(--color-signal)] shadow-xl shadow-black/30">
-                        <FeatureIcon size={28} />
-                        <span className="text-center text-[11px] font-medium leading-tight text-[var(--color-text-primary)]">{feature.name}</span>
-                      </div>
-                    )
-                  }
+                  const orbitalFeatures = [
+                    { name: 'GitHub', icon: GitBranch },
+                    { name: 'Gmail', icon: Mail },
+                    { name: 'Calendar', icon: CalendarDays },
+                    { name: 'Commit Scheduler', icon: GitCommitHorizontal },
+                    { name: 'Job Hunter', icon: BriefcaseBusiness },
+                    { name: 'Discord', icon: MessageCircle },
+                  ]
+                  const feature = orbitalFeatures[index]
+                  const FeatureIcon = feature.icon
                   return (
-                  <div className="flex h-full w-full flex-col justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl shadow-black/40 sm:p-5">
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-faint)]">Workflow preview</p>
-                    <h2 className="mt-1 text-sm font-semibold sm:text-base">A flow you define</h2>
-                    <div className="mt-3 space-y-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/80 p-3">
-                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-hover)]"><GitBranch size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Commit pushed</span></div>
-                      <div className="ml-3.5 h-3 border-l border-dashed border-[var(--color-border-hover)]" />
-                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300"><CircleDot size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Conditions match</span></div>
-                      <div className="ml-3.5 h-3 border-l border-dashed border-[var(--color-border-hover)]" />
-                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><Workflow size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Run selected actions</span></div>
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-[var(--color-signal)] shadow-xl shadow-black/30">
+                      <FeatureIcon size={28} />
+                      <span className="text-center text-[11px] font-medium leading-tight text-[var(--color-text-primary)]">{feature.name}</span>
                     </div>
-                    <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-[var(--color-surface-hover)]/60 px-2.5 py-2 text-[9px] text-[var(--color-text-muted)]"><ScrollText size={12} className="shrink-0 text-[var(--color-signal)]" /> Task · Email · Discord</div>
-                  </div>
                   )
                 }}
                 shape="circle"
