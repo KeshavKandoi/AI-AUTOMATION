@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import AnimatedContent from '@/components/ui/AnimatedContent'
 import PillNav from '@/components/ui/PillNav'
 import BrandLogo from '@/components/BrandLogo'
+import SplashCursor from '@/components/ui/SplashCursor'
 import {
   ArrowDownRight,
   ArrowRight,
@@ -81,6 +82,7 @@ export default function Home() {
 
   return (
     <div className="home-page min-h-screen overflow-hidden bg-[var(--color-void)] text-[var(--color-text-primary)]">
+      <SplashCursor />
       <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-void)]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-3 px-5 py-3.5 sm:px-8">
           <BrandLogo size="lg" />
