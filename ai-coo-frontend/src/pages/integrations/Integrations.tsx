@@ -19,7 +19,7 @@ function discordApiError(error: unknown): string {
 const PROVIDER_META: Record<IntegrationProvider, { label: string; description: string; icon: typeof GitBranch; dataUseNote?: string }> = {
   github: {
     label: 'GitHub',
-    description: 'Sync issues, create commits, and manage repositories.',
+    description: 'Choose a GitHub account, then select which repository WorkForge can access.',
     icon: GitBranch,
   },
   gmail: {
@@ -169,7 +169,7 @@ export default function Integrations() {
                   onClick={() => handleConnect(provider)}
                   className="flex-1"
                 >
-                  {isConnected ? 'Reconnect' : 'Connect'}
+                  {isConnected ? (provider === 'github' ? 'Switch account' : 'Reconnect') : 'Connect'}
                 </Button>
                 {isConnected && (
                   <Button

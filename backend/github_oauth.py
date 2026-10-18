@@ -35,6 +35,7 @@ def github_login(org_id: str = Depends(get_current_org_id)):
         f"?client_id={settings.GITHUB_CLIENT_ID}"
         f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
         f"&scope=repo,read:user"
+        f"&prompt=select_account"
         f"&state={state}"
     )
     return {"url": url}
