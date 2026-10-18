@@ -141,6 +141,10 @@ export interface LastSyncStatus {
   status: string | null
   jobs_found: number | null
   jobs_new: number | null
+  is_running: boolean
+  running_started_at: string | null
+  jobs_found_current: number | null
+  jobs_new_current: number | null
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +218,7 @@ export interface ProviderStatus {
   platform: string
   status: string
   is_healthy: boolean
+  is_stale: boolean
   last_run_at: string | null
   jobs_found_last_run: number
   last_error: string | null

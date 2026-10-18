@@ -249,14 +249,31 @@ def list_jobs(organization_id: str, limit: int = 50, offset: int = 0, **filters)
 def get_last_sync_status(organization_id: str) -> dict:
     """Powers the Discover page's "Last synced" indicator -- pure DB
     read, never triggers a scrape."""
+    from datetime import datetime, timezone, timedelta
+
     run = repository.get_last_completed_search_run(organization_id)
-    if not run:
-        return {"last_synced_at": None, "status": None, "jobs_found": None, "jobs_new": None}
+    latest_run = repository.get_latest_search_run(organization_id)
+    running_cutoff = datetime.now(timezone.utc) - timedelta(hours=6)
+    is_running = False
+    if latest_run and latest_run.get("status") == "running" and latest_run.get("started_at"):
+        started_at = datetime.fromisoformat(latest_run["started_at"].replace("Z", "+00:00"))
+        is_running = started_at >= running_cutoff
+
+    completed_status = {
+        "last_synced_at": run["finished_at"] if run else None,
+        "status": run.get("status") if run else None,
+        "jobs_found": run.get("jobs_found") if run else None,
+        "jobs_new": run.get("jobs_new") if run else None,
+    }
+    if not is_running:
+        return {**completed_status, "is_running": False, "running_started_at": None,
+                "jobs_found_current": None, "jobs_new_current": None}
     return {
-        "last_synced_at": run["finished_at"],
-        "status": run["status"],
-        "jobs_found": run.get("jobs_found"),
-        "jobs_new": run.get("jobs_new"),
+        **completed_status,
+        "is_running": True,
+        "running_started_at": latest_run["started_at"],
+        "jobs_found_current": latest_run.get("jobs_found") or 0,
+        "jobs_new_current": latest_run.get("jobs_new") or 0,
     }
 
 def get_job_with_sources(job_id: str, organization_id: str) -> dict:

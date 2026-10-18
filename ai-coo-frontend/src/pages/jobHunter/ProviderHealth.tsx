@@ -37,14 +37,22 @@ function platformLabel(platform: string): string {
 export default function ProviderHealth() {
   const queryClient = useQueryClient()
 
+  const { data: syncStatus } = useQuery({
+    queryKey: ['job-hunter', 'last-sync'],
+    queryFn: () => jobHunterService.getLastSync(),
+    refetchInterval: (query) => query.state.data?.is_running ? 15_000 : 60_000,
+  })
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['job-hunter', 'provider-health'],
     queryFn: () => jobHunterService.getProviderHealth(),
+    refetchInterval: syncStatus?.is_running ? 15_000 : 60_000,
   })
 
   const runSearchMutation = useMutation({
     mutationFn: () => jobHunterService.runSearchNow(),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job-hunter', 'last-sync'] })
       queryClient.invalidateQueries({ queryKey: ['job-hunter', 'provider-health'] })
       queryClient.invalidateQueries({ queryKey: ['job-hunter', 'jobs'] })
     },
@@ -58,10 +66,10 @@ export default function ProviderHealth() {
         <div className="flex items-center gap-3">
           {data && (
             <>
-              <Badge tone={data.unhealthy_count === 0 ? 'signal' : 'alert'}>
+              <Badge tone={data.unhealthy_count === 0 ? 'signal' : 'amber'}>
                 {data.unhealthy_count === 0
-                  ? 'All providers healthy'
-                  : `${data.unhealthy_count} provider${data.unhealthy_count === 1 ? '' : 's'} unhealthy`}
+                  ? 'All providers recently healthy'
+                  : `${data.unhealthy_count} provider${data.unhealthy_count === 1 ? '' : 's'} need attention`}
               </Badge>
               {data.unhealthy_platforms.length > 0 && (
                 <span className="text-xs text-[var(--color-text-muted)]">
@@ -86,7 +94,12 @@ export default function ProviderHealth() {
         <div className="rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2 text-xs text-[var(--color-signal)]">
           {runSearchMutation.data.status === "already_running"
             ? "A search is already running for your account - check back shortly."
-            : "Search started - provider statuses will update here once it finishes."}
+            : "Search started - results and provider statuses update as each source completes."}
+        </div>
+      )}
+      {syncStatus?.is_running && (
+        <div className="rounded-lg border border-[var(--color-amber-dim)] bg-[var(--color-amber-dim)] px-3 py-2 text-xs text-[var(--color-amber)]">
+          Search in progress · {syncStatus.jobs_found_current ?? 0} jobs found so far. This page refreshes as each source completes.
         </div>
       )}
       {runSearchMutation.isError && <ErrorBanner message="Couldn't trigger a search run." />}
@@ -122,13 +135,13 @@ export default function ProviderHealth() {
                     <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
                       {platformLabel(p.platform)}
                     </h3>
-                    <Badge tone={p.is_healthy ? 'signal' : 'alert'}>
+                    <Badge tone={p.is_healthy ? 'signal' : p.is_stale ? 'amber' : 'alert'}>
                       {p.is_healthy ? (
                         <CheckCircle2 size={11} className="mr-1 inline" />
                       ) : (
                         <XCircle size={11} className="mr-1 inline" />
                       )}
-                      {p.is_healthy ? 'Healthy' : 'Unhealthy'}
+                      {p.is_healthy ? 'Healthy' : p.is_stale ? 'Stale' : 'Unhealthy'}
                     </Badge>
                     <Badge tone="neutral">{p.status}</Badge>
                   </div>

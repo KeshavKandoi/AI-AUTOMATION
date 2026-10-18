@@ -1,5 +1,6 @@
 import httpx
 import re
+from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import APIRouter, Depends
 from auth.dependencies import get_current_user
@@ -9,6 +10,7 @@ from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from email_scheduler.scheduler_jobs import run_due_email_jobs
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
 from job_hunter.scheduler_jobs import run_search_for_all_orgs, run_due_reminders, run_stale_job_cleanup
+from job_hunter import repository as job_hunter_repository
 from workflow_engine import sweep_expired_workflows
 from orchestrator import coo_graph
 
@@ -75,6 +77,13 @@ async def keep_alive_ping():
 
 
 def start_scheduler():
+    try:
+        interrupted_runs = job_hunter_repository.fail_interrupted_search_runs()
+        if interrupted_runs:
+            logger.warning(f"Marked {interrupted_runs} interrupted Job Hunter run(s) failed after backend restart")
+    except Exception:
+        logger.exception("Could not reconcile interrupted Job Hunter runs during startup")
+
     scheduler.add_job(scheduled_orchestrator_run, "interval", hours=1, id="orchestrator_job")
     scheduler.add_job(check_and_commit_job, "cron", hour=23, minute=0, timezone="Asia/Kolkata", id="check_and_commit_job")
     scheduler.add_job(run_due_commit_jobs, "interval", minutes=1, id="commit_scheduler_job")
@@ -82,13 +91,21 @@ def start_scheduler():
     scheduler.add_job(keep_alive_ping, "interval", minutes=10, id="keep_alive_job")
     scheduler.add_job(run_missed_event_recovery, "interval", minutes=15, id="missed_event_recovery_job")
     scheduler.add_job(sweep_expired_workflows, "interval", minutes=1, id="workflow_expiry_sweep_job")
-    scheduler.add_job(run_search_for_all_orgs, "interval", hours=6, id="job_hunter_search_job")
+    scheduler.add_job(
+        run_search_for_all_orgs,
+        "interval",
+        hours=6,
+        id="job_hunter_search_job",
+        next_run_time=datetime.now(timezone.utc),
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+    )
     scheduler.add_job(run_due_reminders, "interval", minutes=15, id="job_hunter_reminders_job")
-    # Lightweight daily soft-expiration sweep -- entirely separate from
-    # the 6-hour job_hunter_search_job scrape interval above, which is
-    # unchanged. This only flips is_active on already-ingested rows
-    # (never deletes, never scrapes); cheap enough to run once a day.
-    scheduler.add_job(run_stale_job_cleanup, "cron", hour=3, minute=0, timezone="Asia/Kolkata", id="job_hunter_stale_cleanup_job")
+    # Recheck stale listings on the same cadence as discovery. This only
+    # flips is_active on already-ingested rows (never deletes or scrapes)
+    # and runs only for organizations with a recent successful sweep.
+    scheduler.add_job(run_stale_job_cleanup, "interval", hours=6, id="job_hunter_stale_cleanup_job")
     scheduler.start()
     scheduler.pause_job("orchestrator_job")
     print("Scheduler started — orchestrator PAUSED, check_and_commit_job + commit_scheduler_job ACTIVE")

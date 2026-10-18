@@ -93,7 +93,7 @@ export default function JobDiscovery() {
   const { data: lastSync } = useQuery({
     queryKey: ['job-hunter', 'last-sync'],
     queryFn: () => jobHunterService.getLastSync(),
-    refetchInterval: 60_000,
+    refetchInterval: (query) => query.state.data?.is_running ? 15_000 : 60_000,
   })
 
   const filters: JobListFilters = useMemo(() => {
@@ -123,6 +123,7 @@ export default function JobDiscovery() {
     // is correct on the very first fetch rather than briefly showing
     // unfiltered results.
     enabled: viewMode === 'all' || prefsData !== undefined,
+    refetchInterval: lastSync?.is_running ? 15_000 : false,
   })
 
   const { data: applications } = useQuery({
@@ -196,9 +197,11 @@ export default function JobDiscovery() {
 
         <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
           <span>
-            {lastSync?.last_synced_at
-              ? `Last synced ${timeAgo(lastSync.last_synced_at)}`
-              : 'Not synced yet'}
+            {lastSync?.is_running
+              ? `Search running · ${lastSync.jobs_found_current ?? 0} jobs scanned`
+              : lastSync?.last_synced_at
+                ? `Last synced ${timeAgo(lastSync.last_synced_at)}`
+                : 'Not synced yet'}
           </span>
           <Button
             variant="ghost"

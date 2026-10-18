@@ -94,6 +94,29 @@ def test_mark_stale_jobs_inactive_is_idempotent():
     assert second == 0, "second run must be a safe no-op, not an error or incorrect state"
 
 
+def test_stale_jobs_are_soft_expired_after_five_days():
+    from job_hunter.scheduler_jobs import JOB_HUNTER_STALE_AFTER_DAYS
+
+    assert JOB_HUNTER_STALE_AFTER_DAYS == 5
+
+
+def test_provider_health_marks_old_status_as_stale():
+    from job_hunter import repository
+
+    old_status = {
+        "organization_id": "org1",
+        "platform": "greenhouse",
+        "status": "active",
+        "last_error": None,
+        "last_run_at": (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+    }
+    with patch("job_hunter.repository.get_provider_statuses", return_value=[old_status]):
+        result = repository.get_provider_health_summary("org1")
+
+    assert result[0]["is_stale"] is True
+    assert result[0]["is_healthy"] is False
+
+
 def test_ingest_reactivates_inactive_job_on_rediscovery():
     """A job that had gone stale (is_active=false) must be reactivated
     when successfully rediscovered, alongside the existing last_seen_at

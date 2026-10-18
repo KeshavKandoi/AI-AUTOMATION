@@ -170,7 +170,7 @@ def get_last_completed_search_run(organization_id: str) -> Optional[dict]:
     return result.data[0] if result.data else None
 
 
-def mark_stale_jobs_inactive(stale_before_iso: str) -> int:
+def mark_stale_jobs_inactive(stale_before_iso: str, organization_id: Optional[str] = None) -> int:
     """Soft-expires active jobs not rediscovered since stale_before_iso.
     Never deletes rows -- only flips is_active to false. Idempotent by
     construction: only touches rows that are currently is_active=true AND
@@ -179,11 +179,13 @@ def mark_stale_jobs_inactive(stale_before_iso: str) -> int:
     trigger) simply re-selects an empty or smaller set on subsequent
     runs rather than causing any incorrect state change. Returns the
     number of jobs newly marked inactive."""
-    result = supabase_admin.table("job_hunter_jobs") \
+    query = supabase_admin.table("job_hunter_jobs") \
         .update({"is_active": False}) \
         .eq("is_active", True) \
-        .lt("last_seen_at", stale_before_iso) \
-        .execute()
+        .lt("last_seen_at", stale_before_iso)
+    if organization_id:
+        query = query.eq("organization_id", organization_id)
+    result = query.execute()
     return len(result.data)
 
 
@@ -362,6 +364,52 @@ def finish_search_run(run_id: str, status: str, jobs_found: int, jobs_new: int, 
     return result.data[0]
 
 
+def update_search_run_progress(run_id: str, jobs_found: int, jobs_new: int) -> None:
+    """Expose partial crawl progress while providers are still running."""
+    supabase_admin.table("job_hunter_search_runs").update({
+        "jobs_found": jobs_found,
+        "jobs_new": jobs_new,
+    }).eq("id", run_id).eq("status", "running").execute()
+
+
+def fail_interrupted_search_runs() -> int:
+    """Mark in-flight searches abandoned by a single-process backend restart.
+
+    The deployment runs one backend worker/replica, so no search from an
+    earlier process can still be executing after startup. This prevents a
+    stale `running` row from blocking the startup sweep or manual refresh.
+    """
+    from datetime import datetime, timezone
+
+    result = supabase_admin.table("job_hunter_search_runs").update({
+        "status": "failed",
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "error_message": "Search interrupted by backend restart",
+    }).eq("status", "running").execute()
+    return len(result.data or [])
+
+
+def get_latest_search_run(organization_id: str) -> Optional[dict]:
+    result = supabase_admin.table("job_hunter_search_runs") \
+        .select("id, status, started_at, finished_at, jobs_found, jobs_new, error_message") \
+        .eq("organization_id", organization_id) \
+        .order("started_at", desc=True) \
+        .limit(1) \
+        .execute()
+    return result.data[0] if result.data else None
+
+
+def list_orgs_with_recent_successful_search(since_iso: str) -> list[str]:
+    """Only expire listings for organizations whose recent full sweep
+    succeeded. A stopped crawler must not make the whole inventory vanish."""
+    result = supabase_admin.table("job_hunter_search_runs") \
+        .select("organization_id") \
+        .eq("status", "success") \
+        .gte("finished_at", since_iso) \
+        .execute()
+    return list({row["organization_id"] for row in result.data})
+
+
 def list_orgs_with_preferences() -> list[str]:
     """Every org that has completed Job Hunter onboarding — the scheduler
     loops over these every 6 hours."""
@@ -521,12 +569,12 @@ def has_running_search(organization_id: str) -> bool:
     used to prevent overlapping sweeps (manual /run-now trigger racing
     the 6-hourly scheduled job, or two manual triggers close together).
     A run is considered stale (and treated as NOT blocking) if it's been
-    'running' for more than 15 minutes, since that almost certainly means
+    'running' for more than 6 hours, since that almost certainly means
     a previous process crashed mid-sweep without reaching finish_search_run
     — otherwise a genuine crash would permanently lock that org out of
     ever searching again."""
     from datetime import datetime, timezone, timedelta
-    stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    stale_cutoff = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
 
     result = supabase_admin.table("job_hunter_search_runs") \
         .select("id, started_at") \
@@ -548,12 +596,21 @@ def get_provider_health_summary(organization_id: str) -> list[dict]:
     aggregate counts across ALL providers per run, not per-provider
     detail. Flagging on the latest known state is the honest signal
     available with the current schema."""
+    from datetime import datetime, timezone, timedelta
+
     statuses = get_provider_statuses(organization_id)
+    stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
     summary = []
     for s in statuses:
-        is_healthy = s["status"] == "active" and not s.get("last_error")
+        try:
+            last_run = datetime.fromisoformat((s.get("last_run_at") or "").replace("Z", "+00:00"))
+            is_stale = last_run < stale_cutoff
+        except ValueError:
+            is_stale = True
+        is_healthy = s["status"] == "active" and not s.get("last_error") and not is_stale
         summary.append({
             **s,
             "is_healthy": is_healthy,
+            "is_stale": is_stale,
         })
     return summary

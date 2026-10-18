@@ -7,13 +7,15 @@ specific platform module directly, so adding/removing/fixing one
 provider never requires touching anything else.
 """
 import asyncio
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from config import logger
 from job_hunter import repository
 from job_hunter.platforms.base import BaseJobProvider, RawJob, NotConfiguredError, ProviderError
 
 _PROVIDERS: dict[str, BaseJobProvider] = {}
+ProviderCompletionHandler = Callable[[str, list[RawJob], str, Optional[str]], Awaitable[None]]
+PROVIDER_TIMEOUT_SECONDS = 90 * 60
 
 
 def register_provider(provider: BaseJobProvider) -> BaseJobProvider:
@@ -33,7 +35,10 @@ async def _run_single_provider(provider: BaseJobProvider, organization_id: str, 
         return provider.platform, [], "not_configured", None
 
     try:
-        jobs = await provider.search(organization_id, preferences)
+        jobs = await asyncio.wait_for(
+            provider.search(organization_id, preferences),
+            timeout=PROVIDER_TIMEOUT_SECONDS,
+        )
         return provider.platform, jobs, "active", None
     except NotConfiguredError as e:
         return provider.platform, [], "not_configured", str(e)
@@ -45,7 +50,12 @@ async def _run_single_provider(provider: BaseJobProvider, organization_id: str, 
         return provider.platform, [], "error", str(e)
 
 
-async def run_all_providers(organization_id: str, preferences: dict, platforms: Optional[list[str]] = None) -> dict:
+async def run_all_providers(
+    organization_id: str,
+    preferences: dict,
+    platforms: Optional[list[str]] = None,
+    on_provider_complete: Optional[ProviderCompletionHandler] = None,
+) -> dict:
     """
     Runs every registered provider concurrently for one org, isolating
     failures per-provider. Writes each provider's outcome to
@@ -61,15 +71,28 @@ async def run_all_providers(organization_id: str, preferences: dict, platforms: 
     if not selected:
         return {"jobs": [], "statuses": {}}
 
-    results = await asyncio.gather(*[
-        _run_single_provider(p, organization_id, preferences) for p in selected.values()
-    ])
-
     all_jobs: list[RawJob] = []
     statuses: dict[str, dict] = {}
 
-    for platform, jobs, status, error in results:
+    tasks = [
+        asyncio.create_task(_run_single_provider(provider, organization_id, preferences))
+        for provider in selected.values()
+    ]
+    for completed in asyncio.as_completed(tasks):
+        platform, jobs, status, error = await completed
         all_jobs.extend(jobs)
+
+        # Persist each source's results as soon as it finishes. A slow or
+        # unresponsive provider must not hold every completed source's jobs
+        # in memory until the entire sweep ends.
+        if on_provider_complete is not None:
+            try:
+                await on_provider_complete(platform, jobs, status, error)
+            except Exception as e:
+                status = "error"
+                error = f"provider result ingestion failed: {e}"
+                logger.exception(f"Failed to ingest {platform} results for org {organization_id}")
+
         statuses[platform] = {"status": status, "jobs_found": len(jobs), "error": error}
         try:
             repository.upsert_provider_status(

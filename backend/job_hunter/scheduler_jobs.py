@@ -19,7 +19,7 @@ MODULE = "job_hunter"
 # in one place -- change this value to adjust retention behavior without
 # hunting for it scattered through the codebase. Soft expiration only:
 # see repository.mark_stale_jobs_inactive() -- rows are never deleted.
-JOB_HUNTER_STALE_AFTER_DAYS = 30
+JOB_HUNTER_STALE_AFTER_DAYS = 5
 
 
 async def run_search_for_org(organization_id: str) -> dict:
@@ -41,27 +41,42 @@ async def run_search_for_org(organization_id: str) -> dict:
 
     platforms = registry.get_registered_platforms()
     run = repository.create_search_run(organization_id, platforms)
+    raw_jobs = []
+    statuses = {}
+    jobs_found_progress = 0
+    inserted = 0
+    updated = 0
+    permanent_failures = []
 
     try:
-        result = await registry.run_all_providers(organization_id, preferences)
+        async def ingest_provider_results(platform, jobs, status, error):
+            nonlocal inserted, updated, jobs_found_progress
+            jobs_found_progress += len(jobs)
+            repository.update_search_run_progress(
+                run["id"],
+                jobs_found=jobs_found_progress,
+                jobs_new=inserted,
+            )
+            if jobs:
+                batch_result = await ingest_discovered_jobs_batch(organization_id, jobs)
+                inserted += batch_result["inserted"]
+                updated += batch_result["updated"]
+                permanent_failures.extend(batch_result["permanent_failure_details"])
+            repository.update_search_run_progress(
+                run["id"],
+                jobs_found=jobs_found_progress,
+                jobs_new=inserted,
+            )
+
+        result = await registry.run_all_providers(
+            organization_id,
+            preferences,
+            on_provider_complete=ingest_provider_results,
+        )
         raw_jobs = result["jobs"]
         statuses = result["statuses"]
-
-        # Batch ingestion -- replaced the original per-job sequential loop
-        # (kept in job_hunter.service.ingest_discovered_job() for any
-        # other caller, e.g. a future single-job admin action) after
-        # measuring it took ~2.94 hours for 22,865 jobs due to 3-6
-        # sequential Supabase round-trips per job. See
-        # job_hunter/batch_ingest.py for the full design rationale and
-        # the guarantees it preserves (dedup, is_active reactivation,
-        # work_mode/employment_type self-heal, first_discovered_at/
-        # last_seen_at semantics, retry-safety).
-        batch_result = await ingest_discovered_jobs_batch(organization_id, raw_jobs)
-        jobs_new = batch_result["jobs_new"]
-        inserted = batch_result["inserted"]
-        updated = batch_result["updated"]
-        permanent_failures = batch_result["permanent_failure_details"]
-        permanent_failure_count = batch_result["permanent_failures"]
+        jobs_new = inserted
+        permanent_failure_count = len(permanent_failures)
 
         for f in permanent_failures:
             logger.error(
@@ -82,13 +97,19 @@ async def run_search_for_org(organization_id: str) -> dict:
                 f"(sum={inserted + updated + permanent_failure_count})"
             )
 
-        repository.finish_search_run(run["id"], status="success", jobs_found=len(raw_jobs), jobs_new=jobs_new)
+        provider_failures = [name for name, state in statuses.items() if state["status"] == "error"]
+        overall_status = (
+            "failed" if not any(state["status"] == "active" for state in statuses.values())
+            else "partial" if provider_failures or permanent_failure_count
+            else "success"
+        )
+        repository.finish_search_run(run["id"], status=overall_status, jobs_found=len(raw_jobs), jobs_new=jobs_new)
         log_event(
             organization_id=organization_id,
             module=MODULE,
             action="search_run_completed",
             summary=f"Job search completed: {len(raw_jobs)} jobs found ({jobs_new} new, {updated} updated, {permanent_failure_count} failed) across {len(platforms)} platforms",
-            status="success",
+            status=overall_status,
             resource_type="job_hunter_search_run",
             resource_id=run["id"],
             metadata={
@@ -101,6 +122,7 @@ async def run_search_for_org(organization_id: str) -> dict:
         )
         return {
             "jobs_found": len(raw_jobs), "jobs_new": jobs_new, "statuses": statuses,
+            "status": overall_status,
             "inserted": inserted, "updated": updated,
             "permanent_failures": permanent_failure_count,
             "permanent_failure_details": permanent_failures,
@@ -109,7 +131,13 @@ async def run_search_for_org(organization_id: str) -> dict:
 
     except Exception as e:
         logger.exception(f"[job_hunter] Search run failed for org {organization_id}")
-        repository.finish_search_run(run["id"], status="failed", jobs_found=0, jobs_new=0, error_message=str(e))
+        repository.finish_search_run(
+            run["id"],
+            status="failed",
+            jobs_found=jobs_found_progress,
+            jobs_new=inserted,
+            error_message=str(e),
+        )
         log_event(
             organization_id=organization_id,
             module=MODULE,
@@ -150,8 +178,15 @@ async def run_stale_job_cleanup() -> dict:
     produces incorrect state. Never deletes anything."""
     from datetime import datetime, timezone, timedelta
     stale_before = (datetime.now(timezone.utc) - timedelta(days=JOB_HUNTER_STALE_AFTER_DAYS)).isoformat()
-
-    count = repository.mark_stale_jobs_inactive(stale_before)
+    # Require a recent complete sweep before expiring anything. If the
+    # crawler is down, old listings remain available instead of being
+    # hidden merely because no refresh could run.
+    recent_success_cutoff = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
+    org_ids = repository.list_orgs_with_recent_successful_search(recent_success_cutoff)
+    count = sum(
+        repository.mark_stale_jobs_inactive(stale_before, organization_id=org_id)
+        for org_id in org_ids
+    )
     if count:
         logger.info(f"[job_hunter] Stale-job cleanup: marked {count} job(s) inactive (not seen in {JOB_HUNTER_STALE_AFTER_DAYS}+ days)")
     else:
