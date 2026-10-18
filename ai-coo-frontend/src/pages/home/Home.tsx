@@ -157,10 +157,9 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="scroll-mt-24 border-y border-[var(--color-border)] bg-[var(--color-surface)]/25">
+        <section id="features" className="scroll-mt-24 bg-[var(--color-surface)]/25">
           <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-24">
             <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">One workspace, connected tools</p>
               <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Less repetitive work. More visibility.</h2>
               <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Bring project events and operational follow-up into workflows you can configure and review.</p>
             </div>
@@ -183,10 +182,10 @@ export default function Home() {
 
         <section id="product-preview" className="mx-auto max-w-7xl scroll-mt-24 px-5 py-16 sm:px-8 lg:py-20">
           <AnimatedContent>
-            <div className="max-w-2xl">
+            <div className="mx-auto max-w-3xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">Inside WorkForge</p>
               <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">See your workflows in one place.</h2>
-              <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Review triggers, conditions, actions, and recent results from the Workflow Automations page.</p>
+              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Review triggers, conditions, actions, and recent results from the Workflow Automations page.</p>
             </div>
             <figure className="mt-8 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl shadow-black/30">
               <div className="overflow-x-auto">
@@ -228,7 +227,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="google-data" className="scroll-mt-24 border-y border-[var(--color-border)] bg-[var(--color-surface)]/25">
+        <section id="google-data" className="scroll-mt-24 bg-[var(--color-surface)]/25">
           <AnimatedContent className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-24">
             <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
               <div>
