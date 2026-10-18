@@ -54,6 +54,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.home-page {
+  --color-signal: #ff0066;
+  --color-signal-dim: rgba(255, 0, 102, 0.14);
+}
+
 ::selection {
   background-color: var(--color-signal-dim);
   color: var(--color-signal);

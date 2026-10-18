@@ -80,11 +80,11 @@ export default function Home() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[var(--color-void)] text-[var(--color-text-primary)]">
+    <div className="home-page min-h-screen overflow-hidden bg-[var(--color-void)] text-[var(--color-text-primary)]">
       <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-void)]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5 sm:px-8">
           <Link to="/" className="flex items-center gap-3" aria-label="WorkForge home">
-            <img src="/favicon-192.png" alt="" className="h-10 w-10 rounded-xl shadow-lg shadow-blue-950/30" />
+            <img src="/workforge-mark.svg" alt="" className="h-10 w-10" />
             <span className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">WorkForge</span>
           </Link>
           <nav className="hidden items-center gap-7 text-sm text-[var(--color-text-muted)] md:flex" aria-label="Main navigation">
@@ -108,8 +108,8 @@ export default function Home() {
       <main>
         <section className="relative isolate">
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-            <div className="absolute -top-56 left-[8%] h-[34rem] w-[34rem] rounded-full bg-cyan-400/[0.08] blur-[120px]" />
-            <div className="absolute right-[-10rem] top-24 h-[30rem] w-[30rem] rounded-full bg-blue-600/[0.10] blur-[120px]" />
+            <div className="absolute -top-56 left-[8%] h-[34rem] w-[34rem] rounded-full bg-pink-500/[0.10] blur-[120px]" />
+            <div className="absolute right-[-10rem] top-24 h-[30rem] w-[30rem] rounded-full bg-fuchsia-600/[0.10] blur-[120px]" />
           </div>
           <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:pb-28 lg:pt-28">
             <div>
@@ -253,7 +253,7 @@ export default function Home() {
                   <p className="mt-3 text-xs leading-5 text-[var(--color-text-faint)]">Message addresses, subject, and body are sent to Google for delivery and to the recipients you choose. WorkForge does not access your inbox.</p>
                 </article>
                 <article className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-void)]/75 p-5 sm:p-6">
-                  <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/10 text-blue-300"><CalendarDays size={18} /></span><h3 className="text-lg font-semibold">Google Calendar</h3></div>
+                  <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><CalendarDays size={18} /></span><h3 className="text-lg font-semibold">Google Calendar</h3></div>
                   <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">WorkForge lists upcoming events and creates events you request, approve, or configure in Calendar automation. The event listing displays up to 10 upcoming events.</p>
                   <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-faint)]">Requested Google scope</p>
                   <code className="mt-2 block break-all rounded-lg bg-[var(--color-surface)] p-3 text-xs leading-5 text-[var(--color-signal)]">https://www.googleapis.com/auth/calendar</code>
@@ -288,7 +288,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr_1fr] md:gap-8 lg:py-16">
           <div className="max-w-sm">
             <Link to="/" className="inline-flex items-center gap-3" aria-label="WorkForge home">
-              <img src="/favicon-192.png" alt="" className="h-11 w-11 rounded-xl" />
+              <img src="/workforge-mark.svg" alt="" className="h-11 w-11" />
               <span className="font-[family-name:var(--font-display)] text-xl font-semibold">WorkForge</span>
             </Link>
             <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">Workflow automation for project work, connected services, and the follow-up in between.</p>
