@@ -47,36 +47,6 @@ function triggerLabel(trigger: Workflow['trigger_type']) {
   return ALL_TRIGGER_TYPES.find((t) => t.value === trigger)?.label ?? trigger
 }
 
-function runStatusTone(status: RunStatus): 'signal' | 'alert' | 'amber' {
-  if (status === 'success') return 'signal'
-  if (status === 'partial_failure') return 'alert'
-  return 'amber'
-}
-
-function LastRunIndicator({ workflowId, orgId }: { workflowId: string; orgId: string }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['workflows', 'detail', workflowId],
-    queryFn: () => workflowService.getWorkflow(workflowId, orgId),
-  })
-
-  if (isLoading) return <Skeleton className="h-4 w-24" />
-
-  const lastRun = data?.recent_runs?.[0]
-  if (!lastRun) {
-    return <span className="text-xs text-[var(--color-text-faint)]">No runs yet</span>
-  }
-
-  return (
-    <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-      <Badge tone={runStatusTone(lastRun.status)}>{lastRun.status.replace('_', ' ')}</Badge>
-      {new Date(lastRun.executed_at).toLocaleString()}
-      {lastRun.duration_ms != null && (
-        <span className="text-[var(--color-text-faint)]">· {lastRun.duration_ms}ms</span>
-      )}
-    </span>
-  )
-}
-
 export default function Workflows() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
@@ -197,9 +167,13 @@ export default function Workflows() {
                     {workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''} ·{' '}
                     {workflow.actions.join(', ')}
                   </p>
-                  <div className="mt-2">
-                    <LastRunIndicator workflowId={workflow.id} orgId={orgId!} />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDetailWorkflowId(workflow.id)}
+                    className="mt-2 text-xs text-[var(--color-signal)] hover:underline"
+                  >
+                    View run history
+                  </button>
                   {runNowFeedback?.id === workflow.id && runNowFeedback.error && (
                     <p className="text-xs text-[var(--color-alert)] mt-1">{runNowFeedback.error}</p>
                   )}

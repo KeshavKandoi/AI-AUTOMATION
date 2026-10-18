@@ -171,14 +171,14 @@ async def run_search_now(org_id: str = Depends(get_current_org_id)):
     additionally coalesces rapid double-clicks onto a single scheduled run
     rather than queuing duplicates."""
     from job_hunter import repository
-    from job_hunter.scheduler_jobs import run_search_for_org
+    from job_hunter.scheduler_jobs import run_search_for_org_background
     from scheduler import scheduler
 
     if repository.has_running_search(org_id):
         return {"status": "already_running"}
 
     scheduler.add_job(
-        run_search_for_org,
+        run_search_for_org_background,
         args=[org_id],
         id=f"job_hunter_manual_search_{org_id}",
         replace_existing=True,

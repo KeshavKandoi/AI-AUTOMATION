@@ -174,6 +174,10 @@ def _is_past_expiry(workflow: dict) -> bool:
 async def sweep_expired_workflows():
     """Marks any active 'until_date' workflow whose time has passed as expired.
     Runs on a schedule so expiry fires even without an incoming trigger event."""
+    return await asyncio.to_thread(_sweep_expired_workflows_sync)
+
+
+def _sweep_expired_workflows_sync():
     result = supabase_admin.table("workflows") \
         .select("*").eq("status", "active").eq("lifetime_mode", "until_date").execute()
     expired_count = 0

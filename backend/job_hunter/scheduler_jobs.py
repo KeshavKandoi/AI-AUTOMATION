@@ -5,6 +5,9 @@ pattern of commit_scheduler/scheduler_jobs.py and
 the scheduler — a thin orchestration layer that
 calls into service.py, never touches the DB or platform adapters directly.
 """
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 from config import logger
 from job_hunter import repository, service
 from job_hunter.platforms import registry
@@ -17,6 +20,26 @@ MODULE = "job_hunter"
 
 # Kept as an alias for existing imports and tests.
 JOB_HUNTER_STALE_AFTER_DAYS = JOB_HUNTER_RETENTION_DAYS
+
+# A sweep can run for hours and uses the synchronous Supabase client in many
+# provider and ingestion paths. Keep those calls off the web server's event
+# loop, while serializing sweeps so provider rate limiters are not shared by
+# concurrent event loops.
+_search_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="job-hunter-search")
+
+
+async def run_search_for_org_background(organization_id: str) -> dict:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _search_executor, lambda: asyncio.run(run_search_for_org(organization_id))
+    )
+
+
+async def run_search_for_all_orgs_background() -> dict:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _search_executor, lambda: asyncio.run(run_search_for_all_orgs())
+    )
 
 
 async def run_search_for_org(organization_id: str) -> dict:
@@ -167,13 +190,13 @@ async def run_stale_job_cleanup() -> dict:
     """Permanently purge listings older than five days after a recent
     successful source refresh. Application-tracked rows are retained as
     inactive history so notes and application records remain usable."""
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
     # Require a recent complete sweep before expiring anything. If the
     # crawler is down, old listings remain available instead of being
     # hidden merely because no refresh could run.
     recent_success_cutoff = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
-    org_ids = repository.list_orgs_with_recent_successful_search(recent_success_cutoff)
-    results = [repository.purge_expired_jobs(org_id) for org_id in org_ids]
+    org_ids = await asyncio.to_thread(repository.list_orgs_with_recent_successful_search, recent_success_cutoff)
+    results = [await asyncio.to_thread(repository.purge_expired_jobs, org_id) for org_id in org_ids]
     deleted = sum(result["deleted"] for result in results)
     retained = sum(result["retained_for_applications"] for result in results)
     if deleted or retained:
@@ -187,7 +210,7 @@ async def run_due_reminders() -> int:
     """Called periodically by the scheduler — raises notifications for due
     follow-up reminders. Never sends an email; the user follows up
     manually via their own inbox."""
-    count = service.process_due_reminders()
+    count = await asyncio.to_thread(service.process_due_reminders)
     if count:
         logger.info(f"[job_hunter] Triggered {count} due reminder(s)")
     return count

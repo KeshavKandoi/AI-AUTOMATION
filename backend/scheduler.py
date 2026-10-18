@@ -9,7 +9,7 @@ from config import settings, supabase_admin, logger, get_valid_access_token
 from commit_scheduler.scheduler_jobs import run_due_commit_jobs
 from email_scheduler.scheduler_jobs import run_due_email_jobs
 from missed_event_recovery.scheduler_jobs import run_missed_event_recovery
-from job_hunter.scheduler_jobs import run_search_for_all_orgs, run_due_reminders, run_stale_job_cleanup
+from job_hunter.scheduler_jobs import run_search_for_all_orgs_background, run_due_reminders, run_stale_job_cleanup
 from job_hunter import repository as job_hunter_repository
 from workflow_engine import sweep_expired_workflows
 from orchestrator import coo_graph
@@ -92,7 +92,7 @@ def start_scheduler():
     scheduler.add_job(run_missed_event_recovery, "interval", minutes=15, id="missed_event_recovery_job")
     scheduler.add_job(sweep_expired_workflows, "interval", minutes=1, id="workflow_expiry_sweep_job")
     scheduler.add_job(
-        run_search_for_all_orgs,
+        run_search_for_all_orgs_background,
         "interval",
         hours=24,
         id="job_hunter_search_job",

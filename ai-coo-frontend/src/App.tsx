@@ -1,39 +1,47 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { apiClient, isPublicPath } from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
-import Login from '@/pages/auth/Login'
-import Signup from '@/pages/auth/Signup'
-import VerifyOtp from '@/pages/auth/VerifyOtp'
-import ForgotPassword from '@/pages/auth/ForgotPassword'
-import ResetPassword from '@/pages/auth/ResetPassword'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
-import Dashboard from '@/pages/dashboard/Dashboard'
-import Tasks from '@/pages/tasks/Tasks'
-import HumanApproval from '@/pages/approvals/HumanApproval'
-import JobHunter from '@/pages/jobHunter/JobHunter'
-import Integrations from '@/pages/integrations/Integrations'
-import CommitScheduler from '@/pages/commitScheduler/CommitScheduler'
-import PullRequests from '@/pages/pullRequests/PullRequests'
-import OpenSource from '@/pages/openSource/OpenSource'
-import GitHub from '@/pages/github/GitHub'
-import CalendarPage from '@/pages/calendar/Calendar'
-import Workflows from '@/pages/workflows/Workflows'
-import AuditLogs from '@/pages/auditLogs/AuditLogs'
-import Settings from '@/pages/settings/Settings'
-import Memory from '@/pages/memory/Memory'
-import Notifications from '@/pages/notifications/Notifications'
-import Analytics from '@/pages/analytics/Analytics'
-import Home from '@/pages/home/Home'
-import { FeaturesPage, HowItWorksPage, ConnectionsPage, GoogleDataPage } from '@/pages/home/MarketingPages'
-import PrivacyPolicy from '@/pages/legal/PrivacyPolicy'
-import TermsOfService from '@/pages/legal/TermsOfService'
-import Security from '@/pages/legal/Security'
 import PageErrorBoundary from '@/components/ui/PageErrorBoundary'
 
-const queryClient = new QueryClient()
+const Login = lazy(() => import('@/pages/auth/Login'))
+const Signup = lazy(() => import('@/pages/auth/Signup'))
+const VerifyOtp = lazy(() => import('@/pages/auth/VerifyOtp'))
+const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword'))
+const ResetPassword = lazy(() => import('@/pages/auth/ResetPassword'))
+const Dashboard = lazy(() => import('@/pages/dashboard/Dashboard'))
+const Tasks = lazy(() => import('@/pages/tasks/Tasks'))
+const HumanApproval = lazy(() => import('@/pages/approvals/HumanApproval'))
+const JobHunter = lazy(() => import('@/pages/jobHunter/JobHunter'))
+const Integrations = lazy(() => import('@/pages/integrations/Integrations'))
+const CommitScheduler = lazy(() => import('@/pages/commitScheduler/CommitScheduler'))
+const PullRequests = lazy(() => import('@/pages/pullRequests/PullRequests'))
+const OpenSource = lazy(() => import('@/pages/openSource/OpenSource'))
+const GitHub = lazy(() => import('@/pages/github/GitHub'))
+const CalendarPage = lazy(() => import('@/pages/calendar/Calendar'))
+const Workflows = lazy(() => import('@/pages/workflows/Workflows'))
+const AuditLogs = lazy(() => import('@/pages/auditLogs/AuditLogs'))
+const Settings = lazy(() => import('@/pages/settings/Settings'))
+const Memory = lazy(() => import('@/pages/memory/Memory'))
+const Notifications = lazy(() => import('@/pages/notifications/Notifications'))
+const Analytics = lazy(() => import('@/pages/analytics/Analytics'))
+const Home = lazy(() => import('@/pages/home/Home'))
+const FeaturesPage = lazy(() => import('@/pages/home/MarketingPages').then((m) => ({ default: m.FeaturesPage })))
+const HowItWorksPage = lazy(() => import('@/pages/home/MarketingPages').then((m) => ({ default: m.HowItWorksPage })))
+const ConnectionsPage = lazy(() => import('@/pages/home/MarketingPages').then((m) => ({ default: m.ConnectionsPage })))
+const GoogleDataPage = lazy(() => import('@/pages/home/MarketingPages').then((m) => ({ default: m.GoogleDataPage })))
+const PrivacyPolicy = lazy(() => import('@/pages/legal/PrivacyPolicy'))
+const TermsOfService = lazy(() => import('@/pages/legal/TermsOfService'))
+const Security = lazy(() => import('@/pages/legal/Security'))
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 30_000, refetchOnWindowFocus: false },
+  },
+})
 
 function App() {
   const [bootstrapped, setBootstrapped] = useState(false)
@@ -69,6 +77,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--color-void)] p-8 text-sm text-[var(--color-text-muted)]">Loading page…</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/features" element={<FeaturesPage />} />
@@ -107,6 +116,7 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </QueryClientProvider>
   )

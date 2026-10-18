@@ -42,19 +42,18 @@ export default function CalendarPage() {
   const [eventEnd, setEventEnd] = useState<Date | null>(null)
   const [justCreated, setJustCreated] = useState(false)
 
-  const { data: events, isLoading: eventsLoading, isError: eventsError, refetch: refreshEvents, isFetching: eventsFetching } = useQuery({
-    queryKey: ['calendar', 'events', orgId],
-    queryFn: () => calendarService.getEvents(orgId!),
-    enabled: !!orgId,
-    retry: false,
-  })
-
-  const { data: integrations } = useQuery({
+  const { data: integrations, isLoading: integrationsLoading, isError: integrationsError, refetch: refreshIntegrations } = useQuery({
     queryKey: ['integrations', orgId],
     queryFn: () => integrationsService.list(orgId!),
     enabled: !!orgId,
   })
   const calendarConnected = integrations?.some((item) => item.provider === 'calendar' && item.connected) ?? false
+  const { data: events, isLoading: eventsLoading, isError: eventsError, refetch: refreshEvents, isFetching: eventsFetching } = useQuery({
+    queryKey: ['calendar', 'events', orgId],
+    queryFn: () => calendarService.getEvents(orgId!),
+    enabled: !!orgId && calendarConnected,
+    retry: false,
+  })
   const connectCalendarMutation = useMutation({
     mutationFn: () => integrationsService.getLoginUrl('calendar'),
     onSuccess: (url) => { window.location.href = url },
@@ -102,12 +101,12 @@ export default function CalendarPage() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-        {!calendarConnected && (
+        {!integrationsLoading && !integrationsError && !calendarConnected && (
           <Button variant="secondary" loading={connectCalendarMutation.isPending} onClick={() => connectCalendarMutation.mutate()} className="w-full sm:w-auto">
             <Link2 size={15} /> Connect Calendar
           </Button>
         )}
-        <Button onClick={() => setEventModalOpen(true)} className="w-full sm:w-auto">
+        <Button onClick={() => setEventModalOpen(true)} disabled={!calendarConnected} className="w-full sm:w-auto">
           <Plus size={15} />
           New event
         </Button>
@@ -125,11 +124,20 @@ export default function CalendarPage() {
               Upcoming events {events && <span className="text-[var(--color-text-faint)]">({events.length})</span>}
             </h2>
           </div>
-          <Button variant="ghost" className="shrink-0 px-2" aria-label="Refresh events" onClick={() => void refreshEvents()} loading={eventsFetching}>
+          <Button variant="ghost" className="shrink-0 px-2" aria-label="Refresh events" disabled={!calendarConnected} onClick={() => void refreshEvents()} loading={eventsFetching}>
             <RefreshCw size={15} /> <span className="hidden sm:inline">Refresh</span>
           </Button>
           </div>
-          {eventsLoading ? (
+          {integrationsLoading ? (
+            <p className="text-sm text-[var(--color-text-muted)]">Checking Calendar connection…</p>
+          ) : integrationsError ? (
+            <div className="flex items-center gap-3">
+              <ErrorBanner message="Couldn't check the Calendar connection." />
+              <Button variant="secondary" onClick={() => void refreshIntegrations()}>Retry</Button>
+            </div>
+          ) : !calendarConnected ? (
+            <EmptyState icon={CalendarIcon} title="Connect Google Calendar" description="Connect your calendar to see upcoming events here." />
+          ) : eventsLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
