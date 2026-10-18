@@ -97,12 +97,21 @@ export default function Home() {
           </div>
           <div className="mx-auto grid max-w-7xl items-start gap-10 px-5 pb-16 pt-16 sm:px-8 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20 lg:pt-24">
             <AnimatedContent>
-              <h1 className="max-w-3xl font-[family-name:var(--font-display)] text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
-                Make the work around your projects <span className="text-[var(--color-signal)]">flow.</span>
+              <h1 className="max-w-2xl font-[family-name:var(--font-display)] text-4xl font-semibold leading-[1.06] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
+                <span className="block">Turn project activity</span>
+                <span className="block">into <span className="text-[var(--color-signal)]">action.</span></span>
               </h1>
-              <p className="mt-6 max-w-2xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg sm:leading-8">
-                Connect GitHub, Gmail, Calendar, and Discord. Turn project events into tasks, emails, and notifications with conditions and approvals you control.
+              <p className="mt-6 max-w-xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg sm:leading-8">
+                Connect GitHub and the tools your team relies on. Build workflows that turn repository events into tasks, emails, scheduled commits, and team notifications—with conditions and approvals you control.
               </p>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                {isAuthenticated ? (
+                  <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-signal)] px-5 py-3.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Open workspace <ArrowRight size={16} /></Link>
+                ) : (
+                  <Link to="/signup" className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-signal)] px-5 py-3.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Create your workspace <ArrowRight size={16} /></Link>
+                )}
+                <Link to="/how-it-works" className="inline-flex items-center rounded-xl border border-[var(--color-border)] px-5 py-3.5 text-sm font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]">See how it works</Link>
+              </div>
             </AnimatedContent>
 
             <AnimatedContent className="relative mx-auto w-full max-w-xl">
