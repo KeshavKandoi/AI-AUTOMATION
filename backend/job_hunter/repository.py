@@ -173,7 +173,7 @@ def list_jobs(
             query = query.or_(or_clause)
 
     query = query.order("last_seen_at", desc=True).range(offset, offset + limit - 1)
-    result = query.execute()
+    result = retry_db_call(query.execute, operation_name="list_jobs")
     return result.data, (result.count or 0)
 
 
@@ -302,8 +302,11 @@ def get_sources_for_jobs(job_ids: list[str]) -> dict[str, list[dict]]:
     grouped by job_id, instead of N+1 querying per job card."""
     if not job_ids:
         return {}
-    result = supabase_admin.table("job_hunter_job_sources") \
-        .select("*").in_("job_id", job_ids).execute()
+    result = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_job_sources")
+            .select("*").in_("job_id", job_ids).execute(),
+        operation_name="get_sources_for_jobs",
+    )
     grouped: dict[str, list[dict]] = {jid: [] for jid in job_ids}
     for row in result.data:
         grouped.setdefault(row["job_id"], []).append(row)

@@ -8,7 +8,6 @@ import {
   Clock,
   ExternalLink,
   MapPin,
-  RefreshCw,
   Search,
   Sparkles,
   Wallet,
@@ -74,6 +73,28 @@ function timeAgo(iso: string | null): string {
   if (days < 30) return `${days} days ago`
   const months = Math.floor(days / 30)
   return months === 1 ? '1 month ago' : `${months} months ago`
+}
+
+function readableJobText(value: string): string {
+  // Some providers send escaped HTML (sometimes escaped twice). Decode it
+  // without inserting provider markup into the page, then keep paragraph breaks.
+  const decoder = document.createElement('textarea')
+  let plain = value
+  for (let i = 0; i < 3; i += 1) {
+    decoder.innerHTML = plain
+    const decoded = decoder.value
+    if (decoded === plain) break
+    plain = decoded
+  }
+  return plain
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<li\b[^>]*>/gi, '\n• ')
+    .replace(/<\/(?:p|div|li|ul|ol|h[1-6]|section)>/gi, '\n\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 export default function JobDiscovery() {
@@ -146,14 +167,6 @@ export default function JobDiscovery() {
     [applications]
   )
 
-  const runSearchMutation = useMutation({
-    mutationFn: () => jobHunterService.runSearchNow(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job-hunter', 'jobs'] })
-      queryClient.invalidateQueries({ queryKey: ['job-hunter', 'last-sync'] })
-    },
-  })
-
   const saveMutation = useMutation({
     mutationFn: (jobId: string) => jobHunterService.createApplication(jobId),
     onSuccess: () => {
@@ -176,7 +189,7 @@ export default function JobDiscovery() {
     setAppliedRole(roleDraft.trim())
     setAppliedSearch(searchDraft.trim())
   }
-  const total = data?.total ?? 0
+  const total = isError ? 0 : data?.total ?? 0
   const items = data?.items ?? []
   const rangeStart = total === 0 ? 0 : offset + 1
   const rangeEnd = Math.min(offset + PAGE_SIZE, total)
@@ -210,7 +223,7 @@ export default function JobDiscovery() {
           </button>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+        <div className="text-xs text-[var(--color-text-muted)]">
           <span>
             {lastSync?.is_running
               ? `Search running · ${lastSync.jobs_found_current ?? 0} jobs scanned`
@@ -218,16 +231,6 @@ export default function JobDiscovery() {
                 ? `Last synced ${timeAgo(lastSync.last_synced_at)}`
                 : 'Not synced yet'}
           </span>
-          <Button
-            variant="ghost"
-            className="text-xs"
-            loading={runSearchMutation.isPending}
-            disabled={runSearchMutation.isPending}
-            onClick={() => runSearchMutation.mutate()}
-          >
-            <RefreshCw size={12} className={runSearchMutation.isPending ? 'animate-spin' : ''} />
-            Refresh jobs
-          </Button>
         </div>
       </div>
 
@@ -246,22 +249,13 @@ export default function JobDiscovery() {
         </div>
       )}
 
-      <div className="flex-1 min-w-[240px]">
+      {!isError && <div className="flex-1 min-w-[240px]">
         <p className="text-sm text-[var(--color-text-muted)]">
           {total > 0
             ? `${total} ${viewMode === 'for_you' ? 'matching' : ''} job${total === 1 ? '' : 's'} in the database`
             : 'No jobs found — sources refresh automatically every 24 hours'}
         </p>
-      </div>
-
-      {runSearchMutation.isSuccess && !runSearchMutation.isPending && (
-        <div className="rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2 text-xs text-[var(--color-signal)]">
-          {runSearchMutation.data.status === "already_running"
-            ? "A sync is already running for your account - check back shortly."
-            : "Sync started - this runs in the background and can take a while; the database updates as it goes."}
-        </div>
-      )}
-      {runSearchMutation.isError && <ErrorBanner message="Couldn't trigger a refresh. Please try again." />}
+      </div>}
 
       <Card className="p-4 sm:p-5 flex flex-col gap-4">
         <div>
@@ -332,7 +326,7 @@ export default function JobDiscovery() {
         </div>
       ) : isError ? (
         <Card className="p-6">
-          <ErrorBanner message="Couldn't load jobs." />
+          <ErrorBanner message="Jobs are temporarily unavailable. Please try again in a moment. Your saved jobs are still available." />
           <Button variant="ghost" className="mt-3" onClick={() => refetch()}>
             Retry
           </Button>
@@ -346,7 +340,7 @@ export default function JobDiscovery() {
               hasTempFilters
                 ? 'Try widening your filters or clearing them.'
                 : viewMode === 'for_you'
-                  ? 'No jobs currently match your saved preferences. Try All Jobs, or update your Preferences.'
+                  ? 'No jobs currently match your saved interests. Try All Jobs.'
                   : 'The background sweep refreshes the database automatically every 24 hours.'
             }
           />
@@ -465,13 +459,13 @@ export default function JobDiscovery() {
             {selectedJob.description && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Description</h4>
-                <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{selectedJob.description}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.description)}</p>
               </div>
             )}
             {selectedJob.responsibilities && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Responsibilities</h4>
-                <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{selectedJob.responsibilities}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.responsibilities)}</p>
               </div>
             )}
             {selectedJob.required_skills.length > 0 && (
@@ -487,19 +481,19 @@ export default function JobDiscovery() {
             {selectedJob.qualifications && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Qualifications</h4>
-                <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{selectedJob.qualifications}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.qualifications)}</p>
               </div>
             )}
             {selectedJob.benefits && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Benefits</h4>
-                <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{selectedJob.benefits}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.benefits)}</p>
               </div>
             )}
             {selectedJob.company_info && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">About the company</h4>
-                <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{selectedJob.company_info}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.company_info)}</p>
               </div>
             )}
 

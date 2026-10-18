@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle, Briefcase, Kanban, HeartPulse, Settings2 } from 'lucide-react'
+import { AlertCircle, Briefcase, Bookmark } from 'lucide-react'
 import { jobHunterService } from '@/services/jobHunter'
 import Skeleton from '@/components/ui/Skeleton'
 import { cn } from '@/lib/utils'
 import JobHunterOnboarding from './JobHunterOnboarding'
 import JobDiscovery from './JobDiscovery'
 import ApplicationTracker from './ApplicationTracker'
-import ProviderHealth from './ProviderHealth'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -18,11 +17,10 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
-type Tab = 'jobs' | 'applications' | 'providers'
+type Tab = 'jobs' | 'applications'
 
 export default function JobHunter() {
   const [tab, setTab] = useState<Tab>('jobs')
-  const [editingPreferences, setEditingPreferences] = useState(false)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['job-hunter', 'preferences'],
@@ -46,22 +44,18 @@ export default function JobHunter() {
     )
   }
 
-  if (!data?.onboarding_completed || editingPreferences) {
+  if (!data?.onboarding_completed) {
     return (
       <JobHunterOnboarding
-        existing={editingPreferences ? data?.preferences ?? null : null}
-        onSaved={() => {
-          setEditingPreferences(false)
-          refetch()
-        }}
+        existing={null}
+        onSaved={() => refetch()}
       />
     )
   }
 
   const tabs: { key: Tab; label: string; icon: typeof Briefcase }[] = [
     { key: 'jobs', label: 'Discover', icon: Briefcase },
-    { key: 'applications', label: 'Applications', icon: Kanban },
-    { key: 'providers', label: 'Provider health', icon: HeartPulse },
+    { key: 'applications', label: 'Saved jobs', icon: Bookmark },
   ]
 
   return (
@@ -72,16 +66,9 @@ export default function JobHunter() {
             Job Hunter
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            Discover matching roles and track every application in one place
+            Discover roles and keep the jobs you want to revisit
           </p>
         </div>
-        <button
-          onClick={() => setEditingPreferences(true)}
-          className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] px-3 py-2 text-xs hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-primary)] transition-colors"
-        >
-          <Settings2 size={13} />
-          Preferences
-        </button>
       </div>
 
       <div className="flex items-center gap-1 border-b border-[var(--color-border)]">
@@ -104,7 +91,6 @@ export default function JobHunter() {
 
       {tab === 'jobs' && <JobDiscovery />}
       {tab === 'applications' && <ApplicationTracker />}
-      {tab === 'providers' && <ProviderHealth />}
     </div>
   )
 }
