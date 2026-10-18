@@ -990,7 +990,7 @@ export default function OrbitImages({
           aria-label={interactive ? item.alt : undefined}
         >
           <div className="h-full w-full overflow-hidden rounded-[var(--orbit-radius)] [box-shadow:0_calc(var(--orbit-shadow)*16px)_calc(var(--orbit-shadow)*36px)_rgba(0,0,0,calc(var(--orbit-shadow)*0.45))] transition-transform duration-[450ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none group-hover/item:scale-[var(--orbit-hover-scale)] group-focus-visible/item:scale-[var(--orbit-hover-scale)] group-focus-visible/item:outline-2 group-focus-visible/item:outline-offset-[3px] group-focus-visible/item:outline-current">
-            {renderItem ? renderItem(images[index], index) : (
+            {renderItem ? renderItem(images[index] ?? item.src, index) : (
               <img
                 src={item.src}
                 alt={item.alt}

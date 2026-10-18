@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import AnimatedContent from '@/components/ui/AnimatedContent'
 import PillNav from '@/components/ui/PillNav'
+import OrbitImages from '@/components/ui/OrbitImages'
 import BrandLogo from '@/components/BrandLogo'
 import {
-  ArrowDownRight,
   ArrowRight,
   CalendarDays,
   Check,
@@ -75,6 +75,8 @@ const STEPS = [
   },
 ]
 
+const ORBIT_ITEMS = Array.from({ length: 5 }, () => '/workforge-icon.svg')
+
 export default function Home() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
@@ -123,37 +125,51 @@ export default function Home() {
             </AnimatedContent>
 
             <AnimatedContent className="relative mx-auto w-full max-w-xl">
-              <div aria-hidden="true" className="absolute -inset-5 rounded-[2rem] bg-gradient-to-br from-pink-500/10 via-transparent to-fuchsia-600/10 blur-2xl" />
-              <div className="relative rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-5 shadow-2xl shadow-black/30 backdrop-blur sm:p-7">
-                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-5">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--color-text-faint)]">Workflow preview</p>
-                    <h2 className="mt-1.5 text-base font-semibold">A flow you define</h2>
-                  </div>
-                </div>
-                <div className="mt-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-void)]/70 p-4 sm:p-5">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface-hover)] text-[var(--color-text-primary)]"><GitBranch size={17} /></span>
-                    <div className="min-w-0"><p className="text-[11px] uppercase tracking-wider text-[var(--color-text-faint)]">When</p><p className="mt-1 text-sm font-medium">A commit is pushed</p><p className="mt-1 text-xs text-[var(--color-text-faint)]">to a repository you connected</p></div>
-                  </div>
-                  <div className="ml-[17px] h-7 border-l border-dashed border-[var(--color-border-hover)]" />
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300"><CircleDot size={17} /></span>
-                    <div><p className="text-[11px] uppercase tracking-wider text-[var(--color-text-faint)]">Check</p><p className="mt-1 text-sm font-medium">Your conditions match</p><p className="mt-1 text-xs text-[var(--color-text-faint)]">For example, a branch or commit rule</p></div>
-                  </div>
-                  <div className="ml-[17px] h-7 border-l border-dashed border-[var(--color-border-hover)]" />
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><Workflow size={17} /></span>
-                    <div className="min-w-0 flex-1"><p className="text-[11px] uppercase tracking-wider text-[var(--color-text-faint)]">Then</p><p className="mt-1 text-sm font-medium">Run selected actions</p>
-                      <p className="mt-3 text-xs leading-5 text-[var(--color-text-muted)]">Create task <span aria-hidden="true">·</span> Send email <span aria-hidden="true">·</span> Notify Discord</p>
+              <div aria-hidden="true" className="absolute inset-8 rounded-full bg-pink-500/10 blur-3xl" />
+              <OrbitImages
+                images={ORBIT_ITEMS}
+                renderItem={(_, index) => index === 0 ? (
+                  <div className="flex h-full w-full flex-col justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl shadow-black/40 sm:p-5">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-faint)]">Workflow preview</p>
+                    <h2 className="mt-1 text-sm font-semibold sm:text-base">A flow you define</h2>
+                    <div className="mt-3 space-y-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/80 p-3">
+                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-hover)]"><GitBranch size={14} /></span><span className="text-[11px] font-medium sm:text-xs">A commit is pushed</span></div>
+                      <div className="ml-3.5 h-3 border-l border-dashed border-[var(--color-border-hover)]" />
+                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300"><CircleDot size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Your conditions match</span></div>
+                      <div className="ml-3.5 h-3 border-l border-dashed border-[var(--color-border-hover)]" />
+                      <div className="flex items-center gap-2.5"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><Workflow size={14} /></span><span className="text-[11px] font-medium sm:text-xs">Run selected actions</span></div>
                     </div>
+                    <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-[var(--color-surface-hover)]/60 px-2.5 py-2 text-[9px] text-[var(--color-text-muted)]"><ScrollText size={12} className="shrink-0 text-[var(--color-signal)]" /> Execution recorded in audit logs</div>
                   </div>
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-[var(--color-surface-hover)]/60 px-4 py-3 text-xs">
-                  <span className="inline-flex items-center gap-2 text-[var(--color-text-muted)]"><ScrollText size={14} className="text-[var(--color-signal)]" /> Execution recorded in audit logs</span>
-                  <ArrowDownRight size={15} className="shrink-0 text-[var(--color-text-faint)]" />
-                </div>
-              </div>
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-signal)] shadow-xl shadow-black/30">
+                    {index === 1 ? <GitBranch size={28} /> : index === 2 ? <Mail size={28} /> : index === 3 ? <CalendarDays size={28} /> : <ScrollText size={28} />}
+                    <span className="text-[11px] font-medium text-[var(--color-text-primary)]">{['', 'GitHub', 'Gmail', 'Calendar', 'Audit logs'][index]}</span>
+                  </div>
+                )}
+                shape="ellipse"
+                baseWidth={1000}
+                radiusX={350}
+                radiusY={130}
+                itemSize={210}
+                duration={30}
+                rotation={-7}
+                depth={0.5}
+                showPath
+                pathColor="rgba(255, 0, 110, 0.22)"
+                pathWidth={1.5}
+                width="100%"
+                className="max-w-[34rem]"
+                draggable={false}
+                clickToFront={false}
+                intro
+                centerContent={(
+                  <div className="pointer-events-none flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-void)]/90 px-3 py-2 shadow-lg backdrop-blur">
+                    <img src="/workforge-icon.svg" alt="" className="h-7 w-7" />
+                    <span className="text-sm font-semibold">WorkForge</span>
+                  </div>
+                )}
+              />
             </AnimatedContent>
           </div>
         </section>
