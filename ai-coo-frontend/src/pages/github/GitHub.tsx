@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   GitBranch, Sparkles, ListChecks, Search, Plus, RefreshCw,
@@ -26,6 +27,8 @@ function ErrorBanner({ message }: { message: string }) {
 export default function GitHub() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
+  const githubConnectResult = searchParams.get('github')
 
   const [search, setSearch] = useState('')
   const [issueModalOpen, setIssueModalOpen] = useState(false)
@@ -154,6 +157,25 @@ export default function GitHub() {
           New issue
         </Button>
       </div>
+
+      {githubConnectResult === 'connected' && !connectedRepo && (
+        <div className="rounded-lg border border-[var(--color-signal)]/30 bg-[var(--color-signal-dim)] px-4 py-3 text-sm text-[var(--color-text-primary)]" role="status">
+          GitHub is connected. Choose a repository below to finish setup.
+        </div>
+      )}
+      {githubConnectResult === 'connected' && connectedRepo && (
+        <div className="rounded-lg border border-[var(--color-signal)]/30 bg-[var(--color-signal-dim)] px-4 py-3 text-sm text-[var(--color-text-primary)]" role="status">
+          GitHub is connected to WorkForge.
+        </div>
+      )}
+      {githubConnectResult === 'cancelled' && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]" role="status">
+          GitHub connection was cancelled. You can connect whenever you&apos;re ready.
+        </div>
+      )}
+      {githubConnectResult === 'failed' && (
+        <ErrorBanner message="GitHub could not connect. Please try again." />
+      )}
 
       {/* Connected repo */}
       <Card className="p-5">

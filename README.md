@@ -6,7 +6,7 @@ WorkForge automates work from GitHub events and scheduled jobs. A React/Vite fro
 
 Use Node.js 22+ and Python 3.12+. Supply an existing Supabase project with the tables used by the backend. Copy backend/.env.example to backend/.env and ai-coo-frontend/.env.example to ai-coo-frontend/.env, then replace required placeholders. The backend example lists supported variables. Generate TOKEN_ENCRYPTION_KEY with cryptography.fernet.Fernet.generate_key() and keep it stable. Never commit .env files.
 
-Required backend settings are the Supabase URL, anon key, service role key, and JWT secret; GitHub client ID, client secret, redirect URI, and webhook secret; Google client ID, client secret, and Gmail and Calendar redirect URIs; the Gemini API key; Resend API key and verified sender address; GENERIC_WEBHOOK_SECRET; and TOKEN_ENCRYPTION_KEY. Set ALLOWED_ORIGINS to the frontend origin. RENDER_BASE_URL is required to register GitHub repository webhooks. Optional scheduler, rate limit, cookie, and Discord settings are listed in backend/.env.example.
+Required backend settings are the Supabase URL, anon key, service role key, and JWT secret; GitHub client ID, client secret, redirect URI, and webhook secret; Google client ID, client secret, and Gmail and Calendar redirect URIs; the Gemini API key; Resend API key and verified sender address; GENERIC_WEBHOOK_SECRET; and TOKEN_ENCRYPTION_KEY. Set ALLOWED_ORIGINS to the frontend origin and FRONTEND_URL to that same origin so browser OAuth callbacks return to WorkForge. RENDER_BASE_URL is required to register GitHub repository webhooks. Optional scheduler, rate limit, cookie, and Discord settings are listed in backend/.env.example.
 
     cd backend
     python -m venv .venv
