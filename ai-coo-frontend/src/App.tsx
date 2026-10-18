@@ -40,8 +40,19 @@ function App() {
   const logout = useAuthStore((s) => s.logout)
 
   useEffect(() => {
-    if (isPublicPath(window.location.pathname) && !useAuthStore.getState().user) {
+    const isPublic = isPublicPath(window.location.pathname)
+    const hasSavedUser = !!useAuthStore.getState().user
+
+    if (isPublic) {
       setBootstrapped(true)
+      if (!hasSavedUser) return
+
+      // Public pages do not need authentication to render. Refresh a saved
+      // session in the background so a slow or sleeping API cannot blank them.
+      apiClient
+        .post('/auth/refresh')
+        .then((res) => setAuth(res.data.user, res.data.access_token))
+        .catch(() => logout())
       return
     }
     apiClient
