@@ -38,7 +38,6 @@ async def run_search_for_org(organization_id: str) -> dict:
 
     platforms = registry.get_registered_platforms()
     run = repository.create_search_run(organization_id, platforms)
-    raw_jobs = []
     statuses = {}
     jobs_found_progress = 0
     inserted = 0
@@ -69,9 +68,10 @@ async def run_search_for_org(organization_id: str) -> dict:
             organization_id,
             preferences,
             on_provider_complete=ingest_provider_results,
+            collect_jobs=False,
         )
-        raw_jobs = result["jobs"]
         statuses = result["statuses"]
+        jobs_found = jobs_found_progress
         jobs_new = inserted
         permanent_failure_count = len(permanent_failures)
 
@@ -85,11 +85,11 @@ async def run_search_for_org(organization_id: str) -> dict:
         # every raw_job that isn't a genuine insert is either an update to
         # an existing job, per ingest_discovered_job()'s existing dedup-by-
         # dedup_key logic, or a permanent failure).
-        reconciled = (inserted + updated + permanent_failure_count) == len(raw_jobs)
+        reconciled = (inserted + updated + permanent_failure_count) == jobs_found
         if not reconciled:
             logger.warning(
                 f"[job_hunter] Ingestion accounting mismatch for org {organization_id}: "
-                f"discovered={len(raw_jobs)} inserted={inserted} updated={updated} "
+                f"discovered={jobs_found} inserted={inserted} updated={updated} "
                 f"permanent_failures={permanent_failure_count} "
                 f"(sum={inserted + updated + permanent_failure_count})"
             )
@@ -100,17 +100,17 @@ async def run_search_for_org(organization_id: str) -> dict:
             else "partial" if provider_failures or permanent_failure_count
             else "success"
         )
-        repository.finish_search_run(run["id"], status=overall_status, jobs_found=len(raw_jobs), jobs_new=jobs_new)
+        repository.finish_search_run(run["id"], status=overall_status, jobs_found=jobs_found, jobs_new=jobs_new)
         log_event(
             organization_id=organization_id,
             module=MODULE,
             action="search_run_completed",
-            summary=f"Job search completed: {len(raw_jobs)} jobs found ({jobs_new} new, {updated} updated, {permanent_failure_count} failed) across {len(platforms)} platforms",
+            summary=f"Job search completed: {jobs_found} jobs found ({jobs_new} new, {updated} updated, {permanent_failure_count} failed) across {len(platforms)} platforms",
             status=overall_status,
             resource_type="job_hunter_search_run",
             resource_id=run["id"],
             metadata={
-                "statuses": statuses, "jobs_found": len(raw_jobs), "jobs_new": jobs_new,
+                "statuses": statuses, "jobs_found": jobs_found, "jobs_new": jobs_new,
                 "inserted": inserted, "updated": updated,
                 "permanent_failures": permanent_failure_count,
                 "reconciled": reconciled,
@@ -118,7 +118,7 @@ async def run_search_for_org(organization_id: str) -> dict:
             source="scheduler",
         )
         return {
-            "jobs_found": len(raw_jobs), "jobs_new": jobs_new, "statuses": statuses,
+            "jobs_found": jobs_found, "jobs_new": jobs_new, "statuses": statuses,
             "status": overall_status,
             "inserted": inserted, "updated": updated,
             "permanent_failures": permanent_failure_count,

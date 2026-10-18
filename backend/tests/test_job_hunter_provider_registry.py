@@ -40,3 +40,12 @@ def test_completed_provider_results_are_delivered_before_the_whole_sweep_finishe
     assert {item[0] for item in completed} == {"quick", "slow"}
     assert len(result["jobs"]) == 2
     assert set(result["statuses"]) == {"quick", "slow"}
+
+
+def test_collect_jobs_false_does_not_retain_aggregated_provider_results():
+    with patch.dict(registry._PROVIDERS, {"quick": _FakeProvider("quick")}, clear=True), \
+         patch.object(registry.repository, "upsert_provider_status"):
+        result = asyncio.run(registry.run_all_providers("org1", {}, collect_jobs=False))
+
+    assert result["jobs"] == []
+    assert result["statuses"]["quick"]["jobs_found"] == 1

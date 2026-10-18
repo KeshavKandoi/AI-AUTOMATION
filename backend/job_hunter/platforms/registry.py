@@ -55,11 +55,13 @@ async def run_all_providers(
     preferences: dict,
     platforms: Optional[list[str]] = None,
     on_provider_complete: Optional[ProviderCompletionHandler] = None,
+    collect_jobs: bool = True,
 ) -> dict:
     """
-    Runs every registered provider concurrently for one org, isolating
-    failures per-provider. Writes each provider's outcome to
-    job_hunter_provider_status and returns an aggregated result:
+    Runs registered providers sequentially for one org to bound peak
+    memory, isolating failures per provider. Writes each provider's outcome
+    to job_hunter_provider_status and returns an aggregated result unless
+    collect_jobs=False:
 
         {"jobs": [RawJob, ...], "statuses": {platform: {"status": ..., "jobs_found": N, "error": ...}}}
     """
@@ -71,16 +73,19 @@ async def run_all_providers(
     if not selected:
         return {"jobs": [], "statuses": {}}
 
+    # Do not launch every provider at once. Several providers start a
+    # Chromium process and the ATS APIs hold sizable response lists; running
+    # them concurrently caused large memory spikes on the small web service.
     all_jobs: list[RawJob] = []
     statuses: dict[str, dict] = {}
 
-    tasks = [
-        asyncio.create_task(_run_single_provider(provider, organization_id, preferences))
-        for provider in selected.values()
-    ]
-    for completed in asyncio.as_completed(tasks):
-        platform, jobs, status, error = await completed
-        all_jobs.extend(jobs)
+    for provider in selected.values():
+        platform, jobs, status, error = await _run_single_provider(
+            provider, organization_id, preferences
+        )
+        job_count = len(jobs)
+        if collect_jobs:
+            all_jobs.extend(jobs)
 
         # Persist each source's results as soon as it finishes. A slow or
         # unresponsive provider must not hold every completed source's jobs
@@ -93,16 +98,18 @@ async def run_all_providers(
                 error = f"provider result ingestion failed: {e}"
                 logger.exception(f"Failed to ingest {platform} results for org {organization_id}")
 
-        statuses[platform] = {"status": status, "jobs_found": len(jobs), "error": error}
+        statuses[platform] = {"status": status, "jobs_found": job_count, "error": error}
         try:
             repository.upsert_provider_status(
                 organization_id=organization_id,
                 platform=platform,
                 status=status,
-                jobs_found=len(jobs),
+                jobs_found=job_count,
                 error=error,
             )
         except Exception as e:
             logger.error(f"Failed to write provider_status for {platform}: {e}")
+        # Release provider results before starting the next source.
+        del jobs
 
     return {"jobs": all_jobs, "statuses": statuses}
