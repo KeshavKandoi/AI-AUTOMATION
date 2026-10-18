@@ -84,7 +84,7 @@ export default function Home() {
       <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-void)]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5 sm:px-8">
           <Link to="/" className="flex items-center gap-3" aria-label="WorkForge home">
-            <img src="/workforge-mark.png" alt="" className="h-10 w-[104px] object-contain" />
+            <img src="/workforge-mark.svg" alt="" className="h-10 w-[104px] object-contain" />
             <span className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">WorkForge</span>
           </Link>
           <nav className="hidden items-center gap-7 text-sm text-[var(--color-text-muted)] md:flex" aria-label="Main navigation">
@@ -288,7 +288,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr_1fr] md:gap-8 lg:py-16">
           <div className="max-w-sm">
             <Link to="/" className="inline-flex items-center gap-3" aria-label="WorkForge home">
-              <img src="/workforge-mark.png" alt="" className="h-11 w-[114px] object-contain" />
+              <img src="/workforge-mark.svg" alt="" className="h-11 w-[114px] object-contain" />
               <span className="font-[family-name:var(--font-display)] text-xl font-semibold">WorkForge</span>
             </Link>
             <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)]">Workflow automation for project work, connected services, and the follow-up in between.</p>
