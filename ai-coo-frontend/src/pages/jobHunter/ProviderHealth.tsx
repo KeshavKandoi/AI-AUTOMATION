@@ -135,20 +135,20 @@ export default function ProviderHealth() {
                     <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
                       {platformLabel(p.platform)}
                     </h3>
-                    <Badge tone={p.is_healthy ? 'signal' : p.is_stale ? 'amber' : 'alert'}>
+                    <Badge tone={p.is_healthy ? 'signal' : p.is_running || p.is_stale ? 'amber' : 'alert'}>
                       {p.is_healthy ? (
                         <CheckCircle2 size={11} className="mr-1 inline" />
                       ) : (
                         <XCircle size={11} className="mr-1 inline" />
                       )}
-                      {p.is_healthy ? 'Healthy' : p.is_stale ? 'Stale' : 'Unhealthy'}
+                      {p.is_running ? 'Running' : p.is_healthy ? 'Healthy' : p.is_stale ? 'Stale' : 'Unhealthy'}
                     </Badge>
                     <Badge tone="neutral">{p.status}</Badge>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-[var(--color-text-muted)]">
-                    <span>Last completed run: {formatDateTime(p.last_run_at)}</span>
+                    <span>{p.is_running ? 'Last progress' : 'Last completed run'}: {formatDateTime(p.last_run_at)}</span>
                     <span>Last success: {formatDateTime(p.last_success_at)}</span>
-                    <span>Jobs found last run: {p.jobs_found_last_run}</span>
+                    <span>Jobs found {p.is_running ? 'so far' : 'last run'}: {p.jobs_found_last_run}</span>
                   </div>
                   {p.last_error && (
                     <p className="text-xs text-[var(--color-alert)] mt-2">{p.last_error}</p>

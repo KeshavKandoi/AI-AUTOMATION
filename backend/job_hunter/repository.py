@@ -34,11 +34,9 @@ def get_existing_by_dedup_keys(organization_id: str, dedup_keys: list[str]) -> d
     """Batch version of get_job_by_dedup_key -- one SELECT ... WHERE
     dedup_key IN (...) instead of N individual lookups. Returns a dict
     keyed by dedup_key for O(1) lookup while building the upsert batch.
-    Used only to preserve existing work_mode/employment_type/is_active
-    values during the self-heal/reactivation logic -- the actual
-    insert-vs-update determination still comes from comparing
-    first_discovered_at == last_seen_at on the upsert response, exactly
-    as the original per-job path did."""
+    Also determines whether each dedup key existed before the upsert;
+    database-generated first_discovered_at and client-generated
+    last_seen_at timestamps cannot reliably be compared for equality."""
     if not dedup_keys:
         return {}
     result = retry_db_call(
@@ -258,6 +256,18 @@ def add_job_source(row: dict) -> Optional[dict]:
         operation_name="add_job_source_insert",
     )
     return result.data[0] if result.data else None
+
+
+def batch_add_job_sources(rows: list[dict]) -> None:
+    """Record source badges with one idempotent request per job batch."""
+    if not rows:
+        return
+    retry_db_call(
+        lambda: supabase_admin.table("job_hunter_job_sources")
+            .upsert(rows, on_conflict="job_id,platform,platform_url", ignore_duplicates=True)
+            .execute(),
+        operation_name="batch_add_job_sources",
+    )
 
 
 def get_job_sources(job_id: str) -> list[dict]:
@@ -502,8 +512,12 @@ def upsert_provider_status(organization_id: str, platform: str, status: str, job
     }
     if status == "active":
         row["last_success_at"] = now
-    result = supabase_admin.table("job_hunter_provider_status") \
-        .upsert(row, on_conflict="organization_id,platform").execute()
+    result = retry_db_call(
+        lambda: supabase_admin.table("job_hunter_provider_status")
+            .upsert(row, on_conflict="organization_id,platform", default_to_null=False)
+            .execute(),
+        operation_name="upsert_provider_status",
+    )
     return result.data[0]
 
 
@@ -655,10 +669,12 @@ def get_provider_health_summary(organization_id: str) -> list[dict]:
             is_stale = last_run < stale_cutoff
         except ValueError:
             is_stale = True
+        is_running = s["status"] == "running" and not is_stale
         is_healthy = s["status"] == "active" and not s.get("last_error") and not is_stale
         summary.append({
             **s,
             "is_healthy": is_healthy,
             "is_stale": is_stale,
+            "is_running": is_running,
         })
     return summary

@@ -182,7 +182,7 @@ async def run_search_now(org_id: str = Depends(get_current_org_id)):
 def get_provider_health(org_id: str = Depends(get_current_org_id)):
     from job_hunter import repository
     providers = repository.get_provider_health_summary(org_id)
-    unhealthy = [p for p in providers if not p["is_healthy"]]
+    unhealthy = [p for p in providers if not p["is_healthy"] and not p["is_running"]]
     return {
         "providers": providers,
         "unhealthy_count": len(unhealthy),

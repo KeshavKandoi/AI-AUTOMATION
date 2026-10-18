@@ -73,7 +73,7 @@ function timeAgo(iso: string | null): string {
 export default function JobDiscovery() {
   const queryClient = useQueryClient()
 
-  const [viewMode, setViewMode] = useState<ViewMode>('for_you')
+  const [viewMode, setViewMode] = useState<ViewMode>('all')
   const [searchDraft, setSearchDraft] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
   const [employmentType, setEmploymentType] = useState('')
@@ -219,6 +219,15 @@ export default function JobDiscovery() {
       {viewMode === 'for_you' && !hasPreferences && (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
           Add desired roles or skills in Preferences to personalize this view — showing the full database inventory for now.
+        </div>
+      )}
+
+      {viewMode === 'for_you' && hasPreferences && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+          For You shows titles matching your saved roles or skills: {[...(preferences?.desired_roles ?? []), ...(preferences?.skills ?? [])].join(', ')}.{' '}
+          <button className="text-[var(--color-signal)] underline" onClick={() => setViewMode('all')}>
+            See all jobs
+          </button>
         </div>
       )}
 

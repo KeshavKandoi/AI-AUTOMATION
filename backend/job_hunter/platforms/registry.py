@@ -34,6 +34,7 @@ async def _run_single_provider(
     preferences: dict,
     on_job_batch: Optional[ProviderBatchHandler] = None,
     stream_batches: bool = False,
+    on_progress: Optional[Callable[[str, int], None]] = None,
 ) -> tuple[str, list[RawJob], int, str, Optional[str]]:
     """Runs one provider in isolation. Always returns a result tuple —
     never raises — so one broken provider can never take down the sweep
@@ -50,6 +51,8 @@ async def _run_single_provider(
                     job_count += len(batch)
                     if batch:
                         await on_job_batch(provider.platform, batch)
+                        if on_progress:
+                            on_progress(provider.platform, job_count)
                     del batch
 
             await asyncio.wait_for(consume_batches(), timeout=PROVIDER_TIMEOUT_SECONDS)
@@ -104,12 +107,28 @@ async def run_all_providers(
     statuses: dict[str, dict] = {}
 
     for provider in selected.values():
+        try:
+            repository.upsert_provider_status(
+                organization_id, provider.platform, "running", jobs_found=0
+            )
+        except Exception as e:
+            logger.warning(f"Failed to mark {provider.platform} as running: {e}")
+
+        def record_progress(platform: str, count: int) -> None:
+            try:
+                repository.upsert_provider_status(
+                    organization_id, platform, "running", jobs_found=count
+                )
+            except Exception as e:
+                logger.warning(f"Failed to write provider progress for {platform}: {e}")
+
         platform, jobs, job_count, status, error = await _run_single_provider(
             provider,
             organization_id,
             preferences,
             on_job_batch=on_job_batch,
             stream_batches=bool(on_job_batch and not collect_jobs and hasattr(provider, "iter_search")),
+            on_progress=record_progress,
         )
         if collect_jobs:
             all_jobs.extend(jobs)

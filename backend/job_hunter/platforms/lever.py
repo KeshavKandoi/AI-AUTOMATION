@@ -4,7 +4,7 @@ import httpx
 from config import logger
 from job_hunter import repository
 from job_hunter.platforms.base import BaseJobProvider, RawJob, RateLimiter, retry_with_backoff, ProviderError
-from job_hunter.platforms.matching import matches_preferences, normalize_employment_type
+from job_hunter.platforms.matching import normalize_employment_type
 from job_hunter.platforms.registry import register_provider
 
 
@@ -48,12 +48,6 @@ class LeverProvider(BaseJobProvider):
                     location = categories.get("location", "") or ""
                     employment_type = normalize_employment_type(categories.get("commitment"))
                     description = job.get("descriptionPlain") or job.get("description") or ""
-
-                    if not matches_preferences(
-                        preferences, title=title, description=description,
-                        location=location, employment_type=employment_type or "",
-                    ):
-                        continue
 
                     posted_at = None
                     if job.get("createdAt"):

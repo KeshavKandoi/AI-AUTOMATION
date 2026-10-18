@@ -219,6 +219,7 @@ export interface ProviderStatus {
   status: string
   is_healthy: boolean
   is_stale: boolean
+  is_running: boolean
   last_run_at: string | null
   jobs_found_last_run: number
   last_error: string | null

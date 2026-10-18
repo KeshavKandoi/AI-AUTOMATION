@@ -20,15 +20,15 @@ def _make_raw_job(company="Acme", title="SWE", url="http://x/1", work_mode="Remo
 
 
 def test_new_job_is_counted_as_inserted():
-    """A dedup_key with no existing row -- upsert response has
-    first_discovered_at == last_seen_at -- must be counted as inserted."""
+    """The pre-upsert lookup identifies an insert even when database and
+    client timestamps differ by a few milliseconds."""
     raw_jobs = [_make_raw_job()]
 
     with patch("job_hunter.batch_ingest.repository") as repo, \
          patch("job_hunter.batch_ingest.notify_job_match"):
         repo.get_existing_by_dedup_keys.return_value = {}  # no existing rows
         repo.batch_upsert_jobs.return_value = [
-            {"id": "job1", "dedup_key": "dk1", "first_discovered_at": "T1", "last_seen_at": "T1"}
+            {"id": "job1", "dedup_key": "dk1", "first_discovered_at": "T2", "last_seen_at": "T1"}
         ]
         # Patch build_dedup_key to a stable, predictable value for this test
         with patch("job_hunter.batch_ingest.build_dedup_key", return_value="dk1"):
@@ -37,12 +37,12 @@ def test_new_job_is_counted_as_inserted():
     assert result["inserted"] == 1
     assert result["updated"] == 0
     assert result["permanent_failures"] == 0
+    repo.batch_add_job_sources.assert_called_once()
+    assert len(repo.batch_add_job_sources.call_args.args[0]) == 1
 
 
 def test_rediscovered_job_is_counted_as_updated():
-    """A dedup_key matching an existing row -- upsert response has
-    first_discovered_at != last_seen_at -- must be counted as updated,
-    not inserted."""
+    """An existing dedup key is an update regardless of timestamp values."""
     raw_jobs = [_make_raw_job()]
 
     with patch("job_hunter.batch_ingest.repository") as repo, \
@@ -59,6 +59,22 @@ def test_rediscovered_job_is_counted_as_updated():
 
     assert result["inserted"] == 0
     assert result["updated"] == 1
+
+
+def test_sources_are_deduplicated_and_written_once_per_batch():
+    raw_jobs = [_make_raw_job(), _make_raw_job()]
+    with patch("job_hunter.batch_ingest.repository") as repo, \
+         patch("job_hunter.batch_ingest.notify_job_match"):
+        repo.get_existing_by_dedup_keys.return_value = {}
+        repo.batch_upsert_jobs.return_value = [
+            {"id": "job1", "dedup_key": "dk1", "first_discovered_at": "T2", "last_seen_at": "T1"}
+        ]
+        with patch("job_hunter.batch_ingest.build_dedup_key", return_value="dk1"):
+            asyncio.run(ingest_discovered_jobs_batch("org1", raw_jobs))
+
+    repo.batch_add_job_sources.assert_called_once()
+    assert len(repo.batch_add_job_sources.call_args.args[0]) == 1
+    repo.add_job_source.assert_not_called()
 
 
 def test_duplicate_within_same_batch_produces_one_row():

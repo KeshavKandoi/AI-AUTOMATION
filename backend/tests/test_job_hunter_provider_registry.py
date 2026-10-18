@@ -81,3 +81,29 @@ def test_streamed_company_results_are_ingested_before_next_company():
     assert events == ["fetch:first", "ingest:first", "fetch:second", "ingest:second"]
     assert result["jobs"] == []
     assert result["statuses"]["streaming"]["jobs_found"] == 2
+
+
+def test_provider_progress_is_written_before_completion():
+    events = []
+
+    class StreamingProvider(_FakeProvider):
+        async def iter_search(self, organization_id, preferences):
+            yield [RawJob(
+                company_name="Example", job_title="Engineer",
+                original_apply_url="https://example.com/1", platform=self.platform,
+                platform_url="https://example.com/1",
+            )]
+
+    async def ingest_batch(platform, jobs):
+        events.append("ingested")
+
+    def write_status(*args, **kwargs):
+        events.append((kwargs.get("status", args[2] if len(args) > 2 else None), kwargs.get("jobs_found")))
+
+    with patch.dict(registry._PROVIDERS, {"streaming": StreamingProvider("streaming")}, clear=True), \
+         patch.object(registry.repository, "upsert_provider_status", side_effect=write_status):
+        asyncio.run(registry.run_all_providers(
+            "org1", {}, on_job_batch=ingest_batch, collect_jobs=False
+        ))
+
+    assert events == [("running", 0), "ingested", ("running", 1), ("active", 1)]
