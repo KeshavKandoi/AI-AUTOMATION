@@ -7,7 +7,6 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   CalendarDays,
-  Check,
   GitBranch,
   GitCommitHorizontal,
   Mail,
@@ -96,7 +95,7 @@ export default function Home() {
             <div className="absolute -top-56 left-[8%] h-[34rem] w-[34rem] rounded-full bg-pink-500/[0.10] blur-[120px]" />
             <div className="absolute right-[-10rem] top-24 h-[30rem] w-[30rem] rounded-full bg-fuchsia-600/[0.10] blur-[120px]" />
           </div>
-          <div className="mx-auto grid max-w-7xl items-start gap-10 px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20">
+          <div className="mx-auto grid max-w-7xl items-start gap-10 px-5 pb-16 pt-16 sm:px-8 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20 lg:pt-24">
             <AnimatedContent>
               <h1 className="max-w-3xl font-[family-name:var(--font-display)] text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
                 Make the work around your projects <span className="text-[var(--color-signal)]">flow.</span>
@@ -104,15 +103,6 @@ export default function Home() {
               <p className="mt-6 max-w-2xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg sm:leading-8">
                 Connect GitHub, Gmail, Calendar, and Discord. Turn project events into tasks, emails, and notifications with conditions and approvals you control.
               </p>
-              <p className="mt-5 text-sm leading-6 text-[var(--color-text-muted)]">
-                Connect only the services you want. Read how WorkForge uses Google data in the{' '}
-                <Link to="/privacy" className="text-[var(--color-signal)] underline underline-offset-4">Privacy Policy</Link>.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-[var(--color-border)] pt-5 text-sm text-[var(--color-text-muted)]">
-                <span className="inline-flex items-center gap-2"><Check size={14} className="text-[var(--color-signal)]" /> You choose the triggers</span>
-                <span className="inline-flex items-center gap-2"><Check size={14} className="text-[var(--color-signal)]" /> Connections for your workspace</span>
-                <span className="inline-flex items-center gap-2"><Check size={14} className="text-[var(--color-signal)]" /> Run history and audit logs</span>
-              </div>
             </AnimatedContent>
 
             <AnimatedContent className="relative mx-auto w-full max-w-xl">
