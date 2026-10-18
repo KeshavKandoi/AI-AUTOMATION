@@ -22,9 +22,8 @@ JOB_HUNTER_STALE_AFTER_DAYS = JOB_HUNTER_RETENTION_DAYS
 async def run_search_for_org(organization_id: str) -> dict:
     """
     Runs a full discovery sweep for one org: fetches saved preferences,
-    runs every registered provider concurrently (failures isolated per
-    provider), and feeds every result through service.ingest_discovered_job()
-    for dedup/merge + notification. Records the sweep in
+    runs registered providers in memory-bounded sequence (failures isolated
+    per provider), and ingests each batch as it arrives. Records the sweep in
     job_hunter_search_runs regardless of outcome.
     """
     preferences = repository.get_preferences(organization_id)
@@ -45,7 +44,7 @@ async def run_search_for_org(organization_id: str) -> dict:
     permanent_failures = []
 
     try:
-        async def ingest_provider_results(platform, jobs, status, error):
+        async def ingest_provider_results(platform, jobs):
             nonlocal inserted, updated, jobs_found_progress
             jobs_found_progress += len(jobs)
             repository.update_search_run_progress(
@@ -67,7 +66,7 @@ async def run_search_for_org(organization_id: str) -> dict:
         result = await registry.run_all_providers(
             organization_id,
             preferences,
-            on_provider_complete=ingest_provider_results,
+            on_job_batch=ingest_provider_results,
             collect_jobs=False,
         )
         statuses = result["statuses"]

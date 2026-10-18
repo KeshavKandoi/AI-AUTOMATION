@@ -55,8 +55,14 @@ class GreenhouseProvider(BaseJobProvider):
         self._rate_limiter = RateLimiter(min_interval_seconds=0.5)
 
     async def search(self, organization_id: str, preferences: dict) -> list[RawJob]:
-        companies = repository.list_enabled_companies("greenhouse")
         results: list[RawJob] = []
+        async for batch in self.iter_search(organization_id, preferences):
+            results.extend(batch)
+        return results
+
+    async def iter_search(self, organization_id: str, preferences: dict):
+        """Yield one company's listings at a time for bounded ingestion."""
+        companies = repository.list_enabled_companies("greenhouse")
 
         async with httpx.AsyncClient(timeout=20) as client:
             for company in companies:
@@ -74,6 +80,7 @@ class GreenhouseProvider(BaseJobProvider):
                     repository.mark_company_sync_status(company["id"], status)
                     continue
 
+                batch: list[RawJob] = []
                 for job in jobs:
                     title = job.get("title", "")
                     location = (job.get("location") or {}).get("name", "")
@@ -86,7 +93,7 @@ class GreenhouseProvider(BaseJobProvider):
                     # technically valid parsed job is stored regardless of
                     # current org preferences.
                     url = job.get("absolute_url", "")
-                    results.append(RawJob(
+                    batch.append(RawJob(
                         company_name=company["company_name"],
                         job_title=title,
                         original_apply_url=url,
@@ -99,7 +106,9 @@ class GreenhouseProvider(BaseJobProvider):
                         posted_at=job.get("updated_at"),
                     ))
 
-        return results
+                if batch:
+                    yield batch
+                del batch, jobs
 
     async def _fetch_company_jobs(self, client: httpx.AsyncClient, company: dict) -> list[dict]:
         await self._rate_limiter.wait()

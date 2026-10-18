@@ -94,12 +94,12 @@ export default function ProviderHealth() {
         <div className="rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2 text-xs text-[var(--color-signal)]">
           {runSearchMutation.data.status === "already_running"
             ? "A search is already running for your account - check back shortly."
-            : "Search started - results and provider statuses update as each source completes."}
+            : "Search started - results appear as companies are checked."}
         </div>
       )}
       {syncStatus?.is_running && (
         <div className="rounded-lg border border-[var(--color-amber-dim)] bg-[var(--color-amber-dim)] px-3 py-2 text-xs text-[var(--color-amber)]">
-          Search in progress · {syncStatus.jobs_found_current ?? 0} jobs found so far. This page refreshes as each source completes.
+          Search started {formatDateTime(syncStatus.running_started_at)} · {syncStatus.jobs_found_current ?? 0} jobs found so far. Results update as each company completes.
         </div>
       )}
       {runSearchMutation.isError && <ErrorBanner message="Couldn't trigger a search run." />}
@@ -146,7 +146,7 @@ export default function ProviderHealth() {
                     <Badge tone="neutral">{p.status}</Badge>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-[var(--color-text-muted)]">
-                    <span>Last run: {formatDateTime(p.last_run_at)}</span>
+                    <span>Last completed run: {formatDateTime(p.last_run_at)}</span>
                     <span>Last success: {formatDateTime(p.last_success_at)}</span>
                     <span>Jobs found last run: {p.jobs_found_last_run}</span>
                   </div>

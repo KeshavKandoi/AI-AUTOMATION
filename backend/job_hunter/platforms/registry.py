@@ -15,6 +15,7 @@ from job_hunter.platforms.base import BaseJobProvider, RawJob, NotConfiguredErro
 
 _PROVIDERS: dict[str, BaseJobProvider] = {}
 ProviderCompletionHandler = Callable[[str, list[RawJob], str, Optional[str]], Awaitable[None]]
+ProviderBatchHandler = Callable[[str, list[RawJob]], Awaitable[None]]
 PROVIDER_TIMEOUT_SECONDS = 90 * 60
 
 
@@ -27,27 +28,49 @@ def get_registered_platforms() -> list[str]:
     return list(_PROVIDERS.keys())
 
 
-async def _run_single_provider(provider: BaseJobProvider, organization_id: str, preferences: dict) -> tuple[str, list[RawJob], str, Optional[str]]:
+async def _run_single_provider(
+    provider: BaseJobProvider,
+    organization_id: str,
+    preferences: dict,
+    on_job_batch: Optional[ProviderBatchHandler] = None,
+    stream_batches: bool = False,
+) -> tuple[str, list[RawJob], int, str, Optional[str]]:
     """Runs one provider in isolation. Always returns a result tuple —
     never raises — so one broken provider can never take down the sweep
-    for the rest. Returns (platform, jobs, status, error_message)."""
+    for the rest. Returns (platform, jobs, count, status, error_message)."""
     if not provider.is_configured(organization_id):
-        return provider.platform, [], "not_configured", None
+        return provider.platform, [], 0, "not_configured", None
 
+    job_count = 0
     try:
+        if stream_batches:
+            async def consume_batches():
+                nonlocal job_count
+                async for batch in provider.iter_search(organization_id, preferences):
+                    job_count += len(batch)
+                    if batch:
+                        await on_job_batch(provider.platform, batch)
+                    del batch
+
+            await asyncio.wait_for(consume_batches(), timeout=PROVIDER_TIMEOUT_SECONDS)
+            return provider.platform, [], job_count, "active", None
+
         jobs = await asyncio.wait_for(
             provider.search(organization_id, preferences),
             timeout=PROVIDER_TIMEOUT_SECONDS,
         )
-        return provider.platform, jobs, "active", None
+        job_count = len(jobs)
+        if on_job_batch is not None and jobs:
+            await on_job_batch(provider.platform, jobs)
+        return provider.platform, jobs, job_count, "active", None
     except NotConfiguredError as e:
-        return provider.platform, [], "not_configured", str(e)
+        return provider.platform, [], job_count, "not_configured", str(e)
     except ProviderError as e:
         logger.error(f"[{provider.platform}] provider error: {e}")
-        return provider.platform, [], "error", str(e)
+        return provider.platform, [], job_count, "error", str(e)
     except Exception as e:
         logger.exception(f"[{provider.platform}] unexpected error")
-        return provider.platform, [], "error", str(e)
+        return provider.platform, [], job_count, "error", str(e)
 
 
 async def run_all_providers(
@@ -55,6 +78,7 @@ async def run_all_providers(
     preferences: dict,
     platforms: Optional[list[str]] = None,
     on_provider_complete: Optional[ProviderCompletionHandler] = None,
+    on_job_batch: Optional[ProviderBatchHandler] = None,
     collect_jobs: bool = True,
 ) -> dict:
     """
@@ -80,10 +104,13 @@ async def run_all_providers(
     statuses: dict[str, dict] = {}
 
     for provider in selected.values():
-        platform, jobs, status, error = await _run_single_provider(
-            provider, organization_id, preferences
+        platform, jobs, job_count, status, error = await _run_single_provider(
+            provider,
+            organization_id,
+            preferences,
+            on_job_batch=on_job_batch,
+            stream_batches=bool(on_job_batch and not collect_jobs and hasattr(provider, "iter_search")),
         )
-        job_count = len(jobs)
         if collect_jobs:
             all_jobs.extend(jobs)
 

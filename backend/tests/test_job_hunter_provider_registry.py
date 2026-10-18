@@ -49,3 +49,35 @@ def test_collect_jobs_false_does_not_retain_aggregated_provider_results():
 
     assert result["jobs"] == []
     assert result["statuses"]["quick"]["jobs_found"] == 1
+
+
+def test_streamed_company_results_are_ingested_before_next_company():
+    events = []
+
+    class StreamingProvider(_FakeProvider):
+        async def search(self, organization_id, preferences):
+            raise AssertionError("streaming sweep must not build a full provider result")
+
+        async def iter_search(self, organization_id, preferences):
+            for company in ("first", "second"):
+                events.append(f"fetch:{company}")
+                yield [RawJob(
+                    company_name=company,
+                    job_title="Engineer",
+                    original_apply_url=f"https://example.com/{company}",
+                    platform=self.platform,
+                    platform_url=f"https://example.com/{company}",
+                )]
+
+    async def ingest_batch(platform, jobs):
+        events.append(f"ingest:{jobs[0].company_name}")
+
+    with patch.dict(registry._PROVIDERS, {"streaming": StreamingProvider("streaming")}, clear=True), \
+         patch.object(registry.repository, "upsert_provider_status"):
+        result = asyncio.run(registry.run_all_providers(
+            "org1", {}, on_job_batch=ingest_batch, collect_jobs=False
+        ))
+
+    assert events == ["fetch:first", "ingest:first", "fetch:second", "ingest:second"]
+    assert result["jobs"] == []
+    assert result["statuses"]["streaming"]["jobs_found"] == 2
