@@ -94,6 +94,11 @@ def get_application(application_id: str, org_id: str = Depends(get_current_org_i
     return service.get_application_detail(org_id, application_id)
 
 
+@router.delete("/applications/{application_id}", status_code=204)
+def delete_saved_job(application_id: str, org_id: str = Depends(get_current_org_id)):
+    service.delete_saved_job(org_id, application_id)
+
+
 @router.patch("/applications/{application_id}")
 def update_application(application_id: str, payload: ApplicationUpdate, org_id: str = Depends(get_current_org_id)):
     if payload.status is None:

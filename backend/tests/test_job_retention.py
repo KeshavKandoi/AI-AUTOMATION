@@ -75,6 +75,40 @@ def test_list_jobs_combines_role_job_type_work_mode_and_employment_type():
     )
 
 
+def test_remove_saved_job_requires_organization_ownership():
+    from fastapi import HTTPException
+    from job_hunter import service
+
+    with patch("job_hunter.service.repository.get_application", return_value=None), \
+            patch("job_hunter.service.repository.delete_application") as delete:
+        try:
+            service.delete_saved_job("org-a", "another-orgs-application")
+        except HTTPException as exc:
+            assert exc.status_code == 404
+        else:
+            assert False, "Deletion must reject an application outside the organization"
+        delete.assert_not_called()
+
+
+def test_remove_saved_job_deletes_related_records_but_not_discovered_job():
+    from job_hunter import repository
+
+    mock_query = MagicMock()
+    mock_query.eq.return_value = mock_query
+    mock_query.execute.return_value = MagicMock(data=[])
+    with patch("job_hunter.repository.list_attachments", return_value=[]), \
+            patch("job_hunter.repository.supabase_admin") as sb:
+        sb.table.return_value.delete.return_value = mock_query
+        repository.delete_application("org-a", "app-1")
+
+    deleted_tables = [call.args[0] for call in sb.table.call_args_list]
+    assert deleted_tables == [
+        "job_hunter_attachments", "job_hunter_notes", "job_hunter_reminders",
+        "job_hunter_activity", "job_hunter_applications",
+    ]
+    assert ("organization_id", "org-a") in [call.args for call in mock_query.eq.call_args_list]
+
+
 def test_purge_expired_jobs_deletes_expired_untracked_listing_and_sources():
     from job_hunter import repository
 

@@ -353,6 +353,27 @@ def list_applications(organization_id: str, status: Optional[str] = None) -> lis
     return result.data
 
 
+def delete_application(organization_id: str, application_id: str) -> None:
+    """Remove a saved job and its tracker data, leaving the discovered job intact."""
+    attachments = list_attachments(application_id)
+    for attachment in attachments:
+        try:
+            delete_attachment_file(attachment["storage_path"])
+        except Exception:
+            # Follow the existing attachment delete behavior: do not leave a
+            # broken saved-job record when a storage object is already gone.
+            from config import logger
+            logger.exception("Could not remove saved-job attachment %s", attachment["id"])
+
+    for table in (
+        "job_hunter_attachments", "job_hunter_notes", "job_hunter_reminders",
+        "job_hunter_activity",
+    ):
+        supabase_admin.table(table).delete().eq("application_id", application_id).execute()
+    supabase_admin.table("job_hunter_applications").delete() \
+        .eq("id", application_id).eq("organization_id", organization_id).execute()
+
+
 # ---------------------------------------------------------------------------
 # Activity / Notes / Attachments / Reminders
 # ---------------------------------------------------------------------------

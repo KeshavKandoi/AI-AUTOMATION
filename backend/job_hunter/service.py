@@ -412,6 +412,13 @@ def list_applications(organization_id: str, status: Optional[str] = None) -> lis
     return repository.list_applications(organization_id, status=status)
 
 
+def delete_saved_job(organization_id: str, application_id: str) -> None:
+    application = repository.get_application(application_id, organization_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Saved job not found")
+    repository.delete_application(organization_id, application_id)
+
+
 def add_note(organization_id: str, application_id: str, content: str) -> dict:
     application = repository.get_application(application_id, organization_id)
     if not application:

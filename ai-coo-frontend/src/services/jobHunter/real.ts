@@ -77,6 +77,9 @@ export const realJobHunterService = {
       })
       .then((r) => r.data.application),
 
+  deleteSavedJob: (applicationId: string) =>
+    apiClient.delete(`/job-hunter/applications/${applicationId}`).then(() => undefined),
+
   getApplication: (applicationId: string) =>
     apiClient
       .get<ApplicationDetail>(`/job-hunter/applications/${applicationId}`)

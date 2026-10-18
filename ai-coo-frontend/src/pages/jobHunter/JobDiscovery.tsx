@@ -8,7 +8,6 @@ import {
   Clock,
   ExternalLink,
   MapPin,
-  Search,
   Sparkles,
   Wallet,
 } from 'lucide-react'
@@ -101,10 +100,6 @@ export default function JobDiscovery() {
   const queryClient = useQueryClient()
 
   const [viewMode, setViewMode] = useState<ViewMode>('all')
-  const [searchDraft, setSearchDraft] = useState('')
-  const [appliedSearch, setAppliedSearch] = useState('')
-  const [roleDraft, setRoleDraft] = useState('')
-  const [appliedRole, setAppliedRole] = useState('')
   const [jobType, setJobType] = useState('')
   const [employmentType, setEmploymentType] = useState('')
   const [workMode, setWorkMode] = useState('')
@@ -130,8 +125,6 @@ export default function JobDiscovery() {
     const base: JobListFilters = {
       employment_type: employmentType || undefined,
       work_mode: workMode || undefined,
-      search: appliedSearch || undefined,
-      role: appliedRole || undefined,
       job_type: jobType || undefined,
     }
     if (viewMode === 'for_you' && preferences) {
@@ -142,11 +135,11 @@ export default function JobDiscovery() {
       }
     }
     return base
-  }, [viewMode, preferences, employmentType, workMode, appliedSearch, appliedRole, jobType])
+  }, [viewMode, preferences, employmentType, workMode, jobType])
 
   useEffect(() => {
     setOffset(0)
-  }, [viewMode, employmentType, workMode, appliedSearch, appliedRole, jobType])
+  }, [viewMode, employmentType, workMode, jobType])
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['job-hunter', 'jobs', filters, offset],
@@ -175,20 +168,12 @@ export default function JobDiscovery() {
   })
 
   const clearFilters = () => {
-    setSearchDraft('')
-    setAppliedSearch('')
-    setRoleDraft('')
-    setAppliedRole('')
     setJobType('')
     setEmploymentType('')
     setWorkMode('')
   }
 
-  const hasTempFilters = !!(employmentType || workMode || appliedSearch || appliedRole || jobType)
-  const applySearch = () => {
-    setAppliedRole(roleDraft.trim())
-    setAppliedSearch(searchDraft.trim())
-  }
+  const hasTempFilters = !!(employmentType || workMode || jobType)
   const total = isError ? 0 : data?.total ?? 0
   const items = data?.items ?? []
   const rangeStart = total === 0 ? 0 : offset + 1
@@ -259,20 +244,11 @@ export default function JobDiscovery() {
 
       <Card className="p-4 sm:p-5 flex flex-col gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Find a role</h2>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Filter jobs already found across connected sources.</p>
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Filter jobs</h2>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Choose a category, work mode, or employment type.</p>
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); applySearch() }} className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)] lg:col-span-2">
-              Role or job title
-              <input
-                value={roleDraft}
-                onChange={(e) => setRoleDraft(e.target.value)}
-                placeholder="e.g. Backend Engineer"
-                className={selectClass() + ' w-full'}
-              />
-            </label>
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
               Role category
               <select value={jobType} onChange={(e) => setJobType(e.target.value)} className={selectClass()}>
@@ -294,28 +270,9 @@ export default function JobDiscovery() {
                 {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)] lg:col-span-2">
-              Company or title keyword
-              <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 focus-within:border-[var(--color-signal)]">
-                <Search size={14} className="text-[var(--color-text-faint)] shrink-0" />
-                <input
-                  value={searchDraft}
-                  onChange={(e) => setSearchDraft(e.target.value)}
-                  placeholder="e.g. Acme or Engineer"
-                  className="flex-1 bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none py-2.5"
-                />
-              </div>
-            </label>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" variant="secondary">Search jobs</Button>
-            {hasTempFilters && (
-              <Button type="button" variant="ghost" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            )}
-          </div>
-        </form>
+          {hasTempFilters && <Button variant="ghost" className="self-start" onClick={clearFilters}>Clear filters</Button>}
+        </div>
       </Card>
 
       {isLoading ? (
