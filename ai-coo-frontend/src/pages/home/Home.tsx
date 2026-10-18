@@ -172,10 +172,9 @@ export default function Home() {
                   </div>
                   )
                 }}
-                shape="ellipse"
+                shape="circle"
                 baseWidth={1000}
-                radiusX={350}
-                radiusY={130}
+                radius={340}
                 itemSize={190}
                 duration={30}
                 rotation={-7}
@@ -184,16 +183,10 @@ export default function Home() {
                 pathColor="rgba(255, 0, 110, 0.22)"
                 pathWidth={1.5}
                 width="100%"
-                className="max-w-[34rem]"
+                className="max-w-[38rem]"
                 draggable={false}
                 clickToFront={false}
                 intro
-                centerContent={(
-                  <div className="pointer-events-none flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-void)]/90 px-3 py-2 shadow-lg backdrop-blur">
-                    <img src="/workforge-icon.svg" alt="" className="h-7 w-7" />
-                    <span className="text-sm font-semibold">WorkForge</span>
-                  </div>
-                )}
               />
             </AnimatedContent>
           </div>
