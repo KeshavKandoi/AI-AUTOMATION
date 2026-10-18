@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
+import BrandLogo from '@/components/BrandLogo'
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -61,7 +62,7 @@ export default function Login() {
         className="w-full max-w-sm relative"
       >
         <div className="mb-8 text-center">
-          <div className="inline-flex h-2 w-2 rounded-full bg-[var(--color-signal)] animate-pulse-signal mb-4" />
+          <BrandLogo size="md" className="mb-5" />
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             Sign in to WorkForge
           </h1>

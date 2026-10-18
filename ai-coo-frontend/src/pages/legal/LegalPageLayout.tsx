@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import BrandLogo from '@/components/BrandLogo'
 
 interface LegalPageLayoutProps {
   title: string
@@ -12,12 +13,7 @@ export default function LegalPageLayout({ title, lastUpdated, children }: LegalP
     <div className="min-h-screen bg-[var(--color-void)] text-[var(--color-text-primary)]">
       <header className="border-b border-[var(--color-border)]">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link
-            to="/login"
-            className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--color-text-primary)]"
-          >
-            WorkForge
-          </Link>
+          <BrandLogo size="sm" to="/" />
           <Link
             to="/login"
             className="flex items-center gap-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"

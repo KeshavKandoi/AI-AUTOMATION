@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { notificationsService } from '@/services/notifications'
 import { getInAppNotificationsEnabled } from '@/lib/preferences'
 import { cn } from '@/lib/utils'
+import BrandLogo from '@/components/BrandLogo'
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -29,8 +30,8 @@ export default function Sidebar() {
       transition={{ duration: 0.2, ease: 'easeOut' }}
       className="h-screen shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)]/40 backdrop-blur-xl flex flex-col"
     >
-      <div className="flex items-center gap-2 px-4 h-16 border-b border-[var(--color-border)] shrink-0">
-        <div className="h-2 w-2 rounded-full bg-[var(--color-signal)] animate-pulse-signal shrink-0" />
+      <div className="flex items-center px-4 h-16 border-b border-[var(--color-border)] shrink-0">
+        <BrandLogo compact={collapsed} size="sm" className={collapsed ? 'mx-auto' : ''} />
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5">

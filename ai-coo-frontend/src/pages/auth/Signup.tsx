@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { authApi } from '@/api/auth'
+import BrandLogo from '@/components/BrandLogo'
 
 const signupSchema = z.object({
   full_name: z.string().min(2, 'Enter your full name'),
@@ -53,7 +54,7 @@ export default function Signup() {
         className="w-full max-w-sm relative"
       >
         <div className="mb-8 text-center">
-          <div className="inline-flex h-2 w-2 rounded-full bg-[var(--color-signal)] animate-pulse-signal mb-4" />
+          <BrandLogo size="md" className="mb-5" />
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             Create your account
           </h1>
