@@ -43,3 +43,30 @@ def test_connect_repo_uses_configured_base_url():
         assert res.status_code == 200
         called_kwargs = mock_register.call_args.kwargs
         assert called_kwargs["base_url"] == "https://custom-configured-url.example.com"
+
+
+def test_connect_repo_uses_render_external_url_when_override_is_empty():
+    from main import app
+    from auth.dependencies import get_current_org_id
+
+    with patch("main.supabase_admin") as sb, \
+         patch("main.register_github_webhook", new_callable=AsyncMock) as mock_register, \
+         patch("closeout._resolve_access_token", return_value="tok"), \
+         patch("main.github_get_paginated", new_callable=AsyncMock, return_value=[{"full_name": "acme/repo"}]), \
+         patch("main._rate_limit"), \
+         patch("main.settings") as mock_settings:
+
+        mock_settings.RENDER_BASE_URL = ""
+        mock_settings.RENDER_EXTERNAL_URL = "https://backend.onrender.com/"
+        mock_register.return_value = {"id": "hook-1"}
+        sb.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+
+        client = TestClient(app)
+        app.dependency_overrides[get_current_org_id] = lambda: "org-1"
+        try:
+            res = client.post("/github/connect-repo", params={"repo_full_name": "acme/repo"})
+        finally:
+            app.dependency_overrides.clear()
+
+        assert res.status_code == 200
+        assert mock_register.call_args.kwargs["base_url"] == "https://backend.onrender.com"

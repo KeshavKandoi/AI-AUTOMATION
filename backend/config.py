@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     FRONTEND_URL: str = ""
     RENDER_BASE_URL: str = ""
+    RENDER_EXTERNAL_URL: str = ""
 
     class Config:
         env_file = ".env"

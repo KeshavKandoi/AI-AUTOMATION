@@ -101,7 +101,8 @@ from audit_logs.service import log_event
 @app.post("/github/connect-repo")
 async def connect_repo(repo_full_name: str, org_id: str = Depends(get_current_org_id)):
     _valid_repo(repo_full_name)
-    if not settings.RENDER_BASE_URL.startswith("https://"):
+    base_url = (settings.RENDER_BASE_URL or settings.RENDER_EXTERNAL_URL).rstrip("/")
+    if not base_url.startswith("https://"):
         raise HTTPException(status_code=503, detail="GitHub webhook URL is not configured")
     _rate_limit(org_id, "github_write", "GITHUB_WRITES_MAX_PER_ORG_PER_HOUR")
     from closeout import _resolve_access_token
@@ -118,7 +119,7 @@ async def connect_repo(repo_full_name: str, org_id: str = Depends(get_current_or
         access_token=access_token,
         repo_full_name=canonical_repo,
         org_id=org_id,
-        base_url=settings.RENDER_BASE_URL
+        base_url=base_url
     )
     if result is None:
         raise HTTPException(status_code=400, detail="Failed to register webhook on GitHub")
