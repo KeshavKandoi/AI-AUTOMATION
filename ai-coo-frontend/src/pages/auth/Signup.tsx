@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Building2, LockKeyhole, Mail, UserRound } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { authApi } from '@/api/auth'
@@ -70,7 +71,7 @@ export default function Signup() {
 
           <Input
             label="Full name"
-            leadingAdornment="👤"
+            leadingAdornment={<UserRound size={19} strokeWidth={1.8} />}
             placeholder="Your full name"
             autoComplete="name"
             className="h-14 rounded-xl"
@@ -79,7 +80,7 @@ export default function Signup() {
           />
           <Input
             label="Email"
-            leadingAdornment="✉️"
+            leadingAdornment={<Mail size={19} strokeWidth={1.8} />}
             type="email"
             placeholder="you@company.com"
             autoComplete="email"
@@ -89,7 +90,7 @@ export default function Signup() {
           />
           <Input
             label="Organization name"
-            leadingAdornment="🏢"
+            leadingAdornment={<Building2 size={19} strokeWidth={1.8} />}
             placeholder="Your team or company"
             autoComplete="organization"
             className="h-14 rounded-xl"
@@ -98,7 +99,7 @@ export default function Signup() {
           />
           <Input
             label="Password"
-            leadingAdornment="🔒"
+            leadingAdornment={<LockKeyhole size={19} strokeWidth={1.8} />}
             type="password"
             placeholder="At least 8 characters"
             autoComplete="new-password"

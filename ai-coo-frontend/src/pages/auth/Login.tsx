@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { LockKeyhole, Mail } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { authApi } from '@/api/auth'
@@ -34,12 +35,14 @@ export default function Login() {
     register,
     handleSubmit,
     getValues,
+    trigger,
     formState: { errors },
   } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
+    if (!(await trigger('email'))) return
     const email = getValues('email')
-    navigate('/forgot-password', { state: email ? { email } : undefined })
+    navigate('/forgot-password', { state: { email } })
   }
 
   const onSubmit = async (data: LoginForm) => {
@@ -63,7 +66,6 @@ export default function Login() {
         <div className="mb-8">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-signal)]">Welcome back</p>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">Sign in to WorkForge</h1>
-          <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Pick up where your work left off.</p>
         </div>
 
         <form
@@ -78,7 +80,7 @@ export default function Login() {
 
           <Input
             label="Email"
-            leadingAdornment="✉️"
+            leadingAdornment={<Mail size={19} strokeWidth={1.8} />}
             type="email"
             placeholder="you@company.com"
             autoComplete="email"
@@ -88,7 +90,7 @@ export default function Login() {
           />
           <Input
             label="Password"
-            leadingAdornment="🔒"
+            leadingAdornment={<LockKeyhole size={19} strokeWidth={1.8} />}
             type="password"
             placeholder="Enter your password"
             autoComplete="current-password"
