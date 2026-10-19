@@ -32,10 +32,10 @@ def test_calendar_routes_and_approved_task_event_route_are_registered():
     assert {"post"} <= paths["/tasks/{task_id}/approve-and-create-event"].keys()
 
 
-def test_calendar_page_exposes_production_badge_and_primary_controls():
+def test_calendar_page_exposes_primary_controls_without_production_badge():
     page = (ROOT / "ai-coo-frontend/src/pages/calendar/Calendar.tsx").read_text()
     integration_cards = (ROOT / "ai-coo-frontend/src/pages/integrations/Integrations.tsx").read_text()
-    assert "Production" in page and "Production" in integration_cards
+    assert "Production" not in page and "Production" not in integration_cards
     assert "Connect Calendar" in page
     assert "Refresh events" in page
     assert "Upcoming events" in page

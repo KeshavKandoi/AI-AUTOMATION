@@ -94,7 +94,6 @@ export default function CalendarPage() {
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             Google Calendar
           </h1>
-            <span className="rounded-full border border-[var(--color-signal)]/40 bg-[var(--color-signal-dim)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-signal)]">Production</span>
           </div>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             Your upcoming events at a glance

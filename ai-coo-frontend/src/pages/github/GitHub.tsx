@@ -230,7 +230,7 @@ export default function GitHub() {
           <div className="flex flex-wrap gap-2 mt-3">
             {connectedRepo && (
               <Button
-                variant={confirmingDisconnect ? 'primary' : 'ghost'}
+                variant={confirmingDisconnect ? 'primary' : 'secondary'}
                 onClick={handleDisconnectClick}
                 onBlur={() => setConfirmingDisconnect(false)}
                 loading={disconnectRepoMutation.isPending}
@@ -398,10 +398,6 @@ export default function GitHub() {
                     onClick={() => connectRepoMutation.mutate(repo.full_name)}
                   >
                     {connectedRepo === repo.full_name ? 'Events enabled' : 'Enable events'}
-                  </Button>
-                  <Button variant="ghost" onClick={() => openIssueModal(repo.full_name)}>
-                    <Plus size={13} />
-                    Issue
                   </Button>
                 </div>
               </motion.div>

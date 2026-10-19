@@ -139,23 +139,32 @@ async def github_repos(org_id: str = Depends(get_current_org_id)):
 @app.get("/github/summary")
 async def github_summary(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
+    org_res = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
+    repo_full_name = org_res.data[0].get("github_repo") if org_res.data else None
+    if not repo_full_name:
+        return {"summary": "Enable events for a repository to see its AI summary."}
+
     _rate_limit(org_id, "ai_call", "AI_CALLS_MAX_PER_ORG_PER_HOUR")
     access_token = _resolve_access_token(org_id, "github")
-    repos = await github_get_paginated("https://api.github.com/user/repos", access_token)
-
-    repo_info = [
-        {"name": r["name"], "language": r.get("language"),
-         "open_issues": r.get("open_issues_count"), "description": r.get("description")}
-        for r in repos
+    issues = await github_get_paginated(
+        f"https://api.github.com/repos/{repo_full_name}/issues",
+        access_token,
+        params={"state": "open"},
+    )
+    issues_data = [
+        {"title": issue.get("title"), "created_at": issue.get("created_at"),
+         "comments": issue.get("comments"), "labels": [label.get("name") for label in issue.get("labels", [])]}
+        for issue in issues if not issue.get("pull_request")
     ]
+    if not issues_data:
+        return {"summary": f"{repo_full_name} has no open issues."}
 
-    prompt = f"""You are an AI assistant summarizing a developer's GitHub activity.
-Here is their repo data: {repo_info}
+    prompt = f"""You are an AI assistant summarizing the connected GitHub repository.
+Repository: {repo_full_name}
+Its open issues: {issues_data}
 
-Give a short, clear summary covering:
-- Total repos
-- Which repos have open issues that need attention
-- What kind of projects they're working on (languages/themes)
+Give a short, clear summary of this repository's open issues and main areas needing attention.
+Only discuss {repo_full_name}; do not mention other repositories.
 Keep it under 150 words."""
 
     response = run_gemini(prompt)

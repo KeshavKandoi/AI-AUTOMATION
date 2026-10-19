@@ -142,11 +142,6 @@ export default function Integrations() {
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-sm font-medium text-[var(--color-text-primary)]">{meta.label}</h3>
-                  {provider === 'calendar' && (
-                    <span className="rounded-full border border-[var(--color-signal)]/40 bg-[var(--color-signal-dim)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--color-signal)]">
-                      Production
-                    </span>
-                  )}
                 </div>
                 <p className="mt-1 text-xs text-[var(--color-text-faint)]">{meta.description}</p>
               </div>
