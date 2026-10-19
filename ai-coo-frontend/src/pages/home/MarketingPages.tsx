@@ -4,13 +4,13 @@ import { ArrowRight, Bell, BriefcaseBusiness, CalendarDays, Check, GitBranch, Gi
 import MarketingHeader from '@/components/layout/MarketingHeader'
 import MarketingFooter from '@/components/layout/MarketingFooter'
 
-function Page({ eyebrow, title, intro, children }: { eyebrow: string; title: string; intro: string; children: ReactNode }) {
+function Page({ eyebrow, title, intro, children }: { eyebrow?: string; title: string; intro: string; children: ReactNode }) {
   return (
     <div className="home-page flex min-h-screen flex-col bg-[var(--color-void)] text-[var(--color-text-primary)]">
       <MarketingHeader />
       <main className="mx-auto w-full max-w-7xl flex-1 px-5 pb-24 pt-12 sm:px-8 sm:pt-20">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">{eyebrow}</p>
-        <h1 className="mt-4 max-w-4xl font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">{title}</h1>
+        {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">{eyebrow}</p>}
+        <h1 className={`${eyebrow ? 'mt-4 ' : ''}max-w-4xl font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl`}>{title}</h1>
         <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--color-text-muted)] sm:text-lg">{intro}</p>
         {children}
       </main>
@@ -40,7 +40,7 @@ const workflowStages = [
 
 export function FeaturesPage() {
   return (
-    <Page eyebrow="Features" title="Project work, connected in one place." intro="Build the workflows you need from connected tools, with clear controls and a record of what happened.">
+    <Page title="Project work, connected in one place." intro="Build the workflows you need from connected tools, with clear controls and a record of what happened.">
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {featureCards.map(({ icon: Icon, title, detail }) => (
           <article key={title} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
@@ -51,8 +51,7 @@ export function FeaturesPage() {
         ))}
       </div>
       <section className="mt-20">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">From signal to result</p>
-        <h2 className="mt-3 max-w-2xl font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">A clear path for work that repeats.</h2>
+        <h2 className="max-w-2xl font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">A clear path for work that repeats.</h2>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--color-text-muted)]">Each stage is visible, so you can understand why a workflow ran and what happened next.</p>
         <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {workflowStages.map(({ number, title, detail, icon: Icon }) => (
@@ -89,7 +88,7 @@ const steps = [
 
 export function HowItWorksPage() {
   return (
-    <Page eyebrow="How it works" title="You decide what runs." intro="Start with one connected service and one workflow. WorkForge follows the triggers, conditions, and actions you configure.">
+    <Page title="You decide what runs." intro="Start with one connected service and one workflow. WorkForge follows the triggers, conditions, and actions you configure.">
       <div className="mt-12 grid gap-4 md:grid-cols-2">
         {steps.map((step) => (
           <article key={step.number} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7">
@@ -133,7 +132,7 @@ const connections = [
 
 export function ConnectionsPage() {
   return (
-    <Page eyebrow="Integrations" title="Connect only the tools you need." intro="Each connection serves a specific purpose. Open your workspace to connect or manage services for your organization.">
+    <Page title="Connect only the tools you need." intro="Each connection serves a specific purpose. Open your workspace to connect or manage services for your organization.">
       <div className="mt-12 grid gap-4 sm:grid-cols-2">
         {connections.map(({ icon: Icon, title, detail, uses }) => (
           <article key={title} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7">

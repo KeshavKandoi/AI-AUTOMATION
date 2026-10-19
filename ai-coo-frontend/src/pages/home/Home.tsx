@@ -169,8 +169,7 @@ export default function Home() {
         <section id="product-preview" className="mx-auto max-w-7xl scroll-mt-24 px-5 py-16 sm:px-8 lg:py-20">
           <AnimatedContent>
             <div className="mx-auto max-w-3xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">Inside WorkForge</p>
-              <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">See how one event becomes an action.</h2>
+              <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">See how one event becomes an action.</h2>
               <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Explore examples of the triggers, conditions, approvals, and actions you can configure in WorkForge.</p>
             </div>
             <WorkflowShowcase />
@@ -216,7 +215,6 @@ export default function Home() {
               )
             })}
           </div>
-          <p className="mt-5 text-center text-xs text-[var(--color-text-faint)]">Accordion interaction inspired by <a href="https://skiper-ui.com/v1/skiper103" target="_blank" rel="noreferrer" className="underline underline-offset-4 hover:text-[var(--color-text-muted)]">Skiper UI</a>.</p>
         </section>
       </main>
 
