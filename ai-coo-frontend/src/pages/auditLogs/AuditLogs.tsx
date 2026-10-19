@@ -27,7 +27,7 @@ import AuditLogTimeline from './AuditLogTimeline'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -35,7 +35,7 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 function selectClass() {
-  return 'rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]'
+  return 'rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal'
 }
 
 const STATUS_OPTIONS: AuditStatus[] = ['success', 'failed', 'warning', 'info']
@@ -115,20 +115,20 @@ export default function AuditLogs() {
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
       <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="font-display text-2xl font-semibold text-text-primary">
             Audit Logs
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 text-sm text-text-muted">
             A complete timeline of every action across WorkForge
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
           <button
             onClick={() => setView('table')}
             className={
               view === 'table'
-                ? 'flex items-center gap-1.5 rounded-md bg-[var(--color-surface-hover)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-primary)]'
-                : 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]'
+                ? 'flex items-center gap-1.5 rounded-md bg-surface-hover px-3 py-1.5 text-xs font-medium text-text-primary'
+                : 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-text-faint hover:text-text-muted'
             }
           >
             <ListFilter size={13} />
@@ -138,8 +138,8 @@ export default function AuditLogs() {
             onClick={() => setView('timeline')}
             className={
               view === 'timeline'
-                ? 'flex items-center gap-1.5 rounded-md bg-[var(--color-surface-hover)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-primary)]'
-                : 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]'
+                ? 'flex items-center gap-1.5 rounded-md bg-surface-hover px-3 py-1.5 text-xs font-medium text-text-primary'
+                : 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-text-faint hover:text-text-muted'
             }
           >
             <ScrollText size={13} />
@@ -148,22 +148,22 @@ export default function AuditLogs() {
         </div>
       </motion.div>
 
-      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.06 }} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
+      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.06 }} className="rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-5">
         <div className="flex items-center gap-3 flex-wrap mb-4">
           <div className="relative flex-1 min-w-[220px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search summary or action..."
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]"
+              className="w-full rounded-lg border border-border bg-surface pl-9 pr-3 py-2.5 text-sm text-text-primary placeholder:text-text-faint focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal"
             />
           </div>
 
           <Button
             variant="secondary"
             onClick={() => setFiltersOpen((v) => !v)}
-            className={hasActiveFilters ? 'border-[var(--color-signal)] text-[var(--color-signal)]' : ''}
+            className={hasActiveFilters ? 'border-signal text-signal' : ''}
           >
             <ListFilter size={14} />
             Filters
@@ -174,7 +174,7 @@ export default function AuditLogs() {
             type="button"
             onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
             title={sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
-            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs text-[var(--color-text-muted)] hover:border-[var(--color-border-hover)] transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2.5 text-xs text-text-muted hover:border-border-hover transition-colors"
           >
             {sortDir === 'desc' ? <SortDesc size={14} /> : <SortAsc size={14} />}
             {sortDir === 'desc' ? 'Newest' : 'Oldest'}
@@ -183,9 +183,9 @@ export default function AuditLogs() {
 
         <AnimatePresence initial={false}>
         {filtersOpen && (
-          <motion.div initial={reducedMotion ? false : { opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={reducedMotion ? undefined : { opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="flex items-end gap-3 flex-wrap mb-4 pb-4 border-b border-[var(--color-border)] overflow-hidden">
+          <motion.div initial={reducedMotion ? false : { opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={reducedMotion ? undefined : { opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="flex items-end gap-3 flex-wrap mb-4 pb-4 border-b border-border overflow-hidden">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--color-text-faint)]">Module</label>
+              <label className="text-xs text-text-faint">Module</label>
               <select value={module} onChange={(e) => setModule(e.target.value)} className={selectClass()}>
                 <option value="">All modules</option>
                 {filterOptions?.modules.map((m) => (
@@ -196,7 +196,7 @@ export default function AuditLogs() {
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[var(--color-text-faint)]">Status</label>
+              <label className="text-xs text-text-faint">Status</label>
               <select value={status} onChange={(e) => setStatus(e.target.value)} className={selectClass()}>
                 <option value="">All statuses</option>
                 {STATUS_OPTIONS.map((s) => (
@@ -258,7 +258,7 @@ export default function AuditLogs() {
                     onClick={() => setSelectedLogId(log.id)}
                   >
                     <TableCell>
-                      <span className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                      <span className="flex items-center gap-2 text-xs text-text-muted">
                         <Icon size={13} />
                         {getModuleLabel(log.module)}
                       </span>
@@ -275,7 +275,7 @@ export default function AuditLogs() {
                       <Badge tone={getStatusTone(log.status)}>{log.status ?? 'info'}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className="text-xs text-[var(--color-text-faint)] font-mono">
+                      <span className="text-xs text-text-faint font-mono">
                         {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
                       </span>
                     </TableCell>
@@ -292,8 +292,8 @@ export default function AuditLogs() {
         )}
 
         {items.length > 0 && (
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--color-border)]">
-            <span className="text-xs text-[var(--color-text-faint)]">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <span className="text-xs text-text-faint">
               {total} total · page {page} of {totalPages}
               {isFetching && ' · updating...'}
             </span>

@@ -10,14 +10,14 @@ export function Table({ children, className }: { children: React.ReactNode; clas
 
 export function TableHead({ children }: { children: React.ReactNode }) {
   return (
-    <thead className="text-left text-xs text-[var(--color-text-faint)] border-b border-[var(--color-border)]">
+    <thead className="text-left text-xs text-text-faint border-b border-border">
       {children}
     </thead>
   )
 }
 
 export function TableBody({ children }: { children: React.ReactNode }) {
-  return <tbody className="divide-y divide-[var(--color-border)]">{children}</tbody>
+  return <tbody className="divide-y divide-border">{children}</tbody>
 }
 
 export function TableRow({
@@ -31,7 +31,7 @@ export function TableRow({
 }) {
   return (
     <tr
-      className={cn('hover:bg-[var(--color-surface-hover)] transition-colors', className)}
+      className={cn('hover:bg-surface-hover transition-colors', className)}
       onClick={onClick}
     >
       {children}
@@ -44,5 +44,5 @@ export function TableHeaderCell({ children, className }: { children: React.React
 }
 
 export function TableCell({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <td className={cn('px-4 py-3 text-[var(--color-text-primary)]', className)}>{children}</td>
+  return <td className={cn('px-4 py-3 text-text-primary', className)}>{children}</td>
 }

@@ -40,7 +40,7 @@ export default function TermsOfService() {
           approve, or configure in Calendar automation. Calendar event data retrieved by these
           features is not sent to an AI service. Data access, retention, and deletion rules are
           described in the{' '}
-          <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110 underline">
+          <Link to="/privacy" className="text-signal hover:brightness-110 underline">
             Privacy Policy
           </Link>
           . You authorize WorkForge to use the specific permissions approved in Google&apos;s
@@ -121,7 +121,7 @@ export default function TermsOfService() {
       <LegalSection number="14" title="Contact">
         <p>
           If you have any questions about these Terms, contact us at{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--color-signal)] hover:brightness-110">
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-signal hover:brightness-110">
             {CONTACT_EMAIL}
           </a>.
         </p>

@@ -20,7 +20,7 @@ import { getCategoryIcon, getCategoryLabel, getImportanceTone } from '@/lib/memo
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -31,8 +31,8 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === '') return null
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-[var(--color-text-faint)]">{label}</span>
-      <span className="text-sm text-[var(--color-text-primary)] break-all">{value}</span>
+      <span className="text-xs text-text-faint">{label}</span>
+      <span className="text-sm text-text-primary break-all">{value}</span>
     </div>
   )
 }
@@ -109,11 +109,11 @@ export default function MemoryDetailDrawer({ open, memoryId, orgId, onClose, onE
         ) : (
           <>
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="flex items-center justify-center h-9 w-9 rounded-lg bg-[var(--color-surface-hover)]">
-                <Icon size={16} className="text-[var(--color-text-muted)]" />
+              <span className="flex items-center justify-center h-9 w-9 rounded-lg bg-surface-hover">
+                <Icon size={16} className="text-text-muted" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-[var(--color-text-faint)]">
+                <p className="text-xs text-text-faint">
                   {getCategoryLabel(memory.category)} · {new Date(memory.created_at).toLocaleString()}
                 </p>
               </div>
@@ -121,12 +121,12 @@ export default function MemoryDetailDrawer({ open, memoryId, orgId, onClose, onE
               {memory.status === 'archived' && <Badge tone="neutral">archived</Badge>}
             </div>
 
-            <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">{memory.content}</p>
+            <p className="text-sm text-text-primary whitespace-pre-wrap">{memory.content}</p>
 
             {memory.tags && memory.tags.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap">
                 {memory.tags.map((t) => (
-                  <span key={t} className="text-xs text-[var(--color-text-muted)] bg-[var(--color-surface-hover)] rounded px-2 py-1">
+                  <span key={t} className="text-xs text-text-muted bg-surface-hover rounded px-2 py-1">
                     {t}
                   </span>
                 ))}
@@ -169,7 +169,7 @@ export default function MemoryDetailDrawer({ open, memoryId, orgId, onClose, onE
                 variant={confirmingDelete ? 'primary' : 'ghost'}
                 onBlur={() => setConfirmingDelete(false)}
                 loading={deleteMutation.isPending}
-                className={confirmingDelete ? '!bg-[var(--color-alert)] !text-white' : ''}
+                className={confirmingDelete ? 'bg-alert! text-white!' : ''}
                 onClick={() => (confirmingDelete ? deleteMutation.mutate() : setConfirmingDelete(true))}
               >
                 <Trash2 size={13} />
@@ -193,13 +193,13 @@ export default function MemoryDetailDrawer({ open, memoryId, orgId, onClose, onE
                 <button
                   type="button"
                   onClick={() => setMetadataExpanded((v) => !v)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2"
+                  className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-2"
                 >
                   {metadataExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   Metadata
                 </button>
                 {metadataExpanded && (
-                  <pre className="text-[11px] leading-relaxed text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md p-3 overflow-x-auto whitespace-pre-wrap break-all">
+                  <pre className="text-[11px] leading-relaxed text-text-muted bg-surface border border-border rounded-md p-3 overflow-x-auto whitespace-pre-wrap break-all">
                     {JSON.stringify(memory.metadata, null, 2)}
                   </pre>
                 )}

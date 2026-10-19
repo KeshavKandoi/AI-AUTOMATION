@@ -21,12 +21,12 @@ function SavedJobCard({ row, onDelete, deleting }: { row: ApplicationRow; onDele
     <Card className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="text-base font-medium text-[var(--color-text-primary)]">{job.job_title}</h3>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--color-text-muted)]">
+          <h3 className="text-base font-medium text-text-primary">{job.job_title}</h3>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
             <span className="inline-flex items-center gap-1.5"><Building2 size={14} />{job.company_name}</span>
             {job.location && <span className="inline-flex items-center gap-1.5"><MapPin size={14} />{job.location}</span>}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--color-text-muted)]">
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-text-muted">
             {job.employment_type && <span>{job.employment_type}</span>}
             {job.work_mode && <span>· {job.work_mode}</span>}
           </div>
@@ -36,7 +36,7 @@ function SavedJobCard({ row, onDelete, deleting }: { row: ApplicationRow; onDele
             href={job.original_apply_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text-primary)] hover:border-[var(--color-signal)]"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-text-primary hover:border-signal"
           >
             View job <ExternalLink size={14} />
           </a>
@@ -45,7 +45,7 @@ function SavedJobCard({ row, onDelete, deleting }: { row: ApplicationRow; onDele
             disabled={deleting}
             onClick={onDelete}
             aria-label={`Remove ${job.job_title} from saved jobs`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-alert)] hover:border-[var(--color-alert)] disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-alert hover:border-alert disabled:opacity-50"
           >
             <Trash2 size={14} /> Remove
           </button>
@@ -75,15 +75,15 @@ export default function ApplicationTracker() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Saved jobs</h2>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">Jobs you saved from Discover, ready to revisit when you choose.</p>
+        <h2 className="text-lg font-semibold text-text-primary">Saved jobs</h2>
+        <p className="mt-1 text-sm text-text-muted">Jobs you saved from Discover, ready to revisit when you choose.</p>
       </div>
-      {deleteMutation.isError && <p className="text-sm text-[var(--color-alert)]">Could not remove that saved job. Please try again.</p>}
+      {deleteMutation.isError && <p className="text-sm text-alert">Could not remove that saved job. Please try again.</p>}
       {isLoading ? (
         <div className="flex flex-col gap-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 w-full" />)}</div>
       ) : isError ? (
         <Card className="p-6">
-          <p className="text-sm text-[var(--color-alert)]">Saved jobs are temporarily unavailable.</p>
+          <p className="text-sm text-alert">Saved jobs are temporarily unavailable.</p>
           <Button variant="ghost" className="mt-3" onClick={() => refetch()}>Retry</Button>
         </Card>
       ) : !data?.length ? (

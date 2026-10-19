@@ -14,7 +14,7 @@ import DateTimePicker from '@/components/ui/DateTimePicker'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -91,11 +91,11 @@ export default function CalendarPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="font-display text-2xl font-semibold text-text-primary">
             Google Calendar
           </h1>
           </div>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 text-sm text-text-muted">
             Your upcoming events at a glance
           </p>
         </div>
@@ -118,9 +118,9 @@ export default function CalendarPage() {
         <Card className="p-4 sm:p-5 min-w-0">
           <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2 min-w-0">
-            <CalendarIcon size={16} className="text-[var(--color-signal)]" />
-            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">
-              Upcoming events {events && <span className="text-[var(--color-text-faint)]">({events.length})</span>}
+            <CalendarIcon size={16} className="text-signal" />
+            <h2 className="text-sm font-medium text-text-primary">
+              Upcoming events {events && <span className="text-text-faint">({events.length})</span>}
             </h2>
           </div>
           <Button variant="ghost" className="shrink-0 px-2" aria-label="Refresh events" disabled={!calendarConnected} onClick={() => void refreshEvents()} loading={eventsFetching}>
@@ -128,7 +128,7 @@ export default function CalendarPage() {
           </Button>
           </div>
           {integrationsLoading ? (
-            <p className="text-sm text-[var(--color-text-muted)]">Checking Calendar connection…</p>
+            <p className="text-sm text-text-muted">Checking Calendar connection…</p>
           ) : integrationsError ? (
             <div className="flex items-center gap-3">
               <ErrorBanner message="Couldn't check the Calendar connection." />
@@ -147,11 +147,11 @@ export default function CalendarPage() {
           ) : !events || events.length === 0 ? (
             <EmptyState icon={CalendarIcon} title="No upcoming events" />
           ) : (
-            <div className="divide-y divide-[var(--color-border)]">
+            <div className="divide-y divide-border">
               {events.map((event, idx) => (
                 <div key={idx} className="py-2.5">
-                  <p className="text-sm text-[var(--color-text-primary)]">{event.summary || 'Untitled event'}</p>
-                  <p className="text-xs text-[var(--color-text-faint)] mt-0.5">
+                  <p className="text-sm text-text-primary">{event.summary || 'Untitled event'}</p>
+                  <p className="text-xs text-text-faint mt-0.5">
                     {formatEventTime(event.start)}
                     {event.end && ` – ${formatEventTime(event.end)}`}
                   </p>
@@ -165,15 +165,15 @@ export default function CalendarPage() {
       <Modal open={eventModalOpen} onClose={closeModal} title="New event" className="max-w-md">
         {justCreated ? (
           <div className="flex flex-col items-center justify-center py-8 gap-3">
-            <div className="h-12 w-12 rounded-full bg-[var(--color-signal-dim)] flex items-center justify-center">
-              <CheckCircle2 size={22} className="text-[var(--color-signal)]" />
+            <div className="h-12 w-12 rounded-full bg-signal-dim flex items-center justify-center">
+              <CheckCircle2 size={22} className="text-signal" />
             </div>
-            <p className="text-sm text-[var(--color-text-primary)] font-medium">Event created</p>
+            <p className="text-sm text-text-primary font-medium">Event created</p>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-[var(--color-text-muted)] flex items-center gap-1.5">
+              <label className="text-sm font-medium text-text-muted flex items-center gap-1.5">
                 <Type size={13} />
                 Title
               </label>

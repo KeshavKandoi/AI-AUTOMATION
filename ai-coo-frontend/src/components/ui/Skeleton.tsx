@@ -5,5 +5,5 @@ interface SkeletonProps {
 }
 
 export default function Skeleton({ className }: SkeletonProps) {
-  return <div className={cn('rounded-lg bg-[var(--color-surface-hover)] animate-pulse', className)} />
+  return <div className={cn('rounded-lg bg-surface-hover animate-pulse', className)} />
 }

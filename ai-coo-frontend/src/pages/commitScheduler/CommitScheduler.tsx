@@ -14,7 +14,7 @@ import JobDetailDrawer from './JobDetailDrawer'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -127,14 +127,14 @@ export default function CommitScheduler() {
       <motion.header initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.35 }} className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl border border-[var(--color-signal)]/20 bg-[var(--color-signal-dim)] text-[var(--color-signal)]">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl border border-signal/20 bg-signal-dim text-signal">
               <Calendar size={20} />
             </span>
             <div>
-              <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+              <h1 className="font-display text-2xl font-semibold text-text-primary">
                 Commit Scheduler
               </h1>
-              <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+              <p className="mt-1 text-sm text-text-muted">
                 Automate scheduled commits across your repositories
               </p>
             </div>
@@ -155,19 +155,19 @@ export default function CommitScheduler() {
           className="grid grid-cols-1 gap-3 sm:grid-cols-3"
         >
           {([
-            { label: 'Total schedules', value: jobCounts.all, icon: Calendar, tone: 'text-[var(--color-text-primary)]', wash: 'bg-[var(--color-surface-hover)]' },
-            { label: 'Running', value: jobCounts.active, icon: RotateCw, tone: 'text-[var(--color-signal)]', wash: 'bg-[var(--color-signal-dim)]' },
-            { label: 'Paused', value: jobCounts.paused, icon: Pause, tone: 'text-[var(--color-amber)]', wash: 'bg-[var(--color-amber-dim)]' },
+            { label: 'Total schedules', value: jobCounts.all, icon: Calendar, tone: 'text-text-primary', wash: 'bg-surface-hover' },
+            { label: 'Running', value: jobCounts.active, icon: RotateCw, tone: 'text-signal', wash: 'bg-signal-dim' },
+            { label: 'Paused', value: jobCounts.paused, icon: Pause, tone: 'text-amber', wash: 'bg-amber-dim' },
           ]).map(({ label, value, icon: Icon, tone, wash }, index) => (
             <motion.div
               key={label}
               initial={reduceMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : index * 0.05 }}
-              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+              className="rounded-2xl border border-border bg-surface p-4"
             >
               <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-[var(--color-text-muted)]">{label}</p>
+                <p className="text-xs font-medium text-text-muted">{label}</p>
                 <span className={`grid h-8 w-8 place-items-center rounded-xl ${wash} ${tone}`}><Icon size={15} /></span>
               </div>
               <p className={`mt-3 text-2xl font-semibold tabular-nums ${tone}`}>{value}</p>
@@ -196,10 +196,10 @@ export default function CommitScheduler() {
         <section aria-label="Scheduled commits" className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Your schedules</h2>
-              <p className="mt-1 text-xs text-[var(--color-text-faint)]">Manage upcoming and completed commit runs</p>
+              <h2 className="text-sm font-semibold text-text-primary">Your schedules</h2>
+              <p className="mt-1 text-xs text-text-faint">Manage upcoming and completed commit runs</p>
             </div>
-            <div className="flex items-center gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1" role="group" aria-label="Filter schedules">
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-surface p-1" role="group" aria-label="Filter schedules">
               {([
                 ['all', 'All'], ['active', 'Running'], ['paused', 'Paused'], ['finished', 'Finished'],
               ] as const).map(([value, label]) => (
@@ -208,7 +208,7 @@ export default function CommitScheduler() {
                   type="button"
                   aria-pressed={jobFilter === value}
                   onClick={() => setJobFilter(value)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${jobFilter === value ? 'bg-[var(--color-signal-dim)] text-[var(--color-signal)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'}`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${jobFilter === value ? 'bg-signal-dim text-signal' : 'text-text-muted hover:text-text-primary'}`}
                 >
                   {label}<span className="ml-1.5 opacity-70">{jobCounts[value]}</span>
                 </button>
@@ -217,7 +217,7 @@ export default function CommitScheduler() {
           </div>
 
           {visibleJobs.length === 0 ? (
-            <Card className="p-6 text-center text-sm text-[var(--color-text-muted)]">
+            <Card className="p-6 text-center text-sm text-text-muted">
               No {jobFilter} schedules to show.
             </Card>
           ) : (
@@ -231,27 +231,27 @@ export default function CommitScheduler() {
                   transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : Math.min(index * 0.045, 0.24), layout: { duration: 0.2 } }}
                   whileHover={reduceMotion ? undefined : { y: -2 }}
                 >
-                  <Card className="p-5 transition-colors hover:border-[var(--color-border-hover)]">
+                  <Card className="p-5 transition-colors hover:border-border-hover">
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => setDetailJobId(job.id)}
-                            className="text-sm font-medium text-[var(--color-text-primary)] hover:underline"
+                            className="text-sm font-medium text-text-primary hover:underline"
                           >
                             {job.repo_full_name}
                           </button>
-                          <span className="text-xs text-[var(--color-text-faint)]">→ {job.branch}</span>
+                          <span className="text-xs text-text-faint">→ {job.branch}</span>
                           {statusBadge(job.status)}
                           {job.mode === 'scheduled' && <Badge tone="neutral">one-time</Badge>}
                           {job.mode === 'guard' && <Badge tone="neutral">guard</Badge>}
                           {job.use_pr && <Badge tone="neutral">via PR</Badge>}
                         </div>
-                        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                        <p className="text-xs text-text-muted mt-1">
                           {scheduleSummary(job)}
                         </p>
                         {job.folder_path && job.file_name && (
-                          <p className="text-xs text-[var(--color-text-faint)] mt-1 font-mono">
+                          <p className="text-xs text-text-faint mt-1 font-mono">
                             {job.folder_path}/{job.file_name}
                           </p>
                         )}
@@ -286,7 +286,7 @@ export default function CommitScheduler() {
                         {confirmDeleteId === job.id ? (
                           <Button
                             variant="primary"
-                            className="!bg-[var(--color-alert)] !text-white"
+                            className="bg-alert! text-white!"
                             loading={deleteMutation.isPending}
                             onBlur={() => setConfirmDeleteId(null)}
                             onClick={() => deleteMutation.mutate(job.id)}
@@ -296,7 +296,7 @@ export default function CommitScheduler() {
                         ) : (
                           <button
                             onClick={() => setConfirmDeleteId(job.id)}
-                            className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)] transition-colors p-2"
+                            className="text-text-faint hover:text-alert transition-colors p-2"
                             title="Delete job"
                           >
                             <Trash2 size={14} />

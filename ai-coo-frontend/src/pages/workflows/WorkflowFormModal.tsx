@@ -42,7 +42,7 @@ import { Input } from '@/components/ui/Input'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -50,16 +50,16 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 function selectClass() {
-  return 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)] disabled:opacity-50 disabled:cursor-not-allowed'
+  return 'w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal disabled:opacity-50 disabled:cursor-not-allowed'
 }
 
 function labelClass() {
-  return 'text-sm font-medium text-[var(--color-text-muted)]'
+  return 'text-sm font-medium text-text-muted'
 }
 
 function HelpHint({ text }: { text: string }) {
   return (
-    <span title={text} className="inline-flex text-[var(--color-text-faint)] cursor-help">
+    <span title={text} className="inline-flex text-text-faint cursor-help">
       <Info size={12} />
     </span>
   )
@@ -265,10 +265,10 @@ function MultiSelectTagInput({ value, onChange }: { value: string[]; onChange: (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap gap-1.5">
         {value.map((t) => (
-          <span key={t} className="flex items-center gap-1 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] px-2.5 py-1 text-xs text-[var(--color-text-primary)]">
+          <span key={t} className="flex items-center gap-1 rounded-full bg-surface border border-border px-2.5 py-1 text-xs text-text-primary">
             {t}
             <button type="button" onClick={() => onChange(value.filter((x) => x !== t))}>
-              <X size={11} className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)]" />
+              <X size={11} className="text-text-faint hover:text-alert" />
             </button>
           </span>
         ))}
@@ -311,7 +311,7 @@ function FieldValueInput({
   if (config.control === 'boolean') {
     const current = typeof value === 'string' ? value : ''
     return (
-      <div className="flex rounded-md border border-[var(--color-border)] overflow-hidden text-xs">
+      <div className="flex rounded-md border border-border overflow-hidden text-xs">
         {[
           { v: '', label: 'Any' },
           { v: 'true', label: 'Yes' },
@@ -323,8 +323,8 @@ function FieldValueInput({
             onClick={() => onChange(opt.v)}
             className={
               current === opt.v
-                ? 'px-3 py-2 bg-[var(--color-signal)] text-white'
-                : 'px-3 py-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]'
+                ? 'px-3 py-2 bg-signal text-white'
+                : 'px-3 py-2 text-text-muted hover:bg-surface'
             }
           >
             {opt.label}
@@ -538,20 +538,20 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                   onClick={() => handleTriggerChange(t.value)}
                   className={
                     (selected
-                      ? 'border-[var(--color-signal)] bg-[var(--color-signal-dim)]'
-                      : 'border-[var(--color-border)] hover:border-[var(--color-signal)]') +
+                      ? 'border-signal bg-signal-dim'
+                      : 'border-border hover:border-signal') +
                     ' flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                   }
                 >
-                  <Icon size={16} className={selected ? 'text-[var(--color-signal)]' : 'text-[var(--color-text-muted)]'} />
-                  <span className="text-sm font-medium text-[var(--color-text-primary)]">{t.label}</span>
-                  <span className="text-xs text-[var(--color-text-faint)]">{t.description}</span>
+                  <Icon size={16} className={selected ? 'text-signal' : 'text-text-muted'} />
+                  <span className="text-sm font-medium text-text-primary">{t.label}</span>
+                  <span className="text-xs text-text-faint">{t.description}</span>
                 </button>
               )
             })}
           </div>
           {isEdit && (
-            <p className="text-xs text-[var(--color-text-faint)]">
+            <p className="text-xs text-text-faint">
               The trigger can't be changed after creation — delete and recreate the workflow if this needs to change.
             </p>
           )}
@@ -561,13 +561,13 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <label className={labelClass()}>Only if… <span className="font-normal text-[var(--color-text-faint)]">(optional)</span></label>
+              <label className={labelClass()}>Only if… <span className="font-normal text-text-faint">(optional)</span></label>
               <HelpHint text="Add filters to only run this workflow when specific details match. Leave empty to run every time." />
             </div>
             <button
               type="button"
               onClick={() => setAdvancedMode((v) => !v)}
-              className="flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-signal)]"
+              className="flex items-center gap-1 text-xs text-text-muted hover:text-signal"
             >
               <Sparkles size={12} />
               {advancedMode ? 'Simple mode' : 'Advanced mode'}
@@ -575,7 +575,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           </div>
 
           {conditionRows.length === 0 && (
-            <p className="text-xs text-[var(--color-text-faint)] italic">
+            <p className="text-xs text-text-faint italic">
               Example: only if priority is "high" — otherwise this runs on every {ALL_TRIGGER_TYPES.find((t) => t.value === triggerType)?.label.toLowerCase()} event.
             </p>
           )}
@@ -589,10 +589,10 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                     const config = fieldUIForTrigger[row.field] ?? { control: 'text' as FieldControl }
                     return (
                       <div key={row.field}>
-                        {i > 0 && <p className="text-[10px] uppercase tracking-wide text-[var(--color-text-faint)] mb-1">and</p>}
-                        <div className="flex items-start gap-2 rounded-lg border border-[var(--color-border)] p-2.5">
+                        {i > 0 && <p className="text-[10px] uppercase tracking-wide text-text-faint mb-1">and</p>}
+                        <div className="flex items-start gap-2 rounded-lg border border-border p-2.5">
                           <div className="flex-1 flex flex-col gap-1">
-                            <span className="text-xs font-medium text-[var(--color-text-primary)]">
+                            <span className="text-xs font-medium text-text-primary">
                               {fieldLabel(triggerType, row.field)}
                             </span>
                             <FieldValueInput config={config} value={row.value} onChange={(v) => updateRowValue(i, v)} />
@@ -600,7 +600,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                           <button
                             type="button"
                             onClick={() => removeRow(i)}
-                            className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)] transition-colors p-1.5 shrink-0"
+                            className="text-text-faint hover:text-alert transition-colors p-1.5 shrink-0"
                             title="Remove filter"
                           >
                             <Trash2 size={13} />
@@ -618,7 +618,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                       key={f.field}
                       type="button"
                       onClick={() => addSimpleFilter(f.field)}
-                      className="flex items-center gap-1 rounded-full border border-dashed border-[var(--color-border)] px-2.5 py-1 text-xs text-[var(--color-text-muted)] hover:border-[var(--color-signal)] hover:text-[var(--color-signal)] transition-colors"
+                      className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-text-muted hover:border-signal hover:text-signal transition-colors"
                     >
                       <Plus size={11} />
                       {f.label}
@@ -631,9 +631,9 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
             <>
 
               {conditionRows.length > 1 && (
-                <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                <div className="flex items-center gap-2 text-xs text-text-muted">
                   <span>Match</span>
-                  <div className="flex rounded-md border border-[var(--color-border)] overflow-hidden">
+                  <div className="flex rounded-md border border-border overflow-hidden">
                     {(['AND', 'OR'] as ConditionLogic[]).map((logic) => (
                       <button
                         key={logic}
@@ -641,8 +641,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                         onClick={() => setConditionLogic(logic)}
                         className={
                           conditionLogic === logic
-                            ? 'px-2.5 py-1 bg-[var(--color-signal)] text-white'
-                            : 'px-2.5 py-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]'
+                            ? 'px-2.5 py-1 bg-signal text-white'
+                            : 'px-2.5 py-1 text-text-muted hover:bg-surface'
                         }
                       >
                         {logic}
@@ -685,7 +685,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                     <button
                       type="button"
                       onClick={() => removeRow(i)}
-                      className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)] transition-colors p-2 shrink-0"
+                      className="text-text-faint hover:text-alert transition-colors p-2 shrink-0"
                       title="Remove condition"
                     >
                       <Trash2 size={13} />
@@ -696,13 +696,13 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
               <button
                 type="button"
                 onClick={addAdvancedRow}
-                className="self-start text-xs text-[var(--color-signal)] hover:underline flex items-center gap-1"
+                className="self-start text-xs text-signal hover:underline flex items-center gap-1"
               >
                 <Plus size={12} />
                 Add rule
               </button>
               {conditionRows.some((r) => r.op === 'in') && (
-                <p className="text-xs text-[var(--color-text-faint)]">Separate multiple values with commas for "is one of" rules.</p>
+                <p className="text-xs text-text-faint">Separate multiple values with commas for "is one of" rules.</p>
               )}
             </>
           )}
@@ -722,22 +722,22 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                   onClick={() => toggleAction(opt.value)}
                   className={
                     (selected
-                      ? 'border-[var(--color-signal)] bg-[var(--color-signal-dim)]'
-                      : 'border-[var(--color-border)] hover:border-[var(--color-signal)]') +
+                      ? 'border-signal bg-signal-dim'
+                      : 'border-border hover:border-signal') +
                     ' flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors'
                   }
                 >
-                  <Icon size={16} className={(selected ? 'text-[var(--color-signal)]' : 'text-[var(--color-text-muted)]') + ' mt-0.5 shrink-0'} />
+                  <Icon size={16} className={(selected ? 'text-signal' : 'text-text-muted') + ' mt-0.5 shrink-0'} />
                   <div>
-                    <p className="text-sm font-medium text-[var(--color-text-primary)]">{opt.label}</p>
-                    <p className="text-xs text-[var(--color-text-faint)]">{opt.description}</p>
+                    <p className="text-sm font-medium text-text-primary">{opt.label}</p>
+                    <p className="text-xs text-text-faint">{opt.description}</p>
                   </div>
                 </button>
               )
             })}
           </div>
           {selectedActions.length === 0 && (
-            <p className="text-xs text-[var(--color-text-faint)]">Pick at least one action.</p>
+            <p className="text-xs text-text-faint">Pick at least one action.</p>
           )}
         </div>
 
@@ -759,15 +759,15 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                   aria-pressed={selected}
                   className={
                     (selected
-                      ? 'border-[var(--color-signal)] bg-[var(--color-signal-dim)]'
-                      : 'border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]') +
+                      ? 'border-signal bg-signal-dim'
+                      : 'border-border hover:border-border-hover hover:bg-surface-hover') +
                     ' flex h-full items-start gap-2.5 rounded-xl border p-3.5 text-left transition-colors'
                   }
                 >
-                  <Icon size={16} className={(selected ? 'text-[var(--color-signal)]' : 'text-[var(--color-text-muted)]') + ' mt-0.5 shrink-0'} />
+                  <Icon size={16} className={(selected ? 'text-signal' : 'text-text-muted') + ' mt-0.5 shrink-0'} />
                   <div>
-                    <p className="text-sm font-medium text-[var(--color-text-primary)]">{opt.label}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-faint)]">{opt.description}</p>
+                    <p className="text-sm font-medium text-text-primary">{opt.label}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-text-faint">{opt.description}</p>
                   </div>
                 </button>
               )
@@ -775,7 +775,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           </div>
           {lifetimeMode === 'until_date' && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-[var(--color-text-muted)]">Stop running after</label>
+              <label className="text-xs font-medium text-text-muted">Stop running after</label>
               <Input
                 type="datetime-local"
                 min={minDatetimeLocalValue()}
@@ -783,7 +783,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                 onChange={(e) => setExpiresAtLocal(e.target.value)}
               />
               {expiresAtLocal && !isFutureLocal(expiresAtLocal) && (
-                <p className="text-xs text-[var(--color-alert)]">Pick a date and time in the future.</p>
+                <p className="text-xs text-alert">Pick a date and time in the future.</p>
               )}
             </div>
           )}
@@ -800,9 +800,9 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
         )}
 
 
-        <div className="flex items-start gap-2 rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2.5">
-          <ChevronDown size={14} className="text-[var(--color-signal)] shrink-0 mt-0.5 rotate-[-90deg]" />
-          <p className="text-sm text-[var(--color-text-primary)]">{summary}</p>
+        <div className="flex items-start gap-2 rounded-lg border border-signal-dim bg-signal-dim px-3 py-2.5">
+          <ChevronDown size={14} className="text-signal shrink-0 mt-0.5 -rotate-90" />
+          <p className="text-sm text-text-primary">{summary}</p>
         </div>
 
         {mutation.isError && (

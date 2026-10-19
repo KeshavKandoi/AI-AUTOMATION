@@ -15,7 +15,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -23,7 +23,7 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 function selectClass() {
-  return 'rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]'
+  return 'rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal'
 }
 
 const PAGE_SIZE = 25
@@ -114,10 +114,10 @@ export default function Notifications() {
     <div className="p-6 md:p-8 max-w-4xl mx-auto">
       <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="font-display text-2xl font-semibold text-text-primary">
             Notifications
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 text-sm text-text-muted">
             Everything WorkForge wants you to know, in one place
           </p>
         </div>
@@ -132,14 +132,14 @@ export default function Notifications() {
         </Button>
       </motion.div>
 
-      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.06 }} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
+      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.06 }} className="rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-5">
         <div className="flex items-center gap-3 flex-wrap mb-4">
           <button
             onClick={() => setUnreadOnly((v) => !v)}
             className={
               unreadOnly
-                ? 'flex items-center gap-1.5 rounded-lg border border-[var(--color-signal)] text-[var(--color-signal)] px-3 py-2 text-xs'
-                : 'flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] px-3 py-2 text-xs hover:border-[var(--color-border-hover)]'
+                ? 'flex items-center gap-1.5 rounded-lg border border-signal text-signal px-3 py-2 text-xs'
+                : 'flex items-center gap-1.5 rounded-lg border border-border text-text-muted px-3 py-2 text-xs hover:border-border-hover'
             }
           >
             Unread only
@@ -175,7 +175,7 @@ export default function Notifications() {
             }
           />
         ) : (
-          <div className="flex flex-col divide-y divide-[var(--color-border)]">
+          <div className="flex flex-col divide-y divide-border">
             <AnimatePresence initial={false}>
             {items.map((n, index) => {
               const Icon = getModuleIcon(n.module)
@@ -188,30 +188,30 @@ export default function Notifications() {
                   exit={reducedMotion ? undefined : { opacity: 0, x: 8 }}
                   transition={{ duration: 0.22, delay: Math.min(index, 6) * 0.035 }}
                   onClick={() => handleClick(n)}
-                  className="w-full text-left py-3 flex items-start gap-3 hover:bg-[var(--color-surface-hover)] transition-colors px-2 -mx-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--color-signal)]"
+                  className="w-full text-left py-3 flex items-start gap-3 hover:bg-surface-hover transition-colors px-2 -mx-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-signal"
                 >
-                  <span className="relative flex items-center justify-center h-8 w-8 rounded-lg bg-[var(--color-surface-hover)] shrink-0 mt-0.5">
-                    <Icon size={14} className="text-[var(--color-text-muted)]" />
+                  <span className="relative flex items-center justify-center h-8 w-8 rounded-lg bg-surface-hover shrink-0 mt-0.5">
+                    <Icon size={14} className="text-text-muted" />
                     {!n.read && (
-                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[var(--color-signal)]" />
+                      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-signal" />
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className={n.read ? 'text-sm text-[var(--color-text-muted)]' : 'text-sm text-[var(--color-text-primary)] font-medium'}>
+                      <p className={n.read ? 'text-sm text-text-muted' : 'text-sm text-text-primary font-medium'}>
                         {n.title}
                       </p>
                       {n.priority !== 'normal' && <Badge tone={getPriorityTone(n.priority)}>{n.priority}</Badge>}
                     </div>
-                    <p className="mt-0.5 text-xs text-[var(--color-text-faint)] line-clamp-2">{n.body}</p>
-                    <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--color-text-faint)]">
+                    <p className="mt-0.5 text-xs text-text-faint line-clamp-2">{n.body}</p>
+                    <div className="mt-1 flex items-center gap-2 text-[11px] text-text-faint">
                       <span>{getModuleLabel(n.module)}</span>
                       <span>·</span>
                       <span>{formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}</span>
                       {n.action_label && (
                         <>
                           <span>·</span>
-                          <span className="text-[var(--color-signal)]">{n.action_label}</span>
+                          <span className="text-signal">{n.action_label}</span>
                         </>
                       )}
                     </div>
@@ -224,8 +224,8 @@ export default function Notifications() {
         )}
 
         {items.length > 0 && (
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--color-border)]">
-            <span className="text-xs text-[var(--color-text-faint)]">
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+            <span className="text-xs text-text-faint">
               {total} total · page {page} of {totalPages}
               {isFetching && ' · updating...'}
             </span>

@@ -38,7 +38,7 @@ type ViewMode = 'for_you' | 'all'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -46,7 +46,7 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 function selectClass() {
-  return 'rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]'
+  return 'rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal'
 }
 
 function formatSalary(job: JobOut): string | null {
@@ -192,13 +192,13 @@ export default function JobDiscovery() {
     <div className="flex flex-col gap-5">
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
           <button
             onClick={() => setViewMode('for_you')}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               viewMode === 'for_you'
-                ? 'bg-[var(--color-signal-dim)] text-[var(--color-signal)]'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                ? 'bg-signal-dim text-signal'
+                : 'text-text-muted hover:text-text-primary'
             }`}
           >
             <Sparkles size={13} />
@@ -208,15 +208,15 @@ export default function JobDiscovery() {
             onClick={() => setViewMode('all')}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               viewMode === 'all'
-                ? 'bg-[var(--color-signal-dim)] text-[var(--color-signal)]'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                ? 'bg-signal-dim text-signal'
+                : 'text-text-muted hover:text-text-primary'
             }`}
           >
             All Jobs
           </button>
         </div>
 
-        <div className="text-xs text-[var(--color-text-muted)]">
+        <div className="text-xs text-text-muted">
           <span>
             {lastSync?.is_running
               ? `Search running · ${lastSync.jobs_found_current ?? 0} jobs scanned`
@@ -228,22 +228,22 @@ export default function JobDiscovery() {
       </div>
 
       {viewMode === 'for_you' && !hasPreferences && (
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+        <div className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted">
           Add desired roles or skills in Preferences to personalize this view — showing the full database inventory for now.
         </div>
       )}
 
       {viewMode === 'for_you' && hasPreferences && (
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-muted)]">
+        <div className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted">
           For You shows titles matching your saved roles or skills: {[...(preferences?.desired_roles ?? []), ...(preferences?.skills ?? [])].join(', ')}.{' '}
-          <button className="text-[var(--color-signal)] underline" onClick={() => setViewMode('all')}>
+          <button className="text-signal underline" onClick={() => setViewMode('all')}>
             See all jobs
           </button>
         </div>
       )}
 
       {!isError && <div className="flex-1 min-w-[240px]">
-        <p className="text-sm text-[var(--color-text-muted)]">
+        <p className="text-sm text-text-muted">
           {total > 0
             ? `${total} ${viewMode === 'for_you' ? 'matching' : ''} job${total === 1 ? '' : 's'} in the database`
             : 'No jobs found — sources refresh automatically every 24 hours'}
@@ -252,26 +252,26 @@ export default function JobDiscovery() {
 
       <Card className="p-4 sm:p-5 flex flex-col gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">Filter jobs</h2>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">Choose a category, work mode, or employment type.</p>
+          <h2 className="text-sm font-semibold text-text-primary">Filter jobs</h2>
+          <p className="mt-1 text-xs text-text-muted">Choose a category, work mode, or employment type.</p>
         </div>
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-text-muted">
               Role category
               <select value={jobType} onChange={(e) => setJobType(e.target.value)} className={selectClass()}>
                 <option value="">All categories</option>
                 {JOB_CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-text-muted">
               Work mode
               <select value={workMode} onChange={(e) => setWorkMode(e.target.value)} className={selectClass()}>
                 <option value="">Any work mode</option>
                 {WORK_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-1.5 text-xs font-medium text-[var(--color-text-muted)]">
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-text-muted">
               Employment type
               <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={selectClass()}>
                 <option value="">Any employment type</option>
@@ -324,7 +324,7 @@ export default function JobDiscovery() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
                   transition={{ type: 'spring', stiffness: 260, damping: 27, delay: reduceMotion ? 0 : Math.min(index, 8) * 0.035 }}
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-5 cursor-pointer hover:border-[var(--color-border-hover)] transition-colors"
+                  className="rounded-2xl border border-border bg-surface/60 p-5 cursor-pointer hover:border-border-hover transition-colors"
                   onClick={() => setSelectedJob(job)}
                   tabIndex={0}
                   role="button"
@@ -333,7 +333,7 @@ export default function JobDiscovery() {
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm font-medium text-[var(--color-text-primary)]">{job.job_title}</h3>
+                        <h3 className="text-sm font-medium text-text-primary">{job.job_title}</h3>
                         {isSaved && (
                           <Badge tone="signal">
                             <CheckCircle2 size={11} className="mr-1 inline" />
@@ -341,7 +341,7 @@ export default function JobDiscovery() {
                           </Badge>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-[var(--color-text-muted)]">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-text-muted">
                         <span className="flex items-center gap-1">
                           <Building2 size={12} />
                           {job.company_name}
@@ -379,7 +379,7 @@ export default function JobDiscovery() {
             })}
           </motion.div>
 
-          <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+          <div className="flex items-center justify-between text-xs text-text-muted">
             <span>{total > 0 ? `Showing ${rangeStart}-${rangeEnd} of ${total}` : ''}</span>
             <div className="flex items-center gap-2">
               <Button
@@ -406,7 +406,7 @@ export default function JobDiscovery() {
           <ErrorBanner message="Couldn't load this job's details. Please try again." />
         ) : detailJob && (
           <div className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--color-text-muted)]">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-muted">
               <span className="flex items-center gap-1">
                 <Building2 size={13} />
                 {detailJob.company_name}
@@ -433,19 +433,19 @@ export default function JobDiscovery() {
 
             {detailJob.description && (
               <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Description</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.description)}</p>
+                <h4 className="text-xs font-medium text-text-muted mb-1">Description</h4>
+                <p className="text-sm leading-6 text-text-primary whitespace-pre-wrap break-words">{readableJobText(detailJob.description)}</p>
               </div>
             )}
             {detailJob.responsibilities && (
               <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Responsibilities</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.responsibilities)}</p>
+                <h4 className="text-xs font-medium text-text-muted mb-1">Responsibilities</h4>
+                <p className="text-sm leading-6 text-text-primary whitespace-pre-wrap break-words">{readableJobText(detailJob.responsibilities)}</p>
               </div>
             )}
             {detailJob.required_skills.length > 0 && (
               <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Required skills</h4>
+                <h4 className="text-xs font-medium text-text-muted mb-1">Required skills</h4>
                 <div className="flex flex-wrap gap-1.5">
                   {detailJob.required_skills.map((s) => (
                     <Badge key={s} tone="neutral">{s}</Badge>
@@ -455,26 +455,26 @@ export default function JobDiscovery() {
             )}
             {detailJob.qualifications && (
               <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Qualifications</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.qualifications)}</p>
+                <h4 className="text-xs font-medium text-text-muted mb-1">Qualifications</h4>
+                <p className="text-sm leading-6 text-text-primary whitespace-pre-wrap break-words">{readableJobText(detailJob.qualifications)}</p>
               </div>
             )}
             {detailJob.benefits && (
               <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Benefits</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.benefits)}</p>
+                <h4 className="text-xs font-medium text-text-muted mb-1">Benefits</h4>
+                <p className="text-sm leading-6 text-text-primary whitespace-pre-wrap break-words">{readableJobText(detailJob.benefits)}</p>
               </div>
             )}
             {detailJob.company_info && (
               <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">About the company</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.company_info)}</p>
+                <h4 className="text-xs font-medium text-text-muted mb-1">About the company</h4>
+                <p className="text-sm leading-6 text-text-primary whitespace-pre-wrap break-words">{readableJobText(detailJob.company_info)}</p>
               </div>
             )}
 
             {detailJob.sources.length > 0 && (
               <div>
-                <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Sources</h4>
+                <h4 className="text-xs font-medium text-text-muted mb-1">Sources</h4>
                 <div className="flex flex-col gap-1">
                   {detailJob.sources.map((s) => (
                     <a
@@ -482,7 +482,7 @@ export default function JobDiscovery() {
                       href={s.platform_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-[var(--color-signal)] hover:underline"
+                      className="flex items-center gap-1.5 text-xs text-signal hover:underline"
                     >
                       {s.platform}
                       <ExternalLink size={11} />
@@ -494,7 +494,7 @@ export default function JobDiscovery() {
 
             {saveMutation.isError && <ErrorBanner message="Couldn't save this job to your tracker." />}
 
-            <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-border)]">
+            <div className="flex items-center gap-2 pt-2 border-t border-border">
               <a href={detailJob.original_apply_url} target="_blank" rel="noreferrer" className="flex-1">
                 <Button variant="secondary" className="w-full">
                   <ExternalLink size={14} />

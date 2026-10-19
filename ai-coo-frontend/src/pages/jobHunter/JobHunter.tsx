@@ -10,7 +10,7 @@ import ApplicationTracker from './ApplicationTracker'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -62,16 +62,16 @@ export default function JobHunter() {
     <div className="p-6 md:p-8 max-w-6xl mx-auto flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="font-display text-2xl font-semibold text-text-primary">
             Job Hunter
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 text-sm text-text-muted">
             Discover roles and keep the jobs you want to revisit
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 border-b border-[var(--color-border)]">
+      <div className="flex items-center gap-1 border-b border-border">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -79,8 +79,8 @@ export default function JobHunter() {
             className={cn(
               'flex items-center gap-1.5 px-3.5 py-2.5 text-sm border-b-2 -mb-px transition-colors',
               tab === t.key
-                ? 'border-[var(--color-signal)] text-[var(--color-signal)]'
-                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                ? 'border-signal text-signal'
+                : 'border-transparent text-text-muted hover:text-text-primary'
             )}
           >
             <t.icon size={14} />

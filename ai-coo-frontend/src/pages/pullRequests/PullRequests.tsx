@@ -13,7 +13,7 @@ import PRDetailDrawer from './PRDetailDrawer'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -61,42 +61,42 @@ export default function PullRequests() {
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reduceMotion ? 0 : 0.35 }}
-        className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-signal-dim)]/70 via-[var(--color-surface)] to-[var(--color-surface)] px-5 py-6 sm:px-7"
+        className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-signal-dim/70 via-surface to-surface px-5 py-6 sm:px-7"
       >
-        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-24 h-56 w-56 rounded-full bg-[var(--color-signal)]/[0.07] blur-3xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-24 h-56 w-56 rounded-full bg-signal/7 blur-3xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[var(--color-signal)]/20 bg-[var(--color-void)]/60 text-[var(--color-signal)]"><GitPullRequest size={21} /></span>
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-signal/20 bg-void/60 text-signal"><GitPullRequest size={21} /></span>
             <div>
-              <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">Pull Requests</h1>
-              <p className="mt-1 text-sm text-[var(--color-text-muted)]">Review changes, track feedback, and follow merges.</p>
+              <h1 className="font-display text-2xl font-semibold text-text-primary">Pull Requests</h1>
+              <p className="mt-1 text-sm text-text-muted">Review changes, track feedback, and follow merges.</p>
             </div>
           </div>
-          {data && <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-void)]/50 px-3 py-1.5 text-xs text-[var(--color-text-muted)]">{data.total_count} total</span>}
+          {data && <span className="rounded-full border border-border bg-void/50 px-3 py-1.5 text-xs text-text-muted">{data.total_count} total</span>}
         </div>
       </motion.header>
 
-      <motion.div initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.05 }} className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/65 p-3">
+      <motion.div initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.05 }} className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface/65 p-3">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search pull requests..."
-            className="w-64 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-8 pr-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]"
+            className="w-64 rounded-lg border border-border bg-surface pl-8 pr-3 py-2 text-sm text-text-primary placeholder:text-text-faint focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal"
           />
         </div>
         <select
           value={view}
           onChange={(e) => setView(e.target.value as PRView)}
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)]"
+          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-signal"
         >
           {VIEW_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
         {isFetching && !isLoading && (
-          <span className="text-xs text-[var(--color-text-faint)]">Refreshing…</span>
+          <span className="text-xs text-text-faint">Refreshing…</span>
         )}
       </motion.div>
 
@@ -121,7 +121,7 @@ export default function PullRequests() {
           <AnimatePresence mode="popLayout" initial={false}>
           {items.map((pr, index) => (
             <motion.div key={pr.repo_full_name + '#' + pr.number} layout initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -8 }} transition={{ duration: reduceMotion ? 0 : 0.25, delay: reduceMotion ? 0 : Math.min(index * 0.035, 0.2) }} whileHover={reduceMotion ? undefined : { y: -2 }}>
-            <Card className="p-5 transition-colors hover:border-[var(--color-border-hover)]">
+            <Card className="p-5 transition-colors hover:border-border-hover">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -130,7 +130,7 @@ export default function PullRequests() {
                         const parts = splitRepoFullName(pr.repo_full_name)
                         setSelected({ owner: parts[0], repo: parts[1], number: pr.number })
                       }}
-                      className="text-sm font-medium text-[var(--color-text-primary)] hover:underline text-left"
+                      className="text-sm font-medium text-text-primary hover:underline text-left"
                     >
                       {pr.title}
                     </button>
@@ -139,15 +139,15 @@ export default function PullRequests() {
                       <Badge key={l} tone="neutral">{l}</Badge>
                     ))}
                   </div>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                  <p className="text-xs text-text-muted mt-1">
                     {pr.repo_full_name} · #{pr.number} · by {pr.author.login}
                   </p>
-                  <p className="text-[11px] text-[var(--color-text-faint)] mt-1">
+                  <p className="text-[11px] text-text-faint mt-1">
                     updated {formatDistanceToNow(new Date(pr.updated_at), { addSuffix: true })}
                     {pr.comments_count > 0 ? ' · ' + pr.comments_count + ' comments' : ''}
                   </p>
                 </div>
-                <a href={pr.html_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] transition-colors shrink-0" title="Open on GitHub">
+                <a href={pr.html_url} target="_blank" rel="noreferrer" className="text-text-faint hover:text-text-primary transition-colors shrink-0" title="Open on GitHub">
                   <ExternalLink size={14} />
                 </a>
               </div>

@@ -66,16 +66,16 @@ export default function Login() {
   return (
     <AuthShell>
         <div className="mb-8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-signal)]">Welcome back</p>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">Sign in to WorkForge</h1>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-signal">Welcome back</p>
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">Sign in to WorkForge</h1>
         </div>
 
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-8 rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-7 pb-10 shadow-xl shadow-black/10 sm:px-9 sm:pt-12 sm:pb-14"
+          className="flex flex-col gap-8 rounded-[1.75rem] border border-border bg-surface/75 p-7 pb-10 shadow-xl shadow-black/10 sm:px-9 sm:pt-12 sm:pb-14"
         >
           {serverError && (
-            <div role="alert" className="rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-sm text-[var(--color-alert)]">
+            <div role="alert" className="rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-sm text-alert">
               {serverError}
             </div>
           )}
@@ -105,7 +105,7 @@ export default function Login() {
             <button
               type="button"
               onClick={handleForgotPassword}
-              className="text-[var(--color-signal)] hover:brightness-110 transition-all"
+              className="text-signal hover:brightness-110 transition-all"
             >
               Forgot password?
             </button>
@@ -116,9 +116,9 @@ export default function Login() {
 
         </form>
 
-        <p className="mt-7 text-center text-sm text-[var(--color-text-muted)]">
+        <p className="mt-7 text-center text-sm text-text-muted">
           Don't have an account?{' '}
-          <Link to="/signup" className="font-semibold text-[var(--color-signal)] hover:brightness-110 transition-all">
+          <Link to="/signup" className="font-semibold text-signal hover:brightness-110 transition-all">
             Create an account
           </Link>
         </p>

@@ -22,7 +22,7 @@ export default function BrandLogo({ className, compact = false, size = 'md', to 
         alt=""
         className={compact ? 'h-8 w-8 shrink-0' : cn('shrink-0 object-contain', MARK_SIZE[size])}
       />
-      {!compact && <span className="truncate font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--color-text-primary)]">WorkForge</span>}
+      {!compact && <span className="truncate font-display text-lg font-semibold tracking-tight text-text-primary">WorkForge</span>}
     </Link>
   )
 }

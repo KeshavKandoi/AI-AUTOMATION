@@ -15,15 +15,15 @@ const EMPLOYMENT_TYPES = ['Internship', 'Full-time', 'Part-time', 'Contract', 'F
 const WORK_MODES = ['Remote', 'Hybrid', 'Onsite']
 
 function labelClass() {
-  return 'text-sm font-medium text-[var(--color-text-muted)]'
+  return 'text-sm font-medium text-text-muted'
 }
 function selectClass() {
-  return 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]'
+  return 'w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal'
 }
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -132,10 +132,10 @@ export default function JobHunterOnboarding({ existing, onSaved }: JobHunterOnbo
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto">
       <div className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+        <h1 className="font-display text-2xl font-semibold text-text-primary">
           {isEdit ? 'Edit Job Hunter preferences' : 'Set up Job Hunter'}
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+        <p className="mt-1 text-sm text-text-muted">
           {isEdit
             ? 'Update your profile and search preferences.'
             : "Tell us what you're looking for and we'll start discovering matching jobs."}
@@ -192,8 +192,8 @@ export default function JobHunterOnboarding({ existing, onSaved }: JobHunterOnbo
                 onClick={() => toggleInList(employmentTypes, setEmploymentTypes, type)}
                 className={
                   employmentTypes.includes(type)
-                    ? 'rounded-lg border border-[var(--color-signal)] bg-[var(--color-signal-dim)] text-[var(--color-signal)] px-3 py-1.5 text-xs'
-                    : 'rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] px-3 py-1.5 text-xs hover:border-[var(--color-border-hover)]'
+                    ? 'rounded-lg border border-signal bg-signal-dim text-signal px-3 py-1.5 text-xs'
+                    : 'rounded-lg border border-border text-text-muted px-3 py-1.5 text-xs hover:border-border-hover'
                 }
               >
                 {type}
@@ -212,8 +212,8 @@ export default function JobHunterOnboarding({ existing, onSaved }: JobHunterOnbo
                 onClick={() => toggleInList(workModes, setWorkModes, mode)}
                 className={
                   workModes.includes(mode)
-                    ? 'rounded-lg border border-[var(--color-signal)] bg-[var(--color-signal-dim)] text-[var(--color-signal)] px-3 py-1.5 text-xs'
-                    : 'rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] px-3 py-1.5 text-xs hover:border-[var(--color-border-hover)]'
+                    ? 'rounded-lg border border-signal bg-signal-dim text-signal px-3 py-1.5 text-xs'
+                    : 'rounded-lg border border-border text-text-muted px-3 py-1.5 text-xs hover:border-border-hover'
                 }
               >
                 {mode}
@@ -267,13 +267,13 @@ export default function JobHunterOnboarding({ existing, onSaved }: JobHunterOnbo
             <button
               type="button"
               onClick={addHighlight}
-              className="text-xs text-[var(--color-signal)] hover:underline"
+              className="text-xs text-signal hover:underline"
             >
               + Add highlight
             </button>
           </div>
           {projectHighlights.map((h, i) => (
-            <div key={i} className="rounded-lg border border-[var(--color-border)] p-3 flex flex-col gap-2">
+            <div key={i} className="rounded-lg border border-border p-3 flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Project title"
@@ -284,7 +284,7 @@ export default function JobHunterOnboarding({ existing, onSaved }: JobHunterOnbo
                 <button
                   type="button"
                   onClick={() => removeHighlight(i)}
-                  className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)] text-xs shrink-0"
+                  className="text-text-faint hover:text-alert text-xs shrink-0"
                 >
                   Remove
                 </button>
@@ -294,7 +294,7 @@ export default function JobHunterOnboarding({ existing, onSaved }: JobHunterOnbo
                 value={h.description}
                 onChange={(e) => updateHighlight(i, 'description', e.target.value)}
                 rows={2}
-                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)] resize-none"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-faint focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal resize-none"
               />
             </div>
           ))}

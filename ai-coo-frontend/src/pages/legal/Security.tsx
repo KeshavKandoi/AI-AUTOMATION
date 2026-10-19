@@ -79,7 +79,7 @@ export default function Security() {
 
       <LegalSection number="8" title="Related Reading">
         <p>
-          See our <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110">Privacy Policy</Link> for Google data use, retention, and deletion details, and our <Link to="/terms" className="text-[var(--color-signal)] hover:brightness-110">Terms of Service</Link> for the terms that apply to connected services.
+          See our <Link to="/privacy" className="text-signal hover:brightness-110">Privacy Policy</Link> for Google data use, retention, and deletion details, and our <Link to="/terms" className="text-signal hover:brightness-110">Terms of Service</Link> for the terms that apply to connected services.
         </p>
       </LegalSection>
     </LegalPageLayout>

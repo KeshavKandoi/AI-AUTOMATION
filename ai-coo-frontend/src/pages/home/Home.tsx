@@ -75,7 +75,7 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(0)
 
   return (
-    <div className="home-page min-h-screen overflow-hidden bg-[var(--color-void)] text-[var(--color-text-primary)]">
+    <div className="home-page min-h-screen overflow-hidden bg-void text-text-primary">
       <MarketingHeader />
 
       <main>
@@ -86,20 +86,20 @@ export default function Home() {
           </div>
           <div className="mx-auto grid max-w-7xl items-start gap-10 px-5 pb-16 pt-16 sm:px-8 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20 lg:pt-24">
             <div>
-              <h1 className="max-w-2xl font-[family-name:var(--font-display)] text-4xl font-semibold leading-[1.06] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
+              <h1 className="max-w-2xl font-display text-4xl font-semibold leading-[1.06] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
                 <span className="block">Turn project activity</span>
-                <span className="block">into <span className="text-[var(--color-signal)]">action.</span></span>
+                <span className="block">into <span className="text-signal">action.</span></span>
               </h1>
-              <p className="mt-6 max-w-xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg sm:leading-8">
+              <p className="mt-6 max-w-xl text-base leading-7 text-text-muted sm:text-lg sm:leading-8">
                 Connect GitHub and the tools your team relies on. Build workflows that turn repository events into tasks, emails, scheduled commits, and team notifications—with conditions and clear task review.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 {isAuthenticated ? (
-                  <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-signal)] px-5 py-3.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Open workspace <ArrowRight size={16} /></Link>
+                  <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3.5 text-sm font-semibold text-void transition hover:brightness-110">Open workspace <ArrowRight size={16} /></Link>
                 ) : (
-                  <Link to="/signup" className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-signal)] px-5 py-3.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Create your workspace <ArrowRight size={16} /></Link>
+                  <Link to="/signup" className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3.5 text-sm font-semibold text-void transition hover:brightness-110">Create your workspace <ArrowRight size={16} /></Link>
                 )}
-                <Link to="/how-it-works" className="inline-flex items-center rounded-xl border border-[var(--color-border)] px-5 py-3.5 text-sm font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]">See how it works</Link>
+                <Link to="/how-it-works" className="inline-flex items-center rounded-xl border border-border px-5 py-3.5 text-sm font-semibold text-text-primary transition hover:border-border-hover hover:bg-surface">See how it works</Link>
               </div>
             </div>
 
@@ -119,9 +119,9 @@ export default function Home() {
                   const feature = orbitalFeatures[index]
                   const FeatureIcon = feature.icon
                   return (
-                    <div className="star-border-card flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl bg-[var(--color-surface)] px-2 text-[var(--color-signal)] shadow-xl shadow-black/30">
+                    <div className="star-border-card flex h-full w-full flex-col items-center justify-center gap-2 rounded-2xl bg-surface px-2 text-signal shadow-xl shadow-black/30">
                       <FeatureIcon size={28} />
-                      <span className="text-center text-[11px] font-medium leading-tight text-[var(--color-text-primary)]">{feature.name}</span>
+                      <span className="text-center text-[11px] font-medium leading-tight text-text-primary">{feature.name}</span>
                     </div>
                   )
                 }}
@@ -146,19 +146,19 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="scroll-mt-24 bg-[var(--color-surface)]/25">
+        <section id="features" className="scroll-mt-24 bg-surface/25">
           <div className="mx-auto max-w-7xl px-5 pb-20 pt-10 sm:px-8 sm:pt-12 lg:pb-24">
             <div className="max-w-2xl">
-              <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Less repetitive work. More visibility.</h2>
-              <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Bring project events and operational follow-up into workflows you can configure and review.</p>
+              <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Less repetitive work. More visibility.</h2>
+              <p className="mt-4 text-sm leading-6 text-text-muted sm:text-base">Bring project events and operational follow-up into workflows you can configure and review.</p>
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((feature, index) => (
                 <AnimatedContent key={feature.title} delay={index * 0.04}>
-                  <article className="group h-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-void)]/70 p-5 transition duration-200 hover:-translate-y-1 hover:border-[var(--color-signal)]/40 hover:bg-[var(--color-surface)]/70 sm:p-6">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-signal-dim)] text-[var(--color-signal)]"><feature.icon size={18} /></span>
+                  <article className="group h-full rounded-2xl border border-border bg-void/70 p-5 transition duration-200 hover:-translate-y-1 hover:border-signal/40 hover:bg-surface/70 sm:p-6">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-signal-dim text-signal"><feature.icon size={18} /></span>
                     <h3 className="mt-5 text-base font-semibold">{feature.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">{feature.description}</p>
+                    <p className="mt-2 text-sm leading-6 text-text-muted">{feature.description}</p>
                   </article>
                 </AnimatedContent>
               ))}
@@ -169,22 +169,22 @@ export default function Home() {
         <section id="product-preview" className="mx-auto max-w-7xl scroll-mt-24 px-5 py-16 sm:px-8 lg:py-20">
           <AnimatedContent>
             <div className="mx-auto max-w-3xl text-center">
-              <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">See how one event becomes an action.</h2>
-              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Explore examples of triggers, conditions, task creation, and actions you can configure in WorkForge.</p>
+              <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">See how one event becomes an action.</h2>
+              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-text-muted sm:text-base">Explore examples of triggers, conditions, task creation, and actions you can configure in WorkForge.</p>
             </div>
             <WorkflowShowcase />
           </AnimatedContent>
         </section>
 
         <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-20">
-          <AnimatedContent className="relative overflow-hidden rounded-[1.75rem] border border-[var(--color-signal)]/20 bg-gradient-to-br from-[var(--color-signal-dim)] via-[var(--color-surface)] to-[var(--color-surface)] p-7 sm:p-10 lg:p-12">
+          <AnimatedContent className="relative overflow-hidden rounded-[1.75rem] border border-signal/20 bg-gradient-to-br from-signal-dim via-surface to-surface p-7 sm:p-10 lg:p-12">
             <div aria-hidden="true" className="absolute -right-10 -top-24 h-72 w-72 rounded-full bg-pink-300/[0.09] blur-3xl" />
             <div className="relative flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
-              <div className="max-w-2xl"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">Start with one workflow</p><h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Put your repeatable work on a clear path.</h2><p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Connect a service, choose what should trigger, and keep the results visible.</p></div>
+              <div className="max-w-2xl"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-signal">Start with one workflow</p><h2 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Put your repeatable work on a clear path.</h2><p className="mt-3 text-sm leading-6 text-text-muted">Connect a service, choose what should trigger, and keep the results visible.</p></div>
               {isAuthenticated ? (
-                <Link to="/dashboard" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--color-signal)] px-5 py-3.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Open workspace <ArrowRight size={16} /></Link>
+                <Link to="/dashboard" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3.5 text-sm font-semibold text-void transition hover:brightness-110">Open workspace <ArrowRight size={16} /></Link>
               ) : (
-                <Link to="/signup" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--color-signal)] px-5 py-3.5 text-sm font-semibold text-[var(--color-void)] transition hover:brightness-110">Create your workspace <ArrowRight size={16} /></Link>
+                <Link to="/signup" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3.5 text-sm font-semibold text-void transition hover:brightness-110">Create your workspace <ArrowRight size={16} /></Link>
               )}
             </div>
           </AnimatedContent>
@@ -192,22 +192,22 @@ export default function Home() {
 
         <section aria-labelledby="faq-heading" className="mx-auto max-w-7xl px-5 pb-20 pt-8 sm:px-8 lg:pb-24">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 id="faq-heading" className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Get to know WorkForge.</h2>
-            <p className="mt-4 text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">A few quick answers about connecting services and running workflows.</p>
+            <h2 id="faq-heading" className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Get to know WorkForge.</h2>
+            <p className="mt-4 text-sm leading-6 text-text-muted sm:text-base">A few quick answers about connecting services and running workflows.</p>
           </div>
           <div className="mx-auto mt-9 grid max-w-4xl gap-3">
             {FAQS.map((faq, index) => {
               const isOpen = openFaq === index
               return (
-                <div key={faq.question} className={`overflow-hidden rounded-2xl border transition-colors ${isOpen ? 'border-[var(--color-signal)]/30 bg-[var(--color-surface)]' : 'border-[var(--color-border)] bg-[var(--color-surface)]/55'}`}>
+                <div key={faq.question} className={`overflow-hidden rounded-2xl border transition-colors ${isOpen ? 'border-signal/30 bg-surface' : 'border-border bg-surface/55'}`}>
                   <button type="button" className="flex w-full items-center justify-between gap-5 px-5 py-5 text-left sm:px-6" aria-expanded={isOpen} aria-controls={`faq-answer-${index}`} onClick={() => setOpenFaq(isOpen ? null : index)}>
                     <span className="font-semibold">{faq.question}</span>
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/70 text-[var(--color-signal)] transition-transform ${isOpen ? 'rotate-180' : ''}`}><ChevronDown size={18} /></span>
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-void/70 text-signal transition-transform ${isOpen ? 'rotate-180' : ''}`}><ChevronDown size={18} /></span>
                   </button>
                   <AnimatePresence initial={false}>
                     {isOpen && (
                       <motion.div id={`faq-answer-${index}`} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 34 }}>
-                        <p id={`faq-answer-${index}`} className="px-5 pb-5 text-sm leading-7 text-[var(--color-text-muted)] sm:px-6 sm:pb-6">{faq.answer}{index === 4 && <> Visit <Link to="/google-data" className="text-[var(--color-signal)] underline underline-offset-4">Google data use</Link> for requested scopes and details.</>}</p>
+                        <p id={`faq-answer-${index}`} className="px-5 pb-5 text-sm leading-7 text-text-muted sm:px-6 sm:pb-6">{faq.answer}{index === 4 && <> Visit <Link to="/google-data" className="text-signal underline underline-offset-4">Google data use</Link> for requested scopes and details.</>}</p>
                       </motion.div>
                     )}
                   </AnimatePresence>

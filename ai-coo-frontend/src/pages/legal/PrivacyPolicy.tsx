@@ -58,7 +58,7 @@ export default function PrivacyPolicy() {
         <p>
           WorkForge&apos;s use and transfer of information received from Google APIs adheres to the{' '}
           <a
-            className="text-[var(--color-signal)] underline"
+            className="text-signal underline"
             href="https://developers.google.com/terms/api-services-user-data-policy"
             target="_blank"
             rel="noreferrer"
@@ -131,7 +131,7 @@ export default function PrivacyPolicy() {
           workflows, integrations, and history are kept for them; audit entries are retained with
           your user attribution removed. If the deletion process reports an error, some records may
           already have been removed, so contact support at{' '}
-          <a className="text-[var(--color-signal)] underline" href="mailto:testerappp2001@gmail.com">
+          <a className="text-signal underline" href="mailto:testerappp2001@gmail.com">
             testerappp2001@gmail.com
           </a>{' '}
           to request help completing or reviewing the deletion. You can also request deletion at
@@ -155,12 +155,12 @@ export default function PrivacyPolicy() {
         <p>
           You can disconnect an integration in WorkForge, delete your account in Settings, or
           contact us at{' '}
-          <a className="text-[var(--color-signal)] underline" href="mailto:testerappp2001@gmail.com">
+          <a className="text-signal underline" href="mailto:testerappp2001@gmail.com">
             testerappp2001@gmail.com
           </a>
           . You can manage or revoke WorkForge&apos;s access in your{' '}
           <a
-            className="text-[var(--color-signal)] underline"
+            className="text-signal underline"
             href="https://myaccount.google.com/permissions"
             target="_blank"
             rel="noreferrer"

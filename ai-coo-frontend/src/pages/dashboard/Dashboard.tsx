@@ -64,8 +64,8 @@ export default function Dashboard() {
   const activeJobs = scheduler?.jobs.length ?? 0
   const connectedCount = (integrations?.filter((i) => i.provider !== 'discord' && i.connected).length ?? 0) + (discordStatus.data?.configured ? 1 : 0)
 
-  const panelClass = 'rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 backdrop-blur-xl shadow-[0_18px_55px_-38px_rgba(0,0,0,0.8)]'
-  const sectionHeadingClass = 'text-sm font-semibold tracking-wide text-[var(--color-text-primary)]'
+  const panelClass = 'rounded-2xl border border-border bg-surface/70 backdrop-blur-xl shadow-[0_18px_55px_-38px_rgba(0,0,0,0.8)]'
+  const sectionHeadingClass = 'text-sm font-semibold tracking-wide text-text-primary'
   const rowMotion = {
     initial: reduceMotion ? false : { opacity: 0, y: 8 },
     animate: { opacity: 1, y: 0 },
@@ -76,10 +76,10 @@ export default function Dashboard() {
     <div className="mx-auto flex max-w-7xl flex-col gap-5 p-5 md:gap-6 md:p-8">
       <header className="flex flex-col gap-1">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="font-display text-2xl font-semibold text-text-primary">
             Dashboard
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 text-sm text-text-muted">
             Your workspace at a glance
           </p>
         </div>
@@ -102,31 +102,31 @@ export default function Dashboard() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className={sectionHeadingClass}>Recent tasks</h2>
-              <p className="mt-1 text-xs text-[var(--color-text-faint)]">The latest work across your workspace</p>
+              <p className="mt-1 text-xs text-text-faint">The latest work across your workspace</p>
             </div>
-            <ListTodo size={16} className="text-[var(--color-signal)]" />
+            <ListTodo size={16} className="text-signal" />
           </div>
           {tasksLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-10 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+                <div key={i} className="h-10 rounded-lg bg-surface-hover animate-pulse" />
               ))}
             </div>
           ) : tasks && tasks.length > 0 ? (
-            <div className="flex flex-col divide-y divide-[var(--color-border)]">
+            <div className="flex flex-col divide-y divide-border">
               {tasks.slice(0, 6).map((task) => (
-                <motion.div key={task.id} {...rowMotion} whileHover={reduceMotion ? undefined : { x: 3 }} className="group -mx-2 flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-[var(--color-surface-hover)]/70">
+                <motion.div key={task.id} {...rowMotion} whileHover={reduceMotion ? undefined : { x: 3 }} className="group -mx-2 flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-surface-hover/70">
                   <div className="min-w-0">
-                    <p className="text-sm text-[var(--color-text-primary)] truncate">{task.title}</p>
-                    <p className="mt-0.5 text-xs text-[var(--color-text-faint)] font-mono">{task.source}</p>
+                    <p className="text-sm text-text-primary truncate">{task.title}</p>
+                    <p className="mt-0.5 text-xs text-text-faint font-mono">{task.source}</p>
                   </div>
                   <span
                     className={
                       task.priority === 'high'
-                        ? 'text-[10px] uppercase tracking-wide text-[var(--color-alert)] bg-[var(--color-alert-dim)] rounded px-2 py-1 shrink-0'
+                        ? 'text-[10px] uppercase tracking-wide text-alert bg-alert-dim rounded px-2 py-1 shrink-0'
                         : task.priority === 'medium'
-                        ? 'text-[10px] uppercase tracking-wide text-[var(--color-amber)] bg-[var(--color-amber-dim)] rounded px-2 py-1 shrink-0'
-                        : 'text-[10px] uppercase tracking-wide text-[var(--color-text-muted)] bg-[var(--color-surface-hover)] rounded px-2 py-1 shrink-0'
+                        ? 'text-[10px] uppercase tracking-wide text-amber bg-amber-dim rounded px-2 py-1 shrink-0'
+                        : 'text-[10px] uppercase tracking-wide text-text-muted bg-surface-hover rounded px-2 py-1 shrink-0'
                     }
                   >
                     {task.priority}
@@ -135,7 +135,7 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[var(--color-text-faint)]">No tasks yet.</p>
+            <p className="text-sm text-text-faint">No tasks yet.</p>
           )}
         </div>
 
@@ -143,36 +143,36 @@ export default function Dashboard() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className={sectionHeadingClass}>Integrations</h2>
-              <p className="mt-1 text-xs text-[var(--color-text-faint)]">Your connected services</p>
+              <p className="mt-1 text-xs text-text-faint">Your connected services</p>
             </div>
-            <Plug size={16} className="text-[var(--color-signal)]" />
+            <Plug size={16} className="text-signal" />
           </div>
           {integrationsLoading || discordStatus.isLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-9 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+                <div key={i} className="h-9 rounded-lg bg-surface-hover animate-pulse" />
               ))}
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               {(integrations ?? []).filter((i) => i.provider !== 'discord').map((i) => (
-                <motion.div key={i.id} {...rowMotion} className="flex items-center justify-between rounded-xl px-2 py-3 hover:bg-[var(--color-surface-hover)]/70">
-                  <span className="text-sm text-[var(--color-text-primary)]">
+                <motion.div key={i.id} {...rowMotion} className="flex items-center justify-between rounded-xl px-2 py-3 hover:bg-surface-hover/70">
+                  <span className="text-sm text-text-primary">
                     {PROVIDER_LABELS[i.provider] ?? i.provider}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span
                       className={
                         i.connected
-                          ? 'h-1.5 w-1.5 rounded-full bg-[var(--color-signal)] animate-pulse-signal'
-                          : 'h-1.5 w-1.5 rounded-full bg-[var(--color-text-faint)]'
+                          ? 'h-1.5 w-1.5 rounded-full bg-signal animate-pulse-signal'
+                          : 'h-1.5 w-1.5 rounded-full bg-text-faint'
                       }
                     />
                     <span
                       className={
                         i.connected
-                          ? 'text-xs text-[var(--color-signal)]'
-                          : 'text-xs text-[var(--color-text-faint)]'
+                          ? 'text-xs text-signal'
+                          : 'text-xs text-text-faint'
                       }
                     >
                       {i.connected ? 'Connected' : 'Disconnected'}
@@ -180,9 +180,9 @@ export default function Dashboard() {
                   </span>
                 </motion.div>
               ))}
-              <div className="flex items-center justify-between rounded-xl px-2 py-3 hover:bg-[var(--color-surface-hover)]/70">
-                <span className="text-sm text-[var(--color-text-primary)]">Discord</span>
-                <span className={discordStatus.isError ? 'text-xs text-[var(--color-alert)]' : discordStatus.data?.configured ? 'text-xs text-[var(--color-signal)]' : 'text-xs text-[var(--color-text-faint)]'}>
+              <div className="flex items-center justify-between rounded-xl px-2 py-3 hover:bg-surface-hover/70">
+                <span className="text-sm text-text-primary">Discord</span>
+                <span className={discordStatus.isError ? 'text-xs text-alert' : discordStatus.data?.configured ? 'text-xs text-signal' : 'text-xs text-text-faint'}>
                   {discordStatus.isError ? 'Status unavailable' : discordStatus.data?.configured ? 'Connected' : 'Not connected'}
                 </span>
               </div>
@@ -195,34 +195,34 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className={sectionHeadingClass}>Recent memories</h2>
-            <p className="mt-1 text-xs text-[var(--color-text-faint)]">Useful context saved for your workspace</p>
+            <p className="mt-1 text-xs text-text-faint">Useful context saved for your workspace</p>
           </div>
-          <Brain size={16} className="text-[var(--color-signal)]" />
+          <Brain size={16} className="text-signal" />
         </div>
         {memoriesLoading ? (
           <div className="space-y-2">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-9 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+              <div key={i} className="h-9 rounded-lg bg-surface-hover animate-pulse" />
             ))}
           </div>
         ) : recentMemories && recentMemories.length > 0 ? (
-          <div className="flex flex-col divide-y divide-[var(--color-border)]">
+          <div className="flex flex-col divide-y divide-border">
             {recentMemories.map((m: MemoryEntry) => {
               const Icon = getCategoryIcon(m.category)
               return (
                 <motion.div key={m.id} {...rowMotion} className="py-3 flex items-center gap-3">
-                  <Icon size={13} className="shrink-0 text-[var(--color-text-faint)]" />
-                  <span className="text-sm text-[var(--color-text-muted)] truncate flex-1 min-w-0">
+                  <Icon size={13} className="shrink-0 text-text-faint" />
+                  <span className="text-sm text-text-muted truncate flex-1 min-w-0">
                     {m.title ?? 'Untitled'}
                   </span>
-                  {m.pinned && <Pin size={11} className="text-[var(--color-signal)] shrink-0" fill="currentColor" />}
-                  {m.favorited && <Star size={11} className="text-[var(--color-amber)] shrink-0" fill="currentColor" />}
+                  {m.pinned && <Pin size={11} className="text-signal shrink-0" fill="currentColor" />}
+                  {m.favorited && <Star size={11} className="text-amber shrink-0" fill="currentColor" />}
                 </motion.div>
               )
             })}
           </div>
         ) : (
-          <p className="text-sm text-[var(--color-text-faint)]">No memories yet.</p>
+          <p className="text-sm text-text-faint">No memories yet.</p>
         )}
       </div>
 
@@ -230,18 +230,18 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className={sectionHeadingClass}>Recent activity</h2>
-            <p className="mt-1 text-xs text-[var(--color-text-faint)]">A timeline of what has happened</p>
+            <p className="mt-1 text-xs text-text-faint">A timeline of what has happened</p>
           </div>
-          <Activity size={16} className="text-[var(--color-signal)]" />
+          <Activity size={16} className="text-signal" />
         </div>
         {activityLoading ? (
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-8 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+              <div key={i} className="h-8 rounded-lg bg-surface-hover animate-pulse" />
             ))}
           </div>
         ) : activity && activity.length > 0 ? (
-          <div className="flex flex-col divide-y divide-[var(--color-border)]">
+          <div className="flex flex-col divide-y divide-border">
             {activity.map((log: AuditLogEntry, idx: number) => {
               const Icon = getModuleIcon(log.module)
               return (
@@ -250,13 +250,13 @@ export default function Dashboard() {
                   initial={reduceMotion ? false : { opacity: 0, y: 7 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: reduceMotion ? 0 : 0.25, delay: reduceMotion ? 0 : idx * 0.035 }}
-                  className="flex items-center justify-between gap-3 rounded-xl px-2 py-3 hover:bg-[var(--color-surface-hover)]/70"
+                  className="flex items-center justify-between gap-3 rounded-xl px-2 py-3 hover:bg-surface-hover/70"
                 >
-                  <span className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] min-w-0">
-                    <Icon size={13} className="shrink-0 text-[var(--color-text-faint)]" />
+                  <span className="flex items-center gap-2 text-sm text-text-muted min-w-0">
+                    <Icon size={13} className="shrink-0 text-text-faint" />
                     <span className="truncate">{log.summary ?? formatActionLabel(log.action)}</span>
                   </span>
-                  <span className="text-xs text-[var(--color-text-faint)] font-mono shrink-0">
+                  <span className="text-xs text-text-faint font-mono shrink-0">
                     {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
                   </span>
                 </motion.div>
@@ -264,7 +264,7 @@ export default function Dashboard() {
             })}
           </div>
         ) : (
-          <p className="text-sm text-[var(--color-text-faint)]">No activity yet.</p>
+          <p className="text-sm text-text-faint">No activity yet.</p>
         )}
       </div>
     </div>

@@ -52,7 +52,7 @@ function BreakdownTable({
 }) {
   return (
     <Card className="p-5">
-      <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-4">{title}</h2>
+      <h2 className="text-sm font-medium text-text-primary mb-4">{title}</h2>
       {items.length > 0 ? (
         <Table>
           <TableHead>
@@ -73,7 +73,7 @@ function BreakdownTable({
           </TableBody>
         </Table>
       ) : (
-        <p className="text-sm text-[var(--color-text-faint)] py-6 text-center">{emptyLabel}</p>
+        <p className="text-sm text-text-faint py-6 text-center">{emptyLabel}</p>
       )}
     </Card>
   )
@@ -101,24 +101,24 @@ export default function Analytics() {
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="font-display text-2xl font-semibold text-text-primary">
             Analytics
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 text-sm text-text-muted">
             Operational overview of WorkForge activity and performance
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex rounded-xl border border-[var(--color-border)] p-1 bg-[var(--color-surface)]/60">
+          <div className="flex rounded-xl border border-border p-1 bg-surface/60">
             {RANGE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setRange(opt.value)}
                 className={
                   opt.value === range
-                    ? 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-surface-hover)] text-[var(--color-text-primary)]'
-                    : 'px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                    ? 'px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-hover text-text-primary'
+                    : 'px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary'
                 }
               >
                 {opt.label}
@@ -128,7 +128,7 @@ export default function Analytics() {
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="h-8 w-8 flex items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+            className="h-8 w-8 flex items-center justify-center rounded-lg border border-border text-text-muted hover:text-text-primary disabled:opacity-50"
             aria-label="Refresh"
           >
             <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
@@ -145,7 +145,7 @@ export default function Analytics() {
             action={
               <button
                 onClick={() => refetch()}
-                className="mt-2 text-xs px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+                className="mt-2 text-xs px-3 py-1.5 rounded-lg border border-border text-text-primary hover:bg-surface-hover"
               >
                 Try again
               </button>
@@ -196,15 +196,15 @@ export default function Analytics() {
           <MagicBentoTile className="mb-6">
           <Card className="p-5 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Activity trend</h2>
+              <h2 className="text-sm font-medium text-text-primary">Activity trend</h2>
               {data && !data.activity_data_complete && (
-                <span className="text-[10px] uppercase tracking-wide text-[var(--color-amber)] bg-[var(--color-amber-dim)] rounded px-2 py-1">
+                <span className="text-[10px] uppercase tracking-wide text-amber bg-amber-dim rounded px-2 py-1">
                   Partial data — narrow the date range for full detail
                 </span>
               )}
             </div>
             {isLoading ? (
-              <div className="h-64 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+              <div className="h-64 rounded-lg bg-surface-hover animate-pulse" />
             ) : data && data.total_events > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={data.activity_trend}>
@@ -244,9 +244,9 @@ export default function Analytics() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <Card className="p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Activity by module</h2>
+                <h2 className="text-sm font-medium text-text-primary">Activity by module</h2>
                 {data && !data.activity_data_complete && (
-                  <span className="text-[10px] uppercase tracking-wide text-[var(--color-amber)] bg-[var(--color-amber-dim)] rounded px-2 py-1">
+                  <span className="text-[10px] uppercase tracking-wide text-amber bg-amber-dim rounded px-2 py-1">
                     Partial
                   </span>
                 )}
@@ -254,7 +254,7 @@ export default function Analytics() {
               {isLoading ? (
                 <div className="space-y-2">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-9 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+                    <div key={i} className="h-9 rounded-lg bg-surface-hover animate-pulse" />
                   ))}
                 </div>
               ) : data && data.module_breakdown.length > 0 ? (
@@ -275,23 +275,23 @@ export default function Analytics() {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-[var(--color-text-faint)] py-6 text-center">
+                <p className="text-sm text-text-faint py-6 text-center">
                   No module activity in this range.
                 </p>
               )}
             </Card>
 
             <Card className="p-5">
-              <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-4">Tasks by priority</h2>
+              <h2 className="text-sm font-medium text-text-primary mb-4">Tasks by priority</h2>
               {isLoading ? (
                 <div className="space-y-2">
                   {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-9 rounded-lg bg-[var(--color-surface-hover)] animate-pulse" />
+                    <div key={i} className="h-9 rounded-lg bg-surface-hover animate-pulse" />
                   ))}
                 </div>
               ) : data && data.tasks.total > 0 ? (
                 <>
-                  <div className="flex items-center gap-4 mb-4 text-xs text-[var(--color-text-muted)]">
+                  <div className="flex items-center gap-4 mb-4 text-xs text-text-muted">
                     <span>{data.tasks.total} total</span>
                     <span>{data.tasks.open} open</span>
                     <span>{data.tasks.resolved} resolved</span>
@@ -314,7 +314,7 @@ export default function Analytics() {
                   </Table>
                 </>
               ) : (
-                <p className="text-sm text-[var(--color-text-faint)] py-6 text-center">
+                <p className="text-sm text-text-faint py-6 text-center">
                   No tasks created in this range.
                 </p>
               )}
@@ -324,8 +324,8 @@ export default function Analytics() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <Workflow size={14} className="text-[var(--color-text-faint)]" />
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <Workflow size={14} className="text-text-faint" />
+                <span className="text-xs text-text-muted">
                   {data?.workflows.active_workflows ?? 0} of {data?.workflows.total_workflows ?? 0} workflows active
                   {data?.workflows.success_rate != null && ` — ${data.workflows.success_rate}% success rate`}
                 </span>
@@ -339,8 +339,8 @@ export default function Analytics() {
 
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <GitCommitHorizontal size={14} className="text-[var(--color-text-faint)]" />
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <GitCommitHorizontal size={14} className="text-text-faint" />
+                <span className="text-xs text-text-muted">
                   {data?.commit_scheduler.active_jobs ?? 0} of {data?.commit_scheduler.total_jobs ?? 0} jobs active
                   {data?.commit_scheduler.success_rate != null && ` — ${data.commit_scheduler.success_rate}% success rate`}
                 </span>

@@ -7,13 +7,13 @@ import DateTimePicker from '../src/components/ui/DateTimePicker'
 export function Harness() {
   const [start, setStart] = useState<Date | null>(null)
   const [end, setEnd] = useState<Date | null>(null)
-  return <main className="min-h-screen bg-[var(--color-void)] p-4">
+  return <main className="min-h-screen bg-void p-4">
     <Modal open onClose={() => {}} title="New event" className="max-w-md">
       <div className="flex flex-col gap-4">
-        <label className="text-sm text-[var(--color-text-muted)]">Title<input className="w-full p-3" value="Calendar test" readOnly /></label>
+        <label className="text-sm text-text-muted">Title<input className="w-full p-3" value="Calendar test" readOnly /></label>
         <DateTimePicker label="Starts" value={start} onChange={setStart} />
         <DateTimePicker label="Ends" value={end} onChange={setEnd} minDate={start ?? undefined} />
-        <button type="button" className="p-3 text-[var(--color-text-primary)]">Create event</button>
+        <button type="button" className="p-3 text-text-primary">Create event</button>
       </div>
     </Modal>
   </main>

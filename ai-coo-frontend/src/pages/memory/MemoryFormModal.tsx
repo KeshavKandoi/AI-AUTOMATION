@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -17,11 +17,11 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 function selectClass() {
-  return 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]'
+  return 'w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal'
 }
 
 function labelClass() {
-  return 'text-sm font-medium text-[var(--color-text-muted)]'
+  return 'text-sm font-medium text-text-muted'
 }
 
 interface MemoryFormModalProps {
@@ -106,7 +106,7 @@ export default function MemoryFormModal({ open, orgId, memory, onClose, onSucces
             onChange={(e) => setContent(e.target.value)}
             rows={5}
             placeholder="What should WorkForge remember?"
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)] resize-none"
+            className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-faint focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal resize-none"
           />
         </div>
 

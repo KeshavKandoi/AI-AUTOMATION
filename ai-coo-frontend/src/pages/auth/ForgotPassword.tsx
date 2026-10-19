@@ -36,25 +36,25 @@ export default function ForgotPassword() {
   return (
     <AuthShell>
       <div className="mb-8">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">Reset your password</h1>
-        <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">We’ll send a reset code to the email you entered on the sign-in page.</p>
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">Reset your password</h1>
+        <p className="mt-3 text-sm leading-6 text-text-muted">We’ll send a reset code to the email you entered on the sign-in page.</p>
       </div>
 
-      <div className="rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-7 shadow-xl shadow-black/10 sm:p-10">
+      <div className="rounded-[1.75rem] border border-border bg-surface/75 p-7 shadow-xl shadow-black/10 sm:p-10">
         {error ? (
           <div role="alert" className="flex flex-col gap-5">
-            <p className="rounded-lg border border-[var(--color-alert)]/30 bg-[var(--color-alert-dim)] px-4 py-3 text-sm text-[var(--color-alert)]">{error}</p>
+            <p className="rounded-lg border border-alert/30 bg-alert-dim px-4 py-3 text-sm text-alert">{error}</p>
             <Button type="button" onClick={() => void sendCode()} loading={sending} className="h-14 w-full rounded-xl">Try again</Button>
           </div>
         ) : (
-          <p aria-live="polite" className="text-sm text-[var(--color-text-muted)]">
-            Sending a reset code to <span className="font-medium text-[var(--color-text-primary)]">{email}</span>…
+          <p aria-live="polite" className="text-sm text-text-muted">
+            Sending a reset code to <span className="font-medium text-text-primary">{email}</span>…
           </p>
         )}
       </div>
 
-      <p className="mt-7 text-center text-sm text-[var(--color-text-muted)]">
-        <Link to="/login" className="font-semibold text-[var(--color-signal)] hover:brightness-110 transition-all">Back to sign in</Link>
+      <p className="mt-7 text-center text-sm text-text-muted">
+        <Link to="/login" className="font-semibold text-signal hover:brightness-110 transition-all">Back to sign in</Link>
       </p>
     </AuthShell>
   )

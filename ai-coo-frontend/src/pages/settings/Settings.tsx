@@ -60,13 +60,13 @@ type OtpResetForm = z.infer<typeof otpResetSchema>
 
 function InfoRow({ icon: Icon, label, value }: { icon: typeof UserIcon; label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-[var(--color-border)] last:border-b-0">
-      <div className="h-9 w-9 rounded-lg bg-[var(--color-surface-hover)] flex items-center justify-center shrink-0">
-        <Icon size={15} className="text-[var(--color-text-muted)]" />
+    <div className="flex items-start gap-3 py-3 border-b border-border last:border-b-0">
+      <div className="h-9 w-9 rounded-lg bg-surface-hover flex items-center justify-center shrink-0">
+        <Icon size={15} className="text-text-muted" />
       </div>
       <div className="min-w-0">
-        <p className="text-xs text-[var(--color-text-faint)]">{label}</p>
-        <p className="text-sm text-[var(--color-text-primary)] mt-0.5 break-words">{value}</p>
+        <p className="text-xs text-text-faint">{label}</p>
+        <p className="text-sm text-text-primary mt-0.5 break-words">{value}</p>
       </div>
     </div>
   )
@@ -80,8 +80,8 @@ function safeApiError(error: unknown, fallback: string): string {
 function SectionHeader({ icon: Icon, title, tone }: { icon: typeof UserIcon; title: string; tone?: 'alert' }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <Icon size={16} className={tone === 'alert' ? 'text-[var(--color-alert)]' : 'text-[var(--color-text-muted)]'} />
-      <h2 className={tone === 'alert' ? 'text-sm font-medium text-[var(--color-alert)]' : 'text-sm font-medium text-[var(--color-text-primary)]'}>
+      <Icon size={16} className={tone === 'alert' ? 'text-alert' : 'text-text-muted'} />
+      <h2 className={tone === 'alert' ? 'text-sm font-medium text-alert' : 'text-sm font-medium text-text-primary'}>
         {title}
       </h2>
     </div>
@@ -98,14 +98,14 @@ function ToggleRow({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3 border-b border-[var(--color-border)] last:border-b-0">
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-border last:border-b-0">
       <div className="flex items-start gap-3 min-w-0">
-        <div className="h-9 w-9 rounded-lg bg-[var(--color-surface-hover)] flex items-center justify-center shrink-0">
-          <Icon size={15} className="text-[var(--color-text-muted)]" />
+        <div className="h-9 w-9 rounded-lg bg-surface-hover flex items-center justify-center shrink-0">
+          <Icon size={15} className="text-text-muted" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm text-[var(--color-text-primary)]">{label}</p>
-          <p className="text-xs text-[var(--color-text-faint)] mt-0.5">{description}</p>
+          <p className="text-sm text-text-primary">{label}</p>
+          <p className="text-xs text-text-faint mt-0.5">{description}</p>
         </div>
       </div>
       <button
@@ -115,15 +115,15 @@ function ToggleRow({
         onClick={() => onChange(!checked)}
         className={
           checked
-            ? 'relative inline-flex h-6 w-11 items-center rounded-full bg-[var(--color-signal)] transition-colors shrink-0'
-            : 'relative inline-flex h-6 w-11 items-center rounded-full bg-[var(--color-surface-hover)] border border-[var(--color-border)] transition-colors shrink-0'
+            ? 'relative inline-flex h-6 w-11 items-center rounded-full bg-signal transition-colors shrink-0'
+            : 'relative inline-flex h-6 w-11 items-center rounded-full bg-surface-hover border border-border transition-colors shrink-0'
         }
       >
         <span
           className={
             checked
-              ? 'inline-block h-4 w-4 transform rounded-full bg-[var(--color-void)] transition-transform translate-x-6'
-              : 'inline-block h-4 w-4 transform rounded-full bg-[var(--color-text-faint)] transition-transform translate-x-1'
+              ? 'inline-block h-4 w-4 transform rounded-full bg-void transition-transform translate-x-6'
+              : 'inline-block h-4 w-4 transform rounded-full bg-text-faint transition-transform translate-x-1'
           }
         />
       </button>
@@ -256,10 +256,10 @@ export default function Settings() {
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+        <h1 className="font-display text-2xl font-semibold text-text-primary">
           Settings
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+        <p className="mt-1 text-sm text-text-muted">
           Manage your account, appearance, and preferences
         </p>
       </div>
@@ -267,16 +267,16 @@ export default function Settings() {
 
       <Card className="p-5">
         <div className="flex items-center gap-3 mb-4">
-          <div className="h-12 w-12 rounded-xl bg-[var(--color-signal-dim)] flex items-center justify-center shrink-0">
-            <span className="text-base font-semibold text-[var(--color-signal)]">
+          <div className="h-12 w-12 rounded-xl bg-signal-dim flex items-center justify-center shrink-0">
+            <span className="text-base font-semibold text-signal">
               {(user?.full_name || user?.email || '?').charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+            <p className="text-sm font-medium text-text-primary truncate">
               {user?.full_name || 'Unnamed account'}
             </p>
-            <p className="text-xs text-[var(--color-text-faint)] truncate">{user?.email}</p>
+            <p className="text-xs text-text-faint truncate">{user?.email}</p>
           </div>
         </div>
 
@@ -284,7 +284,7 @@ export default function Settings() {
         <InfoRow icon={UserIcon} label="Full name" value={user?.full_name || '—'} />
         <InfoRow icon={Mail} label="Email address" value={user?.email || '—'} />
         <InfoRow icon={Calendar} label="Member since" value={memberSince} />
-        <p className="text-xs text-[var(--color-text-faint)] mt-3">
+        <p className="text-xs text-text-faint mt-3">
           To change your name, visit your Profile page.
         </p>
       </Card>
@@ -292,7 +292,7 @@ export default function Settings() {
 
       <Card className="p-5">
         <SectionHeader icon={Sun} title="Appearance" />
-        <p className="text-xs text-[var(--color-text-muted)] mb-3">
+        <p className="text-xs text-text-muted mb-3">
           Choose how WorkForge looks on this device.
         </p>
         <div className="grid grid-cols-3 gap-2">
@@ -303,8 +303,8 @@ export default function Settings() {
               onClick={() => handleThemeChange(opt.value)}
               className={
                 theme === opt.value
-                  ? 'flex flex-col items-center gap-2 rounded-lg border border-[var(--color-signal)] bg-[var(--color-signal-dim)] px-3 py-4 text-[var(--color-signal)] transition-colors'
-                  : 'flex flex-col items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-4 text-[var(--color-text-muted)] hover:border-[var(--color-border-hover)] transition-colors'
+                  ? 'flex flex-col items-center gap-2 rounded-lg border border-signal bg-signal-dim px-3 py-4 text-signal transition-colors'
+                  : 'flex flex-col items-center gap-2 rounded-lg border border-border bg-surface px-3 py-4 text-text-muted hover:border-border-hover transition-colors'
               }
             >
               <opt.icon size={18} />
@@ -317,7 +317,7 @@ export default function Settings() {
 
       <Card className="p-5">
         <SectionHeader icon={Bell} title="Notifications" />
-        <p className="text-xs text-[var(--color-text-muted)] mb-1">
+        <p className="text-xs text-text-muted mb-1">
           These preferences are saved on this device only — there's no synced notification backend yet.
         </p>
         <div className="mt-3">
@@ -342,17 +342,17 @@ export default function Settings() {
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <KeyRound size={16} className="text-[var(--color-text-muted)]" />
-            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Security</h2>
+            <KeyRound size={16} className="text-text-muted" />
+            <h2 className="text-sm font-medium text-text-primary">Security</h2>
           </div>
-          <div className="flex rounded-md border border-[var(--color-border)] overflow-hidden text-xs">
+          <div className="flex rounded-md border border-border overflow-hidden text-xs">
             <button
               type="button"
               onClick={() => setMode('password')}
               className={
                 mode === 'password'
-                  ? 'px-2.5 py-1 bg-[var(--color-signal)] text-white'
-                  : 'px-2.5 py-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]'
+                  ? 'px-2.5 py-1 bg-signal text-white'
+                  : 'px-2.5 py-1 text-text-muted hover:bg-surface-hover'
               }
             >
               Current password
@@ -362,8 +362,8 @@ export default function Settings() {
               onClick={() => setMode('otp')}
               className={
                 mode === 'otp'
-                  ? 'px-2.5 py-1 bg-[var(--color-signal)] text-white'
-                  : 'px-2.5 py-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]'
+                  ? 'px-2.5 py-1 bg-signal text-white'
+                  : 'px-2.5 py-1 text-text-muted hover:bg-surface-hover'
               }
             >
               Email code
@@ -374,13 +374,13 @@ export default function Settings() {
         {mode === 'password' ? (
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             {success && (
-              <div className="flex items-center gap-2 rounded-lg bg-[var(--color-signal-dim)] border border-[var(--color-signal)]/30 px-3 py-2 text-xs text-[var(--color-signal)]">
+              <div className="flex items-center gap-2 rounded-lg bg-signal-dim border border-signal/30 px-3 py-2 text-xs text-signal">
                 <CheckCircle2 size={14} />
                 Password changed and verified. Use the new password next time you sign in.
               </div>
             )}
             {changePasswordMutation.isError && (
-              <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
+              <div className="flex items-start gap-2 rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-xs text-alert">
                 <AlertCircle size={14} className="shrink-0 mt-0.5" />
                 {safeApiError(changePasswordMutation.error, 'Could not change password. Please try again.')}
               </div>
@@ -415,7 +415,7 @@ export default function Settings() {
         ) : (
           <div className="flex flex-col gap-4">
             {otpSuccess && (
-              <div className="flex items-center gap-2 rounded-lg bg-[var(--color-signal-dim)] border border-[var(--color-signal)]/30 px-3 py-2 text-xs text-[var(--color-signal)]">
+              <div className="flex items-center gap-2 rounded-lg bg-signal-dim border border-signal/30 px-3 py-2 text-xs text-signal">
                 <CheckCircle2 size={14} />
                 Password changed and verified. Use the new password next time you sign in.
               </div>
@@ -423,12 +423,12 @@ export default function Settings() {
 
             {!otpSent ? (
               <>
-                <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5">
+                <p className="text-xs text-text-muted flex items-center gap-1.5">
                   <MailIcon size={13} />
-                  We'll email a 6-digit code to <span className="text-[var(--color-text-primary)]">{user?.email}</span>
+                  We'll email a 6-digit code to <span className="text-text-primary">{user?.email}</span>
                 </p>
                 {sendCodeMutation.isError && (
-                  <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
+                  <div className="flex items-start gap-2 rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-xs text-alert">
                     <AlertCircle size={14} className="shrink-0 mt-0.5" />
                     Could not send the code. Please try again.
                   </div>
@@ -445,7 +445,7 @@ export default function Settings() {
             ) : (
               <form onSubmit={handleOtpSubmit(onOtpSubmit)} className="flex flex-col gap-4">
                 {otpResetMutation.isError && (
-                  <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
+                  <div className="flex items-start gap-2 rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-xs text-alert">
                     <AlertCircle size={14} className="shrink-0 mt-0.5" />
                     {safeApiError(otpResetMutation.error, 'Could not reset password. Check the code.')}
                   </div>
@@ -481,7 +481,7 @@ export default function Settings() {
                     type="button"
                     onClick={() => resendCodeMutation.mutate()}
                     disabled={cooldown > 0 || resendCodeMutation.isPending}
-                    className="text-xs text-[var(--color-signal)] hover:brightness-110 transition-all disabled:text-[var(--color-text-faint)] disabled:cursor-not-allowed"
+                    className="text-xs text-signal hover:brightness-110 transition-all disabled:text-text-faint disabled:cursor-not-allowed"
                   >
                     {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
                   </button>
@@ -495,18 +495,18 @@ export default function Settings() {
 
       <Card className="p-5">
         <SectionHeader icon={ShieldCheck} title="Privacy" />
-        <div className="flex flex-col gap-3 text-xs text-[var(--color-text-muted)] leading-relaxed">
+        <div className="flex flex-col gap-3 text-xs text-text-muted leading-relaxed">
           <p>
             Your tasks, memories, jobs, and integrations are available only to authorized members.
           </p>
           <p>
-            Actions and integration events are recorded in <span className="text-[var(--color-text-primary)]">Audit Logs</span>.
+            Actions and integration events are recorded in <span className="text-text-primary">Audit Logs</span>.
           </p>
           <p>
             Connected third-party tokens (GitHub, Gmail, Google Calendar) are stored encrypted and are only
             used to act on your behalf within WorkForge — Google user data is never sold or used for
             advertising. See our{' '}
-            <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110">Privacy Policy</Link>{' '}
+            <Link to="/privacy" className="text-signal hover:brightness-110">Privacy Policy</Link>{' '}
             for exactly what's accessed and why.
           </p>
         </div>
@@ -519,21 +519,21 @@ export default function Settings() {
         <div className="flex items-center gap-4 pt-3">
           <Link
             to="/privacy"
-            className="flex items-center gap-1.5 text-xs text-[var(--color-signal)] hover:brightness-110 transition-all"
+            className="flex items-center gap-1.5 text-xs text-signal hover:brightness-110 transition-all"
           >
             <FileText size={13} />
             Privacy Policy
           </Link>
           <Link
             to="/security"
-            className="flex items-center gap-1.5 text-xs text-[var(--color-signal)] hover:brightness-110 transition-all"
+            className="flex items-center gap-1.5 text-xs text-signal hover:brightness-110 transition-all"
           >
             <ShieldCheck size={13} />
             Security
           </Link>
           <Link
             to="/terms"
-            className="flex items-center gap-1.5 text-xs text-[var(--color-signal)] hover:brightness-110 transition-all"
+            className="flex items-center gap-1.5 text-xs text-signal hover:brightness-110 transition-all"
           >
             <Scale size={13} />
             Terms of Service
@@ -542,19 +542,19 @@ export default function Settings() {
       </Card>
 
 
-      <Card className="p-5 border-[var(--color-alert)]/30">
+      <Card className="p-5 border-alert/30">
         <SectionHeader icon={Trash2} title="Danger Zone" tone="alert" />
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-sm text-[var(--color-text-primary)]">Delete account</p>
-            <p className="text-xs text-[var(--color-text-faint)] mt-0.5 max-w-md">
+            <p className="text-sm text-text-primary">Delete account</p>
+            <p className="text-xs text-text-faint mt-0.5 max-w-md">
               Permanently deletes your account. If you are the only member, your organization's jobs, data, and integration credentials are also removed. Shared organization data remains for other members.
             </p>
           </div>
           <Button
             variant="secondary"
             onClick={() => setDeleteModalOpen(true)}
-            className="!border-[var(--color-alert)]/30 !text-[var(--color-alert)] hover:!bg-[var(--color-alert-dim)] shrink-0"
+            className="border-alert/30! text-alert! hover:bg-alert-dim! shrink-0"
           >
             <Trash2 size={14} />
             Delete account
@@ -564,13 +564,13 @@ export default function Settings() {
 
       <Modal open={deleteModalOpen} onClose={() => { if (!deleteAccountMutation.isPending) closeDeleteModal() }} title="Delete account">
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
+          <div className="flex items-start gap-2 rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-xs text-alert">
             <AlertCircle size={14} className="shrink-0 mt-0.5" />
             This permanently deletes your account. If you are the only member, organization data is also removed. This cannot be undone.
           </div>
 
           {deleteAccountMutation.isError && (
-            <div className="flex items-start gap-2 rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-xs text-[var(--color-alert)]">
+            <div className="flex items-start gap-2 rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-xs text-alert">
               <AlertCircle size={14} className="shrink-0 mt-0.5" />
               {safeApiError(deleteAccountMutation.error, 'Could not delete account. Please try again.')}
             </div>
@@ -594,7 +594,7 @@ export default function Settings() {
           <div className="flex items-center gap-3">
             <Button
               variant="secondary"
-              className="!border-[var(--color-alert)] !bg-[var(--color-alert)] !text-white hover:brightness-110"
+              className="border-alert! bg-alert! text-white! hover:brightness-110"
               disabled={!deletePassword || deleteConfirmText !== 'DELETE'}
               loading={deleteAccountMutation.isPending}
               onClick={() => deleteAccountMutation.mutate()}
@@ -605,7 +605,7 @@ export default function Settings() {
               type="button"
               onClick={closeDeleteModal}
               disabled={deleteAccountMutation.isPending}
-              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+              className="text-xs text-text-muted hover:text-text-primary"
             >
               Cancel
             </button>

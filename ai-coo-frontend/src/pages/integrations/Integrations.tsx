@@ -110,18 +110,18 @@ export default function Integrations() {
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
       <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+        <h1 className="font-display text-2xl font-semibold text-text-primary">
           Integrations
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+        <p className="mt-1 text-sm text-text-muted">
           Connect services so WorkForge can act on your behalf
         </p>
       </motion.div>
 
       {callbackLabel && callbackStatus && (
-        <div role={callbackStatus === 'connected' ? 'status' : 'alert'} className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-primary)]">
+        <div role={callbackStatus === 'connected' ? 'status' : 'alert'} className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary">
           <span>{callbackStatus === 'connected' ? `${callbackLabel} connected successfully.` : `${callbackLabel} connection was ${callbackStatus === 'cancelled' ? 'cancelled' : 'unsuccessful'}. You can try again.`}</span>
-          <button type="button" onClick={() => { setSearchParams({}, { replace: true }) }} aria-label="Dismiss connection message" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">Dismiss</button>
+          <button type="button" onClick={() => { setSearchParams({}, { replace: true }) }} aria-label="Dismiss connection message" className="text-text-muted hover:text-text-primary">Dismiss</button>
         </div>
       )}
 
@@ -137,18 +137,18 @@ export default function Integrations() {
             <motion.div key={provider} initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: ALL_PROVIDERS.indexOf(provider) * 0.06 }} whileHover={reducedMotion ? undefined : { y: -3 }} className="h-full">
             <Card className="p-5 flex flex-col gap-4 h-full">
               <div className="flex items-start justify-between">
-                <div className="h-10 w-10 rounded-xl bg-[var(--color-surface-hover)] flex items-center justify-center">
-                  <meta.icon size={18} className="text-[var(--color-text-primary)]" />
+                <div className="h-10 w-10 rounded-xl bg-surface-hover flex items-center justify-center">
+                  <meta.icon size={18} className="text-text-primary" />
                 </div>
                 {isLoading ? (
                   <Skeleton className="h-5 w-20" />
                 ) : isConnected ? (
-                  <span className="flex items-center gap-1.5 text-xs text-[var(--color-signal)]">
+                  <span className="flex items-center gap-1.5 text-xs text-signal">
                     <CheckCircle2 size={13} />
                     Connected
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
+                  <span className="flex items-center gap-1.5 text-xs text-text-faint">
                     <Circle size={13} />
                     Not connected
                   </span>
@@ -157,17 +157,17 @@ export default function Integrations() {
 
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm font-medium text-[var(--color-text-primary)]">{meta.label}</h3>
+                  <h3 className="text-sm font-medium text-text-primary">{meta.label}</h3>
                 </div>
-                <p className="mt-1 text-xs text-[var(--color-text-faint)]">{meta.description}</p>
+                <p className="mt-1 text-xs text-text-faint">{meta.description}</p>
               </div>
 
               {meta.dataUseNote && !isConnected && (
-                <div className="flex items-start gap-1.5 text-[11px] text-[var(--color-text-faint)] leading-relaxed">
+                <div className="flex items-start gap-1.5 text-[11px] text-text-faint leading-relaxed">
                   <ShieldCheck size={12} className="shrink-0 mt-0.5" />
                   <span>
                     {meta.dataUseNote}{' '}
-                    <Link to="/privacy" className="text-[var(--color-signal)] hover:brightness-110 underline underline-offset-2">
+                    <Link to="/privacy" className="text-signal hover:brightness-110 underline underline-offset-2">
                       Privacy Policy
                     </Link>
                   </span>
@@ -188,7 +188,7 @@ export default function Integrations() {
                     onClick={() => handleDisconnectClick(provider)}
                     onBlur={() => setConfirmingProvider(null)}
                     loading={isDisconnecting}
-                    className={isConfirming ? '!bg-[var(--color-alert)] !text-white' : ''}
+                    className={isConfirming ? 'bg-alert! text-white!' : ''}
                   >
                     {isConfirming ? 'Confirm?' : 'Disconnect'}
                   </Button>
@@ -201,30 +201,30 @@ export default function Integrations() {
         <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.18 }} whileHover={reducedMotion ? undefined : { y: -3 }} className="h-full">
         <Card className="p-5 flex flex-col gap-4 h-full">
           <div className="flex items-start justify-between">
-            <div className="h-10 w-10 rounded-xl bg-[var(--color-surface-hover)] flex items-center justify-center">
-              <MessageCircle size={18} className="text-[var(--color-text-primary)]" />
+            <div className="h-10 w-10 rounded-xl bg-surface-hover flex items-center justify-center">
+              <MessageCircle size={18} className="text-text-primary" />
             </div>
             {discordStatus.isLoading && orgId ? (
               <Skeleton className="h-5 w-20" />
             ) : discordStatus.isError || !orgId ? (
-              <span className="text-xs text-[var(--color-text-faint)]">Status unavailable</span>
+              <span className="text-xs text-text-faint">Status unavailable</span>
             ) : discordStatus.data?.configured ? (
-              <span className="flex items-center gap-1.5 text-xs text-[var(--color-signal)]">
+              <span className="flex items-center gap-1.5 text-xs text-signal">
                 <CheckCircle2 size={13} /> Connected
               </span>
             ) : (
-              <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
+              <span className="flex items-center gap-1.5 text-xs text-text-faint">
                 <Circle size={13} /> Not connected
               </span>
             )}
           </div>
           <div>
-            <h3 className="text-sm font-medium text-[var(--color-text-primary)]">Discord</h3>
-            <p className="mt-1 text-xs text-[var(--color-text-faint)]">
+            <h3 className="text-sm font-medium text-text-primary">Discord</h3>
+            <p className="mt-1 text-xs text-text-faint">
               Sends workflow notifications to your organization’s Discord webhook.
             </p>
             {discordStatus.data?.configured && (
-              <p className="mt-2 text-xs text-[var(--color-text-faint)]">
+              <p className="mt-2 text-xs text-text-faint">
                 Managed via {discordStatus.data.source === 'environment' ? 'backend environment' : 'Integrations'}.
               </p>
             )}
@@ -242,16 +242,16 @@ export default function Integrations() {
       <Modal open={discordModalOpen} onClose={closeDiscordModal} title="Discord integration">
         <div className="flex flex-col gap-4">
           {discordStatus.isError ? (
-            <p className="text-sm text-[var(--color-alert)]" role="alert">Discord status is unavailable. Refresh the page before changing this integration.</p>
+            <p className="text-sm text-alert" role="alert">Discord status is unavailable. Refresh the page before changing this integration.</p>
           ) : discordStatus.data?.configured ? (
-            <p className="text-sm text-[var(--color-text-muted)]" role="status">
+            <p className="text-sm text-text-muted" role="status">
               Connected via {discordStatus.data.source === 'environment' ? 'backend environment' : 'saved webhook'} · {discordStatus.data.masked_url}
             </p>
           ) : (
-            <p className="text-sm text-[var(--color-text-muted)]" role="status">Not connected. Add a Discord webhook URL to enable workflow notifications.</p>
+            <p className="text-sm text-text-muted" role="status">Not connected. Add a Discord webhook URL to enable workflow notifications.</p>
           )}
           {discordStatus.data?.source === 'environment' && (
-            <p className="text-xs text-[var(--color-text-muted)]">
+            <p className="text-xs text-text-muted">
               This webhook is managed in the backend environment. To disconnect it, remove DISCORD_WEBHOOK_URL and DISCORD_ENV_ORG_ID from the backend environment and restart the service. You can save a different URL here to override it.
             </p>
           )}
@@ -270,14 +270,14 @@ export default function Integrations() {
               onChange={(event) => setDiscordWebhookDraft(event.target.value)}
               placeholder="https://discord.com/api/webhooks/..."
             />
-            {discordMutation.isError && <p className="text-xs text-[var(--color-alert)]" role="alert">{discordApiError(discordMutation.error)}</p>}
+            {discordMutation.isError && <p className="text-xs text-alert" role="alert">{discordApiError(discordMutation.error)}</p>}
             <Button type="submit" loading={discordMutation.isPending} disabled={!discordWebhookDraft.trim() || discordStatus.isError}>
               Save webhook
             </Button>
           </form>
           {discordStatus.data?.source === 'settings' && (
-            <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-2">
-              <p className="text-xs text-[var(--color-text-muted)]">Disconnect removes the saved webhook. If an environment fallback is configured for this organization, it will become active.</p>
+            <div className="border-t border-border pt-4 flex flex-col gap-2">
+              <p className="text-xs text-text-muted">Disconnect removes the saved webhook. If an environment fallback is configured for this organization, it will become active.</p>
               {confirmDiscordDisconnect ? (
                 <div className="flex gap-2">
                   <Button type="button" variant="secondary" loading={discordMutation.isPending} onClick={() => discordMutation.mutate(null)}>Confirm disconnect</Button>

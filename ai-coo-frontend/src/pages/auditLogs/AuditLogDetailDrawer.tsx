@@ -9,7 +9,7 @@ import { getModuleIcon, getModuleLabel, getStatusTone, formatActionLabel } from 
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -20,8 +20,8 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === '') return null
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-[var(--color-text-faint)]">{label}</span>
-      <span className="text-sm text-[var(--color-text-primary)] break-all">{value}</span>
+      <span className="text-xs text-text-faint">{label}</span>
+      <span className="text-sm text-text-primary break-all">{value}</span>
     </div>
   )
 }
@@ -59,14 +59,14 @@ export default function AuditLogDetailDrawer({ open, logId, onClose }: AuditLogD
         ) : (
           <>
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="flex items-center justify-center h-9 w-9 rounded-lg bg-[var(--color-surface-hover)]">
-                <Icon size={16} className="text-[var(--color-text-muted)]" />
+              <span className="flex items-center justify-center h-9 w-9 rounded-lg bg-surface-hover">
+                <Icon size={16} className="text-text-muted" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm text-[var(--color-text-primary)]">
+                <p className="text-sm text-text-primary">
                   {log.summary ?? formatActionLabel(log.action)}
                 </p>
-                <p className="text-xs text-[var(--color-text-faint)]">
+                <p className="text-xs text-text-faint">
                   {getModuleLabel(log.module)} · {new Date(log.created_at).toLocaleString()}
                 </p>
               </div>
@@ -98,13 +98,13 @@ export default function AuditLogDetailDrawer({ open, logId, onClose }: AuditLogD
                 <button
                   type="button"
                   onClick={() => setMetadataExpanded((v) => !v)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text-primary)] mb-2"
+                  className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-2"
                 >
                   {metadataExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   Metadata
                 </button>
                 {metadataExpanded && (
-                  <pre className="text-[11px] leading-relaxed text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md p-3 overflow-x-auto whitespace-pre-wrap break-all">
+                  <pre className="text-[11px] leading-relaxed text-text-muted bg-surface border border-border rounded-md p-3 overflow-x-auto whitespace-pre-wrap break-all">
                     {JSON.stringify(metadata, null, 2)}
                   </pre>
                 )}
@@ -120,7 +120,7 @@ export default function AuditLogDetailDrawer({ open, logId, onClose }: AuditLogD
                 }
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 text-xs text-[var(--color-signal)] hover:underline w-fit"
+                className="flex items-center gap-1 text-xs text-signal hover:underline w-fit"
               >
                 View related resource <ExternalLink size={11} />
               </a>

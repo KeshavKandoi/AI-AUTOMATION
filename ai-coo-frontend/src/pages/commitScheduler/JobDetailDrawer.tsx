@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -118,8 +118,8 @@ export default function JobDetailDrawer({ open, orgId, jobId, onClose }: JobDeta
         ) : (
           <>
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-sm text-[var(--color-text-muted)]">
-                <span className="text-[var(--color-text-primary)]">{job.branch}</span> · {modeSummary(job)}
+              <div className="text-sm text-text-muted">
+                <span className="text-text-primary">{job.branch}</span> · {modeSummary(job)}
                 {job.use_pr && ' · via PR'}
               </div>
               <Button
@@ -136,10 +136,10 @@ export default function JobDetailDrawer({ open, orgId, jobId, onClose }: JobDeta
               <div
                 className={
                   runNowMutation.data.status === 'success'
-                    ? 'rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2 text-xs text-[var(--color-signal)]'
+                    ? 'rounded-lg border border-signal-dim bg-signal-dim px-3 py-2 text-xs text-signal'
                     : runNowMutation.data.status === 'failed'
-                    ? 'rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]'
-                    : 'rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-muted)]'
+                    ? 'rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert'
+                    : 'rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted'
                 }
               >
                 Run {runNowMutation.data.status}
@@ -149,27 +149,27 @@ export default function JobDetailDrawer({ open, orgId, jobId, onClose }: JobDeta
             {runNowMutation.isError && <ErrorBanner message="Failed to trigger this run. Try again." />}
 
             <div>
-              <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Files</h3>
+              <h3 className="text-sm font-medium text-text-primary mb-2">Files</h3>
               {job.folder_path && job.file_name && (
-                <div className="text-xs text-[var(--color-text-muted)] mb-2">
+                <div className="text-xs text-text-muted mb-2">
                   Default (recurring): <span className="font-mono">{job.folder_path}/{job.file_name}</span>
                 </div>
               )}
               {filesLoading ? (
                 <Skeleton className="h-10 w-full" />
               ) : files && files.length > 0 ? (
-                <div className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded-lg">
+                <div className="divide-y divide-border border border-border rounded-lg">
                   {files.map((f: CommitJobFile) => (
                     <div key={f.id} className="flex items-center justify-between gap-3 px-3 py-2">
                       <div className="text-xs">
-                        <span className="font-mono text-[var(--color-text-primary)]">{f.folder_path}/{f.file_name}</span>
-                        <span className="text-[var(--color-text-faint)] ml-2">
+                        <span className="font-mono text-text-primary">{f.folder_path}/{f.file_name}</span>
+                        <span className="text-text-faint ml-2">
                           {f.target_date ? f.target_date : 'recurring (every due day)'}
                         </span>
                       </div>
                       <button
                         onClick={() => f.id && deleteFileMutation.mutate(f.id)}
-                        className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)] transition-colors"
+                        className="text-text-faint hover:text-alert transition-colors"
                         title="Delete file"
                       >
                         <Trash2 size={13} />
@@ -199,22 +199,22 @@ export default function JobDetailDrawer({ open, orgId, jobId, onClose }: JobDeta
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Run history</h3>
+              <h3 className="text-sm font-medium text-text-primary mb-2">Run history</h3>
               {job.runs.length === 0 ? (
                 <EmptyState icon={Clock} title="No runs yet" />
               ) : (
-                <div className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded-lg">
+                <div className="divide-y divide-border border border-border rounded-lg">
                   {job.runs.map((run) => (
                     <div key={run.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                      <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                      <div className="flex items-center gap-2 text-xs text-text-muted">
                         <span>{run.run_date}</span>
                         {runStatusBadge(run.status)}
                         {run.error_message && (
-                          <span className="text-[var(--color-alert)] truncate max-w-[220px]">{run.error_message}</span>
+                          <span className="text-alert truncate max-w-[220px]">{run.error_message}</span>
                         )}
                       </div>
                       {run.commit_url && (
-                        <a href={run.commit_url} target="_blank" rel="noreferrer" className="text-[var(--color-signal)] hover:underline flex items-center gap-1 text-xs shrink-0">
+                        <a href={run.commit_url} target="_blank" rel="noreferrer" className="text-signal hover:underline flex items-center gap-1 text-xs shrink-0">
                           View <ExternalLink size={11} />
                         </a>
                       )}

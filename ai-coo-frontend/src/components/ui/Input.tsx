@@ -19,7 +19,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium text-[var(--color-text-muted)]"
+            className="text-sm font-medium text-text-muted"
           >
             {label}
           </label>
@@ -35,13 +35,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             type={isPassword ? (showPassword ? 'text' : 'password') : type}
             className={cn(
-              'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]',
-              'py-2.5 pl-3.5 pr-3.5 text-sm text-[var(--color-text-primary)]',
-              'placeholder:text-[var(--color-text-faint)]',
+              'w-full rounded-lg border border-border bg-surface',
+              'py-2.5 pl-3.5 pr-3.5 text-sm text-text-primary',
+              'placeholder:text-text-faint',
               'transition-colors duration-150',
-              'focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]',
-              'hover:border-[var(--color-border-hover)]',
-              error && 'border-[var(--color-alert)] focus:border-[var(--color-alert)] focus:ring-[var(--color-alert)]',
+              'focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal',
+              'hover:border-border-hover',
+              error && 'border-alert focus:border-alert focus:ring-alert',
               isPassword && 'pr-10',
               leadingAdornment && 'pl-12',
               className
@@ -53,14 +53,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               type="button"
               onClick={() => setShowPassword((s) => !s)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted transition-colors"
               tabIndex={-1}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           )}
         </div>
-        {error && <span className="text-xs text-[var(--color-alert)]">{error}</span>}
+        {error && <span className="text-xs text-alert">{error}</span>}
       </div>
     )
   }

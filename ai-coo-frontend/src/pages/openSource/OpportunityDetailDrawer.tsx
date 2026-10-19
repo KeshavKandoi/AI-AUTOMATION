@@ -11,7 +11,7 @@ import JobFormModal from '@/pages/commitScheduler/JobFormModal'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -101,8 +101,8 @@ export default function OpportunityDetailDrawer({
               <>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="text-base font-medium text-[var(--color-text-primary)]">{issue.title}</h3>
-                    <a href={issue.html_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]">
+                    <h3 className="text-base font-medium text-text-primary">{issue.title}</h3>
+                    <a href={issue.html_url} target="_blank" rel="noreferrer" className="text-text-faint hover:text-text-primary">
                       <ExternalLink size={14} />
                     </a>
                   </div>
@@ -110,38 +110,38 @@ export default function OpportunityDetailDrawer({
                     <Badge tone={issue.state === 'open' ? 'signal' : 'neutral'}>{issue.state}</Badge>
                     {issue.labels.map((l) => <Badge key={l} tone="neutral">{l}</Badge>)}
                   </div>
-                  <p className="text-xs text-[var(--color-text-muted)]">
+                  <p className="text-xs text-text-muted">
                     {issue.repo_full_name} · by {issue.author.login}
                     {issue.assignee ? ` · assigned to ${issue.assignee.login}` : ' · unassigned'}
                   </p>
                   {issue.body && (
-                    <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-line mt-3 leading-relaxed max-h-64 overflow-y-auto">
+                    <p className="text-sm text-text-muted whitespace-pre-line mt-3 leading-relaxed max-h-64 overflow-y-auto">
                       {issue.body}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Comments</h4>
+                  <h4 className="text-sm font-medium text-text-primary mb-2">Comments</h4>
                   {issue.comments.length === 0 ? (
                     <EmptyState icon={Clock} title="No comments yet" />
                   ) : (
-                    <div className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded-lg">
+                    <div className="divide-y divide-border border border-border rounded-lg">
                       {issue.comments.map((c) => (
                         <div key={c.id} className="px-3 py-2">
-                          <p className="text-xs text-[var(--color-text-primary)] mb-1">{c.author.login}</p>
-                          <p className="text-xs text-[var(--color-text-muted)] whitespace-pre-line line-clamp-6">{c.body}</p>
+                          <p className="text-xs text-text-primary mb-1">{c.author.login}</p>
+                          <p className="text-xs text-text-muted whitespace-pre-line line-clamp-6">{c.body}</p>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div className="border-t border-[var(--color-border)] pt-4">
+                <div className="border-t border-border pt-4">
                   <Button className="w-full" onClick={handleWorkOnIssue} loading={recordMutation.isPending}>
                     Work on this
                   </Button>
-                  <p className="text-xs text-[var(--color-text-faint)] mt-2">
+                  <p className="text-xs text-text-faint mt-2">
                     Opens a scheduled commit job for {issue.repo_full_name}, pre-filled to open a pull request.
                   </p>
                 </div>
@@ -161,15 +161,15 @@ export default function OpportunityDetailDrawer({
               <>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="text-base font-medium text-[var(--color-text-primary)]">{repo.full_name}</h3>
-                    <a href={repo.html_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]">
+                    <h3 className="text-base font-medium text-text-primary">{repo.full_name}</h3>
+                    <a href={repo.html_url} target="_blank" rel="noreferrer" className="text-text-faint hover:text-text-primary">
                       <ExternalLink size={14} />
                     </a>
                   </div>
                   {repo.description && (
-                    <p className="text-sm text-[var(--color-text-muted)] mb-2">{repo.description}</p>
+                    <p className="text-sm text-text-muted mb-2">{repo.description}</p>
                   )}
-                  <div className="flex items-center gap-3 text-xs text-[var(--color-text-faint)] mb-2">
+                  <div className="flex items-center gap-3 text-xs text-text-faint mb-2">
                     <span className="flex items-center gap-1"><Star size={12} /> {repo.stargazers_count.toLocaleString()} stars</span>
                     <span className="flex items-center gap-1"><GitFork size={12} /> {repo.forks_count.toLocaleString()} forks</span>
                     <span>{repo.open_issues_count} open issues</span>
@@ -178,12 +178,12 @@ export default function OpportunityDetailDrawer({
                     {repo.language && <Badge tone="neutral">{repo.language}</Badge>}
                     {repo.topics.slice(0, 6).map((t) => <Badge key={t} tone="neutral">{t}</Badge>)}
                   </div>
-                  <p className="text-xs text-[var(--color-text-muted)]">
+                  <p className="text-xs text-text-muted">
                     {repo.license_name ?? 'No license specified'}
                     {repo.homepage && (
                       <>
                         {' · '}
-                        <a href={repo.homepage} target="_blank" rel="noreferrer" className="text-[var(--color-signal)] hover:underline">
+                        <a href={repo.homepage} target="_blank" rel="noreferrer" className="text-signal hover:underline">
                           {repo.homepage}
                         </a>
                       </>
@@ -191,11 +191,11 @@ export default function OpportunityDetailDrawer({
                   </p>
                 </div>
 
-                <div className="border-t border-[var(--color-border)] pt-4">
+                <div className="border-t border-border pt-4">
                   <Button className="w-full" onClick={handleWorkOnRepo} loading={recordMutation.isPending}>
                     Work on this
                   </Button>
-                  <p className="text-xs text-[var(--color-text-faint)] mt-2">
+                  <p className="text-xs text-text-faint mt-2">
                     Opens a scheduled commit job for {repo.full_name}, pre-filled to open a pull request.
                   </p>
                 </div>

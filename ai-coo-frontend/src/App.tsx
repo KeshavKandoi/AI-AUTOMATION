@@ -55,13 +55,13 @@ function App() {
   }, [])
 
   if (checkingUncachedSession) {
-    return <div className="min-h-screen bg-[var(--color-void)] p-8 text-sm text-[var(--color-text-muted)]">Restoring your session…</div>
+    return <div className="min-h-screen bg-void p-8 text-sm text-text-muted">Restoring your session…</div>
   }
 
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Suspense fallback={<div className="min-h-screen bg-[var(--color-void)] p-8 text-sm text-[var(--color-text-muted)]">Loading page…</div>}>
+        <Suspense fallback={<div className="min-h-screen bg-void p-8 text-sm text-text-muted">Loading page…</div>}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/features" element={<FeaturesPage />} />

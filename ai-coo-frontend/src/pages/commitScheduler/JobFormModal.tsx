@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -34,11 +34,11 @@ function schedulerErrorMessage(error: unknown): string {
 }
 
 function selectClass() {
-  return 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)] disabled:opacity-50 disabled:cursor-not-allowed'
+  return 'w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal disabled:opacity-50 disabled:cursor-not-allowed'
 }
 
 function labelClass() {
-  return 'text-sm font-medium text-[var(--color-text-muted)]'
+  return 'text-sm font-medium text-text-muted'
 }
 
 function pad(n: number) {
@@ -210,18 +210,18 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
     <Modal open={open} onClose={onClose} title={isEdit ? 'Edit scheduled commit' : 'New scheduled commit'}>
       <div className="flex flex-col gap-5 max-h-[70vh] overflow-y-auto pr-1">
         {!isEdit && (
-          <div className="rounded-xl border border-[var(--color-signal)]/15 bg-gradient-to-r from-[var(--color-signal-dim)]/70 to-transparent px-4 py-3">
-            <p className="text-sm font-medium text-[var(--color-text-primary)]">Set up an automated commit</p>
-            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">Choose where it runs, what file to update, and when WorkForge should commit it.</p>
+          <div className="rounded-xl border border-signal/15 bg-gradient-to-r from-signal-dim/70 to-transparent px-4 py-3">
+            <p className="text-sm font-medium text-text-primary">Set up an automated commit</p>
+            <p className="mt-1 text-xs leading-relaxed text-text-muted">Choose where it runs, what file to update, and when WorkForge should commit it.</p>
           </div>
         )}
 
-        <div className="grid gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/35 p-4">
+        <div className="grid gap-4 rounded-xl border border-border bg-void/35 p-4">
           <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)] text-xs font-semibold">1</span>
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-signal-dim text-signal text-xs font-semibold">1</span>
             <div>
-              <p className="text-sm font-medium text-[var(--color-text-primary)]">Choose a destination</p>
-              <p className="text-xs text-[var(--color-text-faint)]">Select the repository and branch to update.</p>
+              <p className="text-sm font-medium text-text-primary">Choose a destination</p>
+              <p className="text-xs text-text-faint">Select the repository and branch to update.</p>
             </div>
           </div>
         <div className="flex flex-col gap-1.5">
@@ -261,12 +261,12 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
         </div>
         </div>
 
-        <div className="grid gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/35 p-4">
+        <div className="grid gap-4 rounded-xl border border-border bg-void/35 p-4">
         <div className="flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)] text-xs font-semibold">2</span>
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-signal-dim text-signal text-xs font-semibold">2</span>
           <div>
-            <p className="text-sm font-medium text-[var(--color-text-primary)]">Choose the file</p>
-            <p className="text-xs text-[var(--color-text-faint)]">Pick a path and the content to commit.</p>
+            <p className="text-sm font-medium text-text-primary">Choose the file</p>
+            <p className="text-xs text-text-faint">Pick a path and the content to commit.</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -281,19 +281,19 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
             onChange={(e) => setFileContent(e.target.value)}
             rows={3}
             placeholder="Used when no dated file overrides this run"
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)] resize-none font-mono"
+            className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-faint focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal resize-none font-mono"
           />
         </div>
 
         <Input label="Commit message" placeholder="Auto-commit" value={commitMessage} onChange={(e) => setCommitMessage(e.target.value)} />
         </div>
 
-        <div className="grid gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/35 p-4">
+        <div className="grid gap-4 rounded-xl border border-border bg-void/35 p-4">
         <div className="flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)] text-xs font-semibold">3</span>
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-signal-dim text-signal text-xs font-semibold">3</span>
           <div>
-            <p className="text-sm font-medium text-[var(--color-text-primary)]">Set the schedule</p>
-            <p className="text-xs text-[var(--color-text-faint)]">Choose when it runs and whether it opens a pull request.</p>
+            <p className="text-sm font-medium text-text-primary">Set the schedule</p>
+            <p className="text-xs text-text-faint">Choose when it runs and whether it opens a pull request.</p>
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -315,7 +315,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
               onChange={(e) => setExecutionAt(e.target.value)}
               className={`${selectClass()} scheduler-datetime`}
             />
-            <p className="text-xs text-[var(--color-text-faint)]">
+            <p className="text-xs text-text-faint">
               This job runs once, automatically, at this exact date and time — then marks itself complete.
             </p>
           </div>
@@ -370,7 +370,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
                   disabled={isEdit}
                   className="scheduler-datetime"
                 />
-                <p className="text-xs text-[var(--color-text-faint)] -mt-2">
+                <p className="text-xs text-text-faint -mt-2">
                   On each due day: if a real commit already landed before {guardCutoff.slice(0, 5)}, nothing happens.
                   Otherwise WorkForge commits automatically right at the cutoff.
                 </p>
@@ -379,12 +379,12 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
           </>
         )}
 
-        <label className="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
-          <input type="checkbox" checked={usePr} disabled={isEdit} onChange={(e) => setUsePr(e.target.checked)} className="accent-[var(--color-signal)]" />
+        <label className="flex items-center gap-2 text-sm text-text-muted">
+          <input type="checkbox" checked={usePr} disabled={isEdit} onChange={(e) => setUsePr(e.target.checked)} className="accent-signal" />
           Open a pull request instead of committing directly to {branch || 'the branch'}
         </label>
         {isEdit && (
-          <p className="text-xs text-[var(--color-text-faint)] -mt-2">
+          <p className="text-xs text-text-faint -mt-2">
             Repository, mode, PR setting, and guard cutoff can't be changed after creation — delete and recreate the job if these need to change.
           </p>
         )}

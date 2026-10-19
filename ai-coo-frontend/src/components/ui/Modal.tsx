@@ -39,16 +39,16 @@ export default function Modal({ open, onClose, title, children, className }: Mod
             transition={{ duration: 0.15 }}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              'w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl',
+              'w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl',
               className
             )}
           >
             {title && (
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-                <h2 className="text-sm font-medium text-[var(--color-text-primary)]">{title}</h2>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                <h2 className="text-sm font-medium text-text-primary">{title}</h2>
                 <button
                   onClick={onClose}
-                  className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]"
+                  className="text-text-faint hover:text-text-primary"
                 >
                   <X size={16} />
                 </button>

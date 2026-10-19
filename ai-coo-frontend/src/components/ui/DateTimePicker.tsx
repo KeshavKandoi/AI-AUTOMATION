@@ -147,7 +147,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
 
   return (
     <div className="flex flex-col gap-1.5" ref={containerRef}>
-      <label className="text-sm font-medium text-[var(--color-text-muted)]">{label}</label>
+      <label className="text-sm font-medium text-text-muted">{label}</label>
       <button
         ref={triggerRef}
         type="button"
@@ -163,13 +163,13 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
           setOpen((o) => !o)
         }}
         className={cn(
-          'w-full flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]',
+          'w-full flex items-center gap-2 rounded-lg border border-border bg-surface',
           'px-3.5 py-2.5 text-sm text-left transition-colors',
-          'hover:border-[var(--color-border-hover)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]',
-          value ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-faint)]'
+          'hover:border-border-hover focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal',
+          value ? 'text-text-primary' : 'text-text-faint'
         )}
       >
-        <CalendarIcon size={14} className="text-[var(--color-text-faint)] shrink-0" />
+        <CalendarIcon size={14} className="text-text-faint shrink-0" />
         {displayLabel}
       </button>
 
@@ -192,7 +192,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
               }
             }}
             style={{ position: 'fixed', top: position.top, left: position.left, width: position.width, height: position.maxHeight }}
-            className="z-[70] flex flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl p-3"
+            className="z-[70] flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl p-3"
           >
             <div className="flex shrink-0 items-center justify-between mb-2">
               <button
@@ -200,18 +200,18 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
                 aria-label="Previous month"
                 disabled={!canGoPrevMonth}
                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))}
-                className="h-7 w-7 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed"
+                className="h-7 w-7 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-xs font-medium text-[var(--color-text-primary)]">
+              <span className="text-xs font-medium text-text-primary">
                 {viewMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
               </span>
               <button
                 type="button"
                 aria-label="Next month"
                 onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))}
-                className="h-7 w-7 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
+                className="h-7 w-7 rounded-lg flex items-center justify-center text-text-muted hover:bg-surface-hover"
               >
                 <ChevronRight size={14} />
               </button>
@@ -219,7 +219,7 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
 
             <div className="grid shrink-0 grid-cols-7 gap-1 mb-1">
               {WEEKDAY_LABELS.map((d, i) => (
-                <div key={i} className="h-5 flex items-center justify-center text-[10px] text-[var(--color-text-faint)]">
+                <div key={i} className="h-5 flex items-center justify-center text-[10px] text-text-faint">
                   {d}
                 </div>
               ))}
@@ -240,10 +240,10 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
                     onClick={() => setPendingDate(startOfDay(day))}
                     className={cn(
                       'h-7 rounded-lg text-xs flex items-center justify-center transition-colors',
-                      disabled && 'text-[var(--color-text-faint)] opacity-30 cursor-not-allowed',
-                      !disabled && !isSelected && 'text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]',
-                      isSelected && 'bg-[var(--color-signal)] text-[var(--color-void)] font-medium',
-                      !isSelected && isToday && 'ring-1 ring-[var(--color-signal)]'
+                      disabled && 'text-text-faint opacity-30 cursor-not-allowed',
+                      !disabled && !isSelected && 'text-text-primary hover:bg-surface-hover',
+                      isSelected && 'bg-signal text-void font-medium',
+                      !isSelected && isToday && 'ring-1 ring-signal'
                     )}
                   >
                     {day.getDate()}
@@ -253,24 +253,24 @@ export default function DateTimePicker({ label, value, onChange, minDate }: Date
               </div>
             </div>
 
-              <div className="shrink-0 border-t border-[var(--color-border)] pt-3">
-                <label className="text-[11px] text-[var(--color-text-faint)] mb-1.5 block">Time</label>
+              <div className="shrink-0 border-t border-border pt-3">
+                <label className="text-[11px] text-text-faint mb-1.5 block">Time</label>
                 <input
                   type="time"
                   value={pendingTime}
                   onChange={(e) => setPendingTime(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]"
+                  className="w-full rounded-lg border border-border bg-surface-hover px-2.5 py-1.5 text-sm text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal"
                 />
                 {isTimeInvalid && (
-                  <p className="text-[10px] text-[var(--color-alert)] mt-1.5">
+                  <p className="text-[10px] text-alert mt-1.5">
                     Must be in the future.
                   </p>
                 )}
               </div>
-            <div className="flex shrink-0 gap-2 bg-[var(--color-surface)] pt-2">
-              <button type="button" onClick={() => { setOpen(false); triggerRef.current?.focus() }} className="flex-1 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">Cancel</button>
+            <div className="flex shrink-0 gap-2 bg-surface pt-2">
+              <button type="button" onClick={() => { setOpen(false); triggerRef.current?.focus() }} className="flex-1 rounded-lg border border-border text-xs text-text-muted hover:text-text-primary">Cancel</button>
               <Button
-                className="flex-1 min-h-10 !bg-[var(--color-signal)] !text-[var(--color-void)] shadow-md"
+                className="flex-1 min-h-10 bg-signal! text-void! shadow-md"
                 disabled={!pendingDate || isTimeInvalid}
                 onClick={handleApply}
               >

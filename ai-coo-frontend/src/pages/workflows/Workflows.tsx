@@ -21,7 +21,7 @@ import WorkflowDetailDrawer from './WorkflowDetailDrawer'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -117,16 +117,16 @@ export default function Workflows() {
 
   return (
     <div className="relative isolate mx-auto flex max-w-7xl flex-col gap-6 overflow-hidden p-5 md:p-8">
-      <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-36 -z-10 h-96 w-96 rounded-full bg-[var(--color-signal)]/[0.06] blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-36 -z-10 h-96 w-96 rounded-full bg-signal/6 blur-3xl" />
       <motion.header initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.35 }} className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--color-signal)]/20 bg-[var(--color-signal-dim)] px-3 py-1 text-[11px] font-medium tracking-wide text-[var(--color-signal)]">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-signal/20 bg-signal-dim px-3 py-1 text-[11px] font-medium tracking-wide text-signal">
             <Sparkles size={13} /> AUTOMATION STUDIO
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-text-primary">
             Workflow Automations
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 text-sm text-text-muted">
             Automatically react to events with tasks, emails, and notifications
           </p>
         </div>
@@ -139,19 +139,19 @@ export default function Workflows() {
       {!isLoading && !isError && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total workflows', value: sortedWorkflows.length, tone: 'text-[var(--color-text-primary)]' },
-            { label: 'Active', value: activeCount, tone: 'text-[var(--color-signal)]' },
-            { label: 'Paused', value: pausedCount, tone: 'text-[var(--color-amber)]' },
+            { label: 'Total workflows', value: sortedWorkflows.length, tone: 'text-text-primary' },
+            { label: 'Active', value: activeCount, tone: 'text-signal' },
+            { label: 'Paused', value: pausedCount, tone: 'text-amber' },
           ].map((stat, index) => (
             <motion.div
               key={stat.label}
               initial={reduceMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : index * 0.06 }}
-              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-4 py-3.5 shadow-[0_16px_44px_-34px_rgba(0,0,0,0.8)]"
+              className="rounded-2xl border border-border bg-surface/70 px-4 py-3.5 shadow-[0_16px_44px_-34px_rgba(0,0,0,0.8)]"
             >
-              <p className="text-xs text-[var(--color-text-muted)]">{stat.label}</p>
-              <p className={`mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold ${stat.tone}`}>{stat.value}</p>
+              <p className="text-xs text-text-muted">{stat.label}</p>
+              <p className={`mt-1 font-display text-2xl font-semibold ${stat.tone}`}>{stat.value}</p>
             </motion.div>
           ))}
         </div>
@@ -182,38 +182,38 @@ export default function Workflows() {
               animate={{ opacity: 1, y: 0 }}
               whileHover={reduceMotion ? undefined : { y: -2, borderColor: 'var(--color-border-hover)' }}
               transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : Math.min(index * 0.045, 0.3) }}
-              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-5 shadow-[0_16px_44px_-34px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+              className="rounded-2xl border border-border bg-surface/70 p-5 shadow-[0_16px_44px_-34px_rgba(0,0,0,0.8)] backdrop-blur-xl"
             >
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
                       onClick={() => setDetailWorkflowId(workflow.id)}
-                      className="text-sm font-medium text-[var(--color-text-primary)] hover:underline"
+                      className="text-sm font-medium text-text-primary hover:underline"
                     >
                       {workflow.name}
                     </button>
                     {statusBadge(workflow.status)}
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]">
-                    <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-1.5">{triggerLabel(workflow.trigger_type)}</span>
-                    <ArrowRight size={12} className="text-[var(--color-text-faint)]" />
-                    <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-1.5">{summarizeConditions(workflow.conditions)}</span>
-                    <ArrowRight size={12} className="text-[var(--color-text-faint)]" />
-                    <span className="rounded-lg border border-[var(--color-signal)]/25 bg-[var(--color-signal-dim)] px-2.5 py-1.5 text-[var(--color-signal)]">{workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''}</span>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                    <span className="rounded-lg border border-border bg-surface-hover px-2.5 py-1.5">{triggerLabel(workflow.trigger_type)}</span>
+                    <ArrowRight size={12} className="text-text-faint" />
+                    <span className="rounded-lg border border-border bg-surface-hover px-2.5 py-1.5">{summarizeConditions(workflow.conditions)}</span>
+                    <ArrowRight size={12} className="text-text-faint" />
+                    <span className="rounded-lg border border-signal/25 bg-signal-dim px-2.5 py-1.5 text-signal">{workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''}</span>
                   </div>
-                  <p className="mt-2 text-xs text-[var(--color-text-faint)]">{workflow.actions.map((action) => action.replaceAll('_', ' ')).join(' · ')}</p>
+                  <p className="mt-2 text-xs text-text-faint">{workflow.actions.map((action) => action.replaceAll('_', ' ')).join(' · ')}</p>
                   {runNowFeedback?.id === workflow.id && runNowFeedback.error && (
-                    <p className="text-xs text-[var(--color-alert)] mt-1">{runNowFeedback.error}</p>
+                    <p className="text-xs text-alert mt-1">{runNowFeedback.error}</p>
                   )}
                   {runNowFeedback?.id === workflow.id && runNowFeedback.status && (
                     <p
                       className={
                         runNowFeedback.status === 'success'
-                          ? 'text-xs text-[var(--color-signal)] mt-1'
+                          ? 'text-xs text-signal mt-1'
                           : runNowFeedback.status === 'partial_failure'
-                          ? 'text-xs text-[var(--color-alert)] mt-1'
-                          : 'text-xs text-[var(--color-amber)] mt-1'
+                          ? 'text-xs text-alert mt-1'
+                          : 'text-xs text-amber mt-1'
                       }
                     >
                       Run {runNowFeedback.status.replace('_', ' ')} — see details for logs.
@@ -260,7 +260,7 @@ export default function Workflows() {
                   {confirmDeleteId === workflow.id ? (
                     <Button
                       variant="primary"
-                      className="!bg-[var(--color-alert)] !text-white"
+                      className="bg-alert! text-white!"
                       loading={deleteMutation.isPending}
                       onBlur={() => setConfirmDeleteId(null)}
                       onClick={() => deleteMutation.mutate(workflow.id)}
@@ -270,7 +270,7 @@ export default function Workflows() {
                   ) : (
                     <button
                       onClick={() => setConfirmDeleteId(workflow.id)}
-                      className="text-[var(--color-text-faint)] hover:text-[var(--color-alert)] transition-colors p-2"
+                      className="text-text-faint hover:text-alert transition-colors p-2"
                       title="Delete workflow"
                     >
                       <Trash2 size={14} />

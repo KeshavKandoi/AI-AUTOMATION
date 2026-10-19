@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -72,7 +72,7 @@ export default function ProviderHealth() {
                   : `${data.unhealthy_count} provider${data.unhealthy_count === 1 ? '' : 's'} need attention`}
               </Badge>
               {data.unhealthy_platforms.length > 0 && (
-                <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="text-xs text-text-muted">
                   {data.unhealthy_platforms.map(platformLabel).join(', ')}
                 </span>
               )}
@@ -91,14 +91,14 @@ export default function ProviderHealth() {
       </div>
 
       {runSearchMutation.isSuccess && !runSearchMutation.isPending && (
-        <div className="rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2 text-xs text-[var(--color-signal)]">
+        <div className="rounded-lg border border-signal-dim bg-signal-dim px-3 py-2 text-xs text-signal">
           {runSearchMutation.data.status === "already_running"
             ? "A search is already running for your account - check back shortly."
             : "Search started - results appear as companies are checked."}
         </div>
       )}
       {syncStatus?.is_running && (
-        <div className="rounded-lg border border-[var(--color-amber-dim)] bg-[var(--color-amber-dim)] px-3 py-2 text-xs text-[var(--color-amber)]">
+        <div className="rounded-lg border border-amber-dim bg-amber-dim px-3 py-2 text-xs text-amber">
           Search started {formatDateTime(syncStatus.running_started_at)} · {syncStatus.jobs_found_current ?? 0} jobs found so far. Results update as each company completes.
         </div>
       )}
@@ -132,7 +132,7 @@ export default function ProviderHealth() {
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
+                    <h3 className="text-sm font-medium text-text-primary">
                       {platformLabel(p.platform)}
                     </h3>
                     <Badge tone={p.is_healthy ? 'signal' : p.is_running || p.is_stale ? 'amber' : 'alert'}>
@@ -145,13 +145,13 @@ export default function ProviderHealth() {
                     </Badge>
                     <Badge tone="neutral">{p.status}</Badge>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-[var(--color-text-muted)]">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-text-muted">
                     <span>{p.is_running ? 'Last progress' : 'Last completed run'}: {formatDateTime(p.last_run_at)}</span>
                     <span>Last success: {formatDateTime(p.last_success_at)}</span>
                     <span>Jobs found {p.is_running ? 'so far' : 'last run'}: {p.jobs_found_last_run}</span>
                   </div>
                   {p.last_error && (
-                    <p className="text-xs text-[var(--color-alert)] mt-2">{p.last_error}</p>
+                    <p className="text-xs text-alert mt-2">{p.last_error}</p>
                   )}
                 </div>
               </div>

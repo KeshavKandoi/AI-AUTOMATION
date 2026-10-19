@@ -25,7 +25,7 @@ import MemoryDetailDrawer from './MemoryDetailDrawer'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -33,7 +33,7 @@ function ErrorBanner({ message }: { message: string }) {
 }
 
 function selectClass() {
-  return 'rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]'
+  return 'rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal'
 }
 
 const PAGE_SIZE = 24
@@ -196,10 +196,10 @@ export default function Memory() {
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
       <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="font-display text-2xl font-semibold text-text-primary">
             Memory
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          <p className="mt-1 text-sm text-text-muted">
             What WorkForge remembers about your users, projects, and preferences
           </p>
         </div>
@@ -211,13 +211,13 @@ export default function Memory() {
 
       <div className="flex flex-col lg:flex-row gap-5">
         <motion.aside initial={reducedMotion ? false : { opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="lg:w-56 shrink-0">
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-3 lg:sticky lg:top-6">
+          <div className="rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-3 lg:sticky lg:top-6">
             <button
               onClick={() => setCategory(null)}
               className={
                 category === null
-                  ? 'w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-hover)] text-[var(--color-text-primary)]'
-                  : 'w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] transition-colors'
+                  ? 'w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-surface-hover text-text-primary'
+                  : 'w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted hover:bg-surface-hover transition-colors'
               }
             >
               <TagIcon size={14} />
@@ -231,8 +231,8 @@ export default function Memory() {
                   onClick={() => setCategory(c)}
                   className={
                     category === c
-                      ? 'w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-[var(--color-surface-hover)] text-[var(--color-text-primary)]'
-                      : 'w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] transition-colors'
+                      ? 'w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-surface-hover text-text-primary'
+                      : 'w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted hover:bg-surface-hover transition-colors'
                   }
                 >
                   <Icon size={14} />
@@ -244,16 +244,16 @@ export default function Memory() {
         </motion.aside>
 
         <motion.div initial={reducedMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }} className="flex-1 min-w-0">
-          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
-            <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1 w-fit mb-4">
+          <div className="rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-5">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1 w-fit mb-4">
               {STATUS_TABS.map((tab) => (
                 <button
                   key={tab.value}
                   onClick={() => setStatusTab(tab.value)}
                   className={
                     statusTab === tab.value
-                      ? 'rounded-md bg-[var(--color-surface-hover)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-primary)]'
-                      : 'rounded-md px-3 py-1.5 text-xs font-medium text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]'
+                      ? 'rounded-md bg-surface-hover px-3 py-1.5 text-xs font-medium text-text-primary'
+                      : 'rounded-md px-3 py-1.5 text-xs font-medium text-text-faint hover:text-text-muted'
                   }
                 >
                   {tab.label}
@@ -263,13 +263,13 @@ export default function Memory() {
 
             <div className="flex items-center gap-3 flex-wrap mb-4">
               <div className="relative flex-1 min-w-[200px]">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
                 <input
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Search title or content..."
                   aria-label="Search memories"
-                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]"
+                  className="w-full rounded-lg border border-border bg-surface pl-9 pr-3 py-2.5 text-sm text-text-primary placeholder:text-text-faint focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal"
                 />
               </div>
 
@@ -291,8 +291,8 @@ export default function Memory() {
                 onClick={() => setPinnedOnly((v) => !v)}
                 className={
                   pinnedOnly
-                    ? 'flex items-center gap-1.5 rounded-lg border border-[var(--color-signal)] text-[var(--color-signal)] px-3 py-2 text-xs'
-                    : 'flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] px-3 py-2 text-xs hover:border-[var(--color-border-hover)]'
+                    ? 'flex items-center gap-1.5 rounded-lg border border-signal text-signal px-3 py-2 text-xs'
+                    : 'flex items-center gap-1.5 rounded-lg border border-border text-text-muted px-3 py-2 text-xs hover:border-border-hover'
                 }
               >
                 <Pin size={13} />
@@ -303,8 +303,8 @@ export default function Memory() {
                 onClick={() => setFavoritedOnly((v) => !v)}
                 className={
                   favoritedOnly
-                    ? 'flex items-center gap-1.5 rounded-lg border border-[var(--color-signal)] text-[var(--color-signal)] px-3 py-2 text-xs'
-                    : 'flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] px-3 py-2 text-xs hover:border-[var(--color-border-hover)]'
+                    ? 'flex items-center gap-1.5 rounded-lg border border-signal text-signal px-3 py-2 text-xs'
+                    : 'flex items-center gap-1.5 rounded-lg border border-border text-text-muted px-3 py-2 text-xs hover:border-border-hover'
                 }
               >
                 <Star size={13} />
@@ -326,14 +326,14 @@ export default function Memory() {
                 </Button>
               )}
 
-              <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1 ml-auto">
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1 ml-auto">
                 <button
                   aria-label="Grid view"
                   onClick={() => setView('grid')}
                   className={
                     view === 'grid'
-                      ? 'rounded-md bg-[var(--color-surface-hover)] p-1.5 text-[var(--color-text-primary)]'
-                      : 'rounded-md p-1.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]'
+                      ? 'rounded-md bg-surface-hover p-1.5 text-text-primary'
+                      : 'rounded-md p-1.5 text-text-faint hover:text-text-muted'
                   }
                 >
                   <Grid3x3 size={14} />
@@ -343,8 +343,8 @@ export default function Memory() {
                   onClick={() => setView('list')}
                   className={
                     view === 'list'
-                      ? 'rounded-md bg-[var(--color-surface-hover)] p-1.5 text-[var(--color-text-primary)]'
-                      : 'rounded-md p-1.5 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]'
+                      ? 'rounded-md bg-surface-hover p-1.5 text-text-primary'
+                      : 'rounded-md p-1.5 text-text-faint hover:text-text-muted'
                   }
                 >
                   <List size={14} />
@@ -400,10 +400,10 @@ export default function Memory() {
                           openDetail(m.id)
                         }
                       }}
-                      className="cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 hover:border-[var(--color-border-hover)] transition-colors flex flex-col gap-2 focus:outline-none focus:ring-1 focus:ring-[var(--color-signal)]"
+                      className="cursor-pointer rounded-xl border border-border bg-surface p-4 hover:border-border-hover transition-colors flex flex-col gap-2 focus:outline-none focus:ring-1 focus:ring-signal"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="flex items-center gap-1.5 text-xs text-[var(--color-text-faint)]">
+                        <span className="flex items-center gap-1.5 text-xs text-text-faint">
                           <Icon size={12} />
                           {getCategoryLabel(m.category)}
                         </span>
@@ -415,7 +415,7 @@ export default function Memory() {
                               e.stopPropagation()
                               pinMutation.mutate(m)
                             }}
-                            className={(m.pinned ? 'text-[var(--color-signal)]' : 'text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]') + ' disabled:opacity-50'}
+                            className={(m.pinned ? 'text-signal' : 'text-text-faint hover:text-text-muted') + ' disabled:opacity-50'}
                           >
                             <Pin size={13} fill={m.pinned ? 'currentColor' : 'none'} />
                           </button>
@@ -426,22 +426,22 @@ export default function Memory() {
                               e.stopPropagation()
                               favoriteMutation.mutate(m)
                             }}
-                            className={(m.favorited ? 'text-[var(--color-amber)]' : 'text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]') + ' disabled:opacity-50'}
+                            className={(m.favorited ? 'text-amber' : 'text-text-faint hover:text-text-muted') + ' disabled:opacity-50'}
                           >
                             <Star size={13} fill={m.favorited ? 'currentColor' : 'none'} />
                           </button>
                         </div>
                       </div>
 
-                      <h3 className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                      <h3 className="text-sm font-medium text-text-primary truncate">
                         {m.title ?? 'Untitled'}
                       </h3>
-                      <p className="text-xs text-[var(--color-text-muted)] line-clamp-3">{m.content}</p>
+                      <p className="text-xs text-text-muted line-clamp-3">{m.content}</p>
 
                       <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                         <div className="flex items-center gap-1 flex-wrap">
                           {(m.tags ?? []).slice(0, 2).map((t) => (
-                            <span key={t} className="text-[10px] text-[var(--color-text-faint)] bg-[var(--color-surface-hover)] rounded px-1.5 py-0.5">
+                            <span key={t} className="text-[10px] text-text-faint bg-surface-hover rounded px-1.5 py-0.5">
                               {t}
                             </span>
                           ))}
@@ -453,7 +453,7 @@ export default function Memory() {
                 })}
               </div>
             ) : (
-              <div className="flex flex-col divide-y divide-[var(--color-border)]">
+              <div className="flex flex-col divide-y divide-border">
                 {items.map((m, index) => {
                   const Icon = getCategoryIcon(m.category)
                   return (
@@ -471,17 +471,17 @@ export default function Memory() {
                           openDetail(m.id)
                         }
                       }}
-                      className="cursor-pointer py-3 flex items-center gap-3 hover:bg-[var(--color-surface-hover)] transition-colors px-2 -mx-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--color-signal)]"
+                      className="cursor-pointer py-3 flex items-center gap-3 hover:bg-surface-hover transition-colors px-2 -mx-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-signal"
                     >
-                      <Icon size={14} className="text-[var(--color-text-faint)] shrink-0" />
+                      <Icon size={14} className="text-text-faint shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm text-[var(--color-text-primary)] truncate">{m.title ?? 'Untitled'}</p>
-                        <p className="text-xs text-[var(--color-text-faint)] truncate">{m.content}</p>
+                        <p className="text-sm text-text-primary truncate">{m.title ?? 'Untitled'}</p>
+                        <p className="text-xs text-text-faint truncate">{m.content}</p>
                       </div>
-                      {m.pinned && <Pin size={12} className="text-[var(--color-signal)] shrink-0" fill="currentColor" />}
-                      {m.favorited && <Star size={12} className="text-[var(--color-amber)] shrink-0" fill="currentColor" />}
+                      {m.pinned && <Pin size={12} className="text-signal shrink-0" fill="currentColor" />}
+                      {m.favorited && <Star size={12} className="text-amber shrink-0" fill="currentColor" />}
                       <Badge tone={getImportanceTone(m.importance)} className="shrink-0">{m.importance ?? 'medium'}</Badge>
-                      <span className="text-xs text-[var(--color-text-faint)] font-mono shrink-0 w-24 text-right">
+                      <span className="text-xs text-text-faint font-mono shrink-0 w-24 text-right">
                         {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
                       </span>
                     </motion.div>
@@ -491,8 +491,8 @@ export default function Memory() {
             )}
 
             {items.length > 0 && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--color-border)]">
-                <span className="text-xs text-[var(--color-text-faint)]">
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                <span className="text-xs text-text-faint">
                   {total} total · page {page} of {totalPages}
                   {isFetching && ' · updating...'}
                 </span>

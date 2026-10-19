@@ -8,10 +8,10 @@ interface BadgeProps {
 
 export default function Badge({ children, tone = 'neutral', className }: BadgeProps) {
   const toneClasses = {
-    signal: 'text-[var(--color-signal)] bg-[var(--color-signal-dim)]',
-    alert: 'text-[var(--color-alert)] bg-[var(--color-alert-dim)]',
-    amber: 'text-[var(--color-amber)] bg-[var(--color-amber-dim)]',
-    neutral: 'text-[var(--color-text-muted)] bg-[var(--color-surface-hover)]',
+    signal: 'text-signal bg-signal-dim',
+    alert: 'text-alert bg-alert-dim',
+    amber: 'text-amber bg-amber-dim',
+    neutral: 'text-text-muted bg-surface-hover',
   }
   return (
     <span

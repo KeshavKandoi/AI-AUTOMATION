@@ -55,16 +55,16 @@ export default function Signup() {
   return (
     <AuthShell>
         <div className="mb-8">
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">Create your workspace</h1>
-          <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Set up your account, then choose the tools you want to connect.</p>
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">Create your workspace</h1>
+          <p className="mt-3 text-sm leading-6 text-text-muted">Set up your account, then choose the tools you want to connect.</p>
         </div>
 
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-8 rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-7 shadow-xl shadow-black/10 sm:px-9 sm:py-12"
+          className="flex flex-col gap-8 rounded-[1.75rem] border border-border bg-surface/75 p-7 shadow-xl shadow-black/10 sm:px-9 sm:py-12"
         >
           {serverError && (
-            <div role="alert" className="rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-sm text-[var(--color-alert)]">
+            <div role="alert" className="rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-sm text-alert">
               {serverError}
             </div>
           )}
@@ -113,9 +113,9 @@ export default function Signup() {
           </Button>
         </form>
 
-        <p className="mt-7 text-center text-sm text-[var(--color-text-muted)]">
+        <p className="mt-7 text-center text-sm text-text-muted">
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-[var(--color-signal)] hover:brightness-110 transition-all">
+          <Link to="/login" className="font-semibold text-signal hover:brightness-110 transition-all">
             Sign in
           </Link>
         </p>

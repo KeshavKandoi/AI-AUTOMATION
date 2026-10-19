@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-[var(--color-alert-dim)] bg-[var(--color-alert-dim)] px-3 py-2 text-xs text-[var(--color-alert)]">
+    <div className="flex items-start gap-2 rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert">
       <AlertCircle size={14} className="shrink-0 mt-0.5" />
       <span>{message}</span>
     </div>
@@ -141,8 +141,8 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
 
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h3 className="text-base font-medium text-[var(--color-text-primary)]">{pr.title}</h3>
-                <a href={pr.html_url} target="_blank" rel="noreferrer" className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]">
+                <h3 className="text-base font-medium text-text-primary">{pr.title}</h3>
+                <a href={pr.html_url} target="_blank" rel="noreferrer" className="text-text-faint hover:text-text-primary">
                   <ExternalLink size={14} />
                 </a>
               </div>
@@ -153,11 +153,11 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
                 </Badge>
                 {pr.labels.map((l) => <Badge key={l} tone="neutral">{l}</Badge>)}
               </div>
-              <p className="text-xs text-[var(--color-text-muted)]">
+              <p className="text-xs text-text-muted">
                 {pr.author.login} · {pr.base_branch} ← {pr.head_branch} · +{pr.additions}/-{pr.deletions} · {pr.changed_files} file{pr.changed_files === 1 ? '' : 's'} · {pr.commits_count} commit{pr.commits_count === 1 ? '' : 's'}
               </p>
               {pr.body && (
-                <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-line mt-3 leading-relaxed">{pr.body}</p>
+                <p className="text-sm text-text-muted whitespace-pre-line mt-3 leading-relaxed">{pr.body}</p>
               )}
             </div>
 
@@ -165,11 +165,11 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={14} className="text-[var(--color-amber)]" />
-                  <h4 className="text-sm font-medium text-[var(--color-text-primary)]">AI summary</h4>
+                  <Sparkles size={14} className="text-amber" />
+                  <h4 className="text-sm font-medium text-text-primary">AI summary</h4>
                 </div>
                 {summary !== undefined && (
-                  <button onClick={() => refetchSummary()} disabled={summaryFetching} className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)]" title="Refresh">
+                  <button onClick={() => refetchSummary()} disabled={summaryFetching} className="text-text-faint hover:text-text-primary" title="Refresh">
                     <RefreshCw size={13} className={summaryFetching ? 'animate-spin' : ''} />
                   </button>
                 )}
@@ -180,26 +180,26 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
                 <ErrorBanner message="Couldn't load AI summary." />
               ) : summary === undefined ? (
                 <div className="flex flex-col items-start gap-2">
-                  <p className="text-xs text-[var(--color-text-faint)]">Uses your AI quota — load on demand.</p>
+                  <p className="text-xs text-text-faint">Uses your AI quota — load on demand.</p>
                   <Button variant="secondary" onClick={() => refetchSummary()}>Load AI summary</Button>
                 </div>
               ) : (
-                <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-line leading-relaxed">{summary}</p>
+                <p className="text-sm text-text-muted whitespace-pre-line leading-relaxed">{summary}</p>
               )}
             </div>
 
 
             <div>
-              <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Changed files</h4>
+              <h4 className="text-sm font-medium text-text-primary mb-2">Changed files</h4>
               {pr.files.length === 0 ? (
                 <EmptyState icon={Clock} title="No file changes reported" />
               ) : (
-                <div className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded-lg">
+                <div className="divide-y divide-border border border-border rounded-lg">
                   {pr.files.map((f) => (
                     <div key={f.filename} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                      <span className="font-mono text-[var(--color-text-primary)] truncate">{f.filename}</span>
-                      <span className="shrink-0 text-[var(--color-text-faint)]">
-                        {f.status} · <span className="text-[var(--color-signal)]">+{f.additions}</span> <span className="text-[var(--color-alert)]">-{f.deletions}</span>
+                      <span className="font-mono text-text-primary truncate">{f.filename}</span>
+                      <span className="shrink-0 text-text-faint">
+                        {f.status} · <span className="text-signal">+{f.additions}</span> <span className="text-alert">-{f.deletions}</span>
                       </span>
                     </div>
                   ))}
@@ -209,16 +209,16 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
 
 
             <div>
-              <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">CI / checks</h4>
+              <h4 className="text-sm font-medium text-text-primary mb-2">CI / checks</h4>
               {pr.checks.length === 0 ? (
                 <EmptyState icon={Clock} title="No CI checks reported" />
               ) : (
-                <div className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded-lg">
+                <div className="divide-y divide-border border border-border rounded-lg">
                   {pr.checks.map((c) => {
                     const { tone, Icon } = checkToneIcon(c)
                     return (
                       <div key={c.name} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                        <span className="text-[var(--color-text-primary)]">{c.name}</span>
+                        <span className="text-text-primary">{c.name}</span>
                         <Badge tone={tone}><Icon size={11} className="mr-1 inline" />{c.conclusion ?? c.status}</Badge>
                       </div>
                     )
@@ -229,20 +229,20 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
 
 
             <div>
-              <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Reviews</h4>
+              <h4 className="text-sm font-medium text-text-primary mb-2">Reviews</h4>
               {pr.reviews.length === 0 ? (
                 <EmptyState icon={Clock} title="No reviews yet" />
               ) : (
-                <div className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded-lg">
+                <div className="divide-y divide-border border border-border rounded-lg">
                   {pr.reviews.map((r) => (
                     <div key={r.id} className="px-3 py-2">
                       <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="text-[var(--color-text-primary)]">{r.author.login}</span>
+                        <span className="text-text-primary">{r.author.login}</span>
                         <Badge tone={r.state === 'APPROVED' ? 'signal' : r.state === 'CHANGES_REQUESTED' ? 'alert' : 'neutral'}>
                           {r.state.toLowerCase().replace(/_/g, ' ')}
                         </Badge>
                       </div>
-                      {r.body && <p className="text-xs text-[var(--color-text-muted)] mt-1">{r.body}</p>}
+                      {r.body && <p className="text-xs text-text-muted mt-1">{r.body}</p>}
                     </div>
                   ))}
                 </div>
@@ -251,18 +251,18 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
 
 
             <div>
-              <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Comments</h4>
+              <h4 className="text-sm font-medium text-text-primary mb-2">Comments</h4>
               {pr.comments.length === 0 ? (
                 <EmptyState icon={Clock} title="No comments yet" />
               ) : (
-                <div className="divide-y divide-[var(--color-border)] border border-[var(--color-border)] rounded-lg">
+                <div className="divide-y divide-border border border-border rounded-lg">
                   {pr.comments.map((c) => (
                     <div key={c.id} className="px-3 py-2">
                       <div className="flex items-center justify-between gap-3 text-xs mb-1">
-                        <span className="text-[var(--color-text-primary)]">{c.author.login}</span>
-                        {c.path && <span className="text-[var(--color-text-faint)] font-mono truncate">{c.path}</span>}
+                        <span className="text-text-primary">{c.author.login}</span>
+                        {c.path && <span className="text-text-faint font-mono truncate">{c.path}</span>}
                       </div>
-                      <p className="text-xs text-[var(--color-text-muted)]">{c.body}</p>
+                      <p className="text-xs text-text-muted">{c.body}</p>
                     </div>
                   ))}
                 </div>
@@ -271,8 +271,8 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
 
 
             {canAct && (
-              <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-4">
-                <h4 className="text-sm font-medium text-[var(--color-text-primary)]">Actions</h4>
+              <div className="border-t border-border pt-4 flex flex-col gap-4">
+                <h4 className="text-sm font-medium text-text-primary">Actions</h4>
 
                 <div className="flex flex-col gap-2">
                   <textarea
@@ -280,7 +280,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
                     onChange={(e) => setCommentBody(e.target.value)}
                     placeholder="Write a comment..."
                     rows={2}
-                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)] resize-none"
+                    className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-faint focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal resize-none"
                   />
                   <Button variant="secondary" disabled={!commentBody.trim()} loading={commentMutation.isPending} onClick={() => commentMutation.mutate()}>
                     Comment
@@ -294,7 +294,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
                     onChange={(e) => setRequestChangesBody(e.target.value)}
                     placeholder="Describe the changes you'd like to see..."
                     rows={2}
-                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)] resize-none"
+                    className="w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-faint focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal resize-none"
                   />
                   <Button variant="secondary" disabled={!requestChangesBody.trim()} loading={requestChangesMutation.isPending} onClick={() => requestChangesMutation.mutate()}>
                     Request changes
@@ -309,18 +309,18 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
                 </div>
                 {approveMutation.isError && <ErrorBanner message={apiErrorDetail(approveMutation.error, 'Failed to approve.')} />}
 
-                <div className="border-t border-[var(--color-border)] pt-3 flex items-center gap-2 flex-wrap">
+                <div className="border-t border-border pt-3 flex items-center gap-2 flex-wrap">
                   <select
                     value={mergeMethod}
                     onChange={(e) => setMergeMethod(e.target.value as MergeMethod)}
-                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-xs text-[var(--color-text-primary)]"
+                    className="rounded-lg border border-border bg-surface px-2.5 py-2 text-xs text-text-primary"
                   >
                     <option value="merge">Merge commit</option>
                     <option value="squash">Squash and merge</option>
                     <option value="rebase">Rebase and merge</option>
                   </select>
                   {confirmMerge ? (
-                    <Button variant="primary" className="!bg-[var(--color-alert)] !text-white" loading={mergeMutation.isPending} onBlur={() => setConfirmMerge(false)} onClick={() => mergeMutation.mutate()}>
+                    <Button variant="primary" className="bg-alert! text-white!" loading={mergeMutation.isPending} onBlur={() => setConfirmMerge(false)} onClick={() => mergeMutation.mutate()}>
                       Confirm merge?
                     </Button>
                   ) : (
@@ -328,7 +328,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
                   )}
 
                   {confirmClose ? (
-                    <Button variant="primary" className="!bg-[var(--color-alert)] !text-white" loading={closeMutation.isPending} onBlur={() => setConfirmClose(false)} onClick={() => closeMutation.mutate()}>
+                    <Button variant="primary" className="bg-alert! text-white!" loading={closeMutation.isPending} onBlur={() => setConfirmClose(false)} onClick={() => closeMutation.mutate()}>
                       Confirm close?
                     </Button>
                   ) : (
