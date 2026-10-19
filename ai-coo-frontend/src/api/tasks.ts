@@ -5,6 +5,9 @@ export const tasksApi = {
   list: (orgId: string) =>
     apiClient.get<Task[]>('/tasks', { params: { org_id: orgId } }),
 
+  delete: (taskId: string) =>
+    apiClient.delete(`/tasks/${taskId}`),
+
   pendingApproval: (orgId: string) =>
     apiClient.get<Task[]>('/tasks/pending-approval', { params: { org_id: orgId } }),
 

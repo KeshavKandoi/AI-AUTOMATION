@@ -237,6 +237,30 @@ def get_tasks(org_id: str = Depends(get_current_org_id)):
     return result.data
 
 
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: str, user: dict = Depends(get_current_user), org_id: str = Depends(get_current_org_id)):
+    task_res = supabase_admin.table("tasks").select("id,title").eq("id", task_id).eq("organization_id", org_id).execute()
+    if not task_res.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task = task_res.data[0]
+    supabase_admin.table("tasks").delete().eq("id", task_id).eq("organization_id", org_id).execute()
+    log_event(
+        organization_id=org_id,
+        module="tasks",
+        action="task_deleted",
+        summary=f"Task deleted: {task.get('title', 'Untitled')}",
+        status="warning",
+        user_id=user.get("sub"),
+        actor_type="user",
+        resource_type="task",
+        resource_id=task_id,
+        metadata={"title": task.get("title")},
+        source="backend",
+    )
+    return {"status": "deleted", "task_id": task_id}
+
+
 @app.get("/github/connected-repo")
 def get_connected_repo(org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()

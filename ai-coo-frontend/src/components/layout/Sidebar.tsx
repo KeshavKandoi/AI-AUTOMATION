@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronsLeft, LogOut } from 'lucide-react'
 import { navItems } from '@/lib/navigation'
 import { useAuthStore } from '@/store/authStore'
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import BrandLogo from '@/components/BrandLogo'
 import { authApi } from '@/api/auth'
 import { preloadNavigationRoutes, preloadRoute } from '@/lib/preloadRoute'
+import { tasksApi } from '@/api/tasks'
 
 export default function Sidebar() {
   useEffect(() => {
@@ -20,6 +21,19 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const queryClient = useQueryClient()
+
+  const preloadItem = (path: string) => {
+    preloadRoute(path)
+    if (path === '/tasks' && user?.organization_id) {
+      const orgId = user.organization_id
+      void queryClient.prefetchQuery({
+        queryKey: ['tasks', orgId],
+        queryFn: () => tasksApi.list(orgId).then((response) => response.data),
+        staleTime: 90_000,
+      })
+    }
+  }
 
   const inAppNotificationsEnabled = getInAppNotificationsEnabled()
 
@@ -45,8 +59,9 @@ export default function Sidebar() {
           <NavLink
             key={item.path}
             to={item.path}
-            onPointerEnter={() => preloadRoute(item.path)}
-            onFocus={() => preloadRoute(item.path)}
+            end
+            onPointerEnter={() => preloadItem(item.path)}
+            onFocus={() => preloadItem(item.path)}
             className={({ isActive }) =>
               cn(
                 'group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors',

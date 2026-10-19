@@ -30,6 +30,7 @@ class _FakeSB:
         self.update_data = update_data or []
         self.op = None
         self.updates = []
+        self.deletes = 0
 
     def table(self, name):
         self.op = None
@@ -42,6 +43,11 @@ class _FakeSB:
     def update(self, payload, *a, **k):
         self.op = "update"
         self.updates.append(payload)
+        return self
+
+    def delete(self):
+        self.op = "delete"
+        self.deletes += 1
         return self
 
     def __getattr__(self, name):
@@ -235,6 +241,42 @@ def test_get_tasks_requires_auth():
     client = TestClient(app)
     res = client.get("/tasks")
     assert res.status_code == 401
+
+
+def test_delete_task_requires_auth():
+    from main import app
+    assert TestClient(app).delete("/tasks/task-123").status_code == 401
+
+
+def test_delete_task_cannot_remove_another_organizations_task():
+    from main import app
+    _override_auth(app, org_id="org-attacker")
+    try:
+        fake = _FakeSB(select_data=[])
+        with patch("main.supabase_admin", fake), patch("main.log_event") as log:
+            response = TestClient(app).delete("/tasks/task-123")
+            assert response.status_code == 404
+            assert fake.deletes == 0
+            log.assert_not_called()
+    finally:
+        _clear(app)
+
+
+def test_delete_task_removes_owned_task_and_records_audit_event():
+    from main import app
+    _override_auth(app, org_id="org-1")
+    try:
+        fake = _FakeSB(select_data=[{"id": "task-123", "title": "Review issue"}])
+        with patch("main.supabase_admin", fake), patch("main.log_event") as log:
+            response = TestClient(app).delete("/tasks/task-123")
+            assert response.status_code == 200
+            assert response.json()["status"] == "deleted"
+            assert fake.deletes == 1
+            log.assert_called_once()
+            assert log.call_args.kwargs["organization_id"] == "org-1"
+            assert log.call_args.kwargs["action"] == "task_deleted"
+    finally:
+        _clear(app)
 
 
 def test_phase4_removed_unauthenticated_routes():
