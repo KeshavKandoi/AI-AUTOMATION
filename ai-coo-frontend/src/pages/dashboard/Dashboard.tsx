@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ListTodo, AlertCircle, Workflow, Activity, Plug, Sparkles } from 'lucide-react'
+import { ListTodo, AlertCircle, Workflow, Activity, Plug } from 'lucide-react'
 import { tasksApi } from '@/api/tasks'
 import { schedulerApi } from '@/api/scheduler'
 import { integrationsApi } from '@/api/integrations'
@@ -73,39 +73,23 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative isolate mx-auto max-w-7xl overflow-hidden p-5 md:p-8">
-      <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-36 -z-10 h-96 w-96 rounded-full bg-[var(--color-signal)]/[0.07] blur-3xl" />
-      <motion.header
-        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reduceMotion ? 0 : 0.38, ease: 'easeOut' }}
-        className="mb-7 flex flex-wrap items-end justify-between gap-4"
-      >
+    <div className="mx-auto flex max-w-7xl flex-col gap-5 p-5 md:gap-6 md:p-8">
+      <header className="flex flex-col gap-1">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--color-signal)]/20 bg-[var(--color-signal-dim)] px-3 py-1 text-[11px] font-medium tracking-wide text-[var(--color-signal)]">
-            <Sparkles size={13} /> WORKSPACE OVERVIEW
-          </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             Dashboard
           </h1>
-          <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
-            Live status across your WorkForge
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+            Your workspace at a glance
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-3.5 py-2 text-xs text-[var(--color-text-muted)]">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-signal)] opacity-40 motion-reduce:animate-none" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-signal)]" />
-          </span>
-          Workspace live
-        </div>
-      </motion.header>
+      </header>
 
       <motion.div
         initial="hidden"
         animate="show"
         variants={{ hidden: {}, show: { transition: { staggerChildren: reduceMotion ? 0 : 0.07 } } }}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         <StatCard label="Open tasks" value={openTasks} icon={ListTodo} tone="signal" loading={tasksLoading} />
         <StatCard label="High priority" value={highPriority} icon={AlertCircle} tone="alert" loading={tasksLoading} />
@@ -113,7 +97,7 @@ export default function Dashboard() {
         <StatCard label="Connected integrations" value={connectedCount} icon={Plug} tone="signal" loading={integrationsLoading || discordStatus.isLoading} />
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className={`${panelClass} lg:col-span-2 p-5 md:p-6`}>
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -207,7 +191,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className={`${panelClass} p-5 md:p-6 mb-6`}>
+      <div className={`${panelClass} p-5 md:p-6`}>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className={sectionHeadingClass}>Recent memories</h2>

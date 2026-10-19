@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { authApi } from '@/api/auth'
 import { restoreSession } from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
+import { preloadRoute } from '@/lib/preloadRoute'
 import AuthShell from './AuthShell'
 
 const loginSchema = z.object({
@@ -48,6 +49,7 @@ export default function Login() {
   const onSubmit = async (data: LoginForm) => {
     setServerError(null)
     setLoading(true)
+    preloadRoute('/dashboard')
     try {
       const res = await authApi.login(data)
       setAuth(res.data.user, res.data.access_token)

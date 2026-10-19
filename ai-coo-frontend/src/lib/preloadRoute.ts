@@ -1,5 +1,6 @@
 const routeChunks: Record<string, () => Promise<unknown>> = {
   '/dashboard': () => import('@/pages/dashboard/Dashboard'),
+  '/integrations/calendar': () => import('@/pages/calendar/Calendar'),
   '/tasks': () => import('@/pages/tasks/Tasks'),
   '/integrations/github': () => import('@/pages/github/GitHub'),
   '/audit-logs': () => import('@/pages/auditLogs/AuditLogs'),
