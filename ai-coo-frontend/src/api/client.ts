@@ -22,7 +22,7 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = axios
       .post(
-        `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
+        import.meta.env.PROD ? '/auth/refresh' : `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
         {},
         { withCredentials: true }
       )
@@ -31,8 +31,11 @@ async function refreshAccessToken(): Promise<string | null> {
         useAuthStore.getState().setAuth(user, access_token)
         return access_token as string
       })
-      .catch(() => {
-        useAuthStore.getState().logout()
+      .catch((error) => {
+        // A network outage is not proof that the user's session expired.
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          useAuthStore.getState().logout()
+        }
         return null
       })
       .finally(() => {
@@ -80,11 +83,9 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isPublicPath(window.location.pathname) && !useAuthStore.getState().user) {
       useAuthStore.getState().logout()
-      if (!isPublicPath(window.location.pathname)) {
-        window.location.href = '/login'
-      }
+      window.location.href = '/login'
     }
     return Promise.reject(error)
   }

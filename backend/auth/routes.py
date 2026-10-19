@@ -25,13 +25,23 @@ def refresh_cookie_kwargs() -> dict:
     return kwargs
 
 
-def _set_refresh_cookie(response: Response, refresh_token: str):
-    response.set_cookie(value=refresh_token, max_age=60 * 60 * 24 * 30, **refresh_cookie_kwargs())
+def _set_refresh_cookie(response: Response, refresh_token: str, remember_me: bool = True):
+    cookie = refresh_cookie_kwargs()
+    lifetime = {"max_age": 60 * 60 * 24 * 30} if remember_me else {}
+    response.set_cookie(value=refresh_token, **cookie, **lifetime)
+    response.set_cookie(
+        key="remember_session", value="1" if remember_me else "0",
+        httponly=True, secure=cookie["secure"], samesite=cookie["samesite"],
+        path=cookie["path"], **({"domain": cookie["domain"]} if "domain" in cookie else {}),
+        **lifetime,
+    )
 
 
 def _clear_refresh_cookie(response: Response):
     clear_kwargs = {k: v for k, v in refresh_cookie_kwargs().items() if k != "key"}
-    response.delete_cookie(key="refresh_token", **{k: v for k, v in clear_kwargs.items() if k in ("path", "domain")})
+    cookie_scope = {k: v for k, v in clear_kwargs.items() if k in ("path", "domain")}
+    response.delete_cookie(key="refresh_token", **cookie_scope)
+    response.delete_cookie(key="remember_session", **cookie_scope)
 
 
 @router.post("/signup")
@@ -56,7 +66,7 @@ def verify_otp(payload: VerifyOtpRequest, response: Response):
 @router.post("/login")
 def login(payload: LoginRequest, response: Response):
     user, access_token, refresh_token = service.login(payload.email, payload.password)
-    _set_refresh_cookie(response, refresh_token)
+    _set_refresh_cookie(response, refresh_token, payload.remember_me)
     return {"user": user, "access_token": access_token}
 
 
@@ -84,7 +94,7 @@ def refresh(request: Request, response: Response):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No session found")
     access_token, new_refresh_token, user = service.refresh_session(refresh_token)
-    _set_refresh_cookie(response, new_refresh_token)
+    _set_refresh_cookie(response, new_refresh_token, request.cookies.get("remember_session") != "0")
     return {"user": user, "access_token": access_token}
 
 

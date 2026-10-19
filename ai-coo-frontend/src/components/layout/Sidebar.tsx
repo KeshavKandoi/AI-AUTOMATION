@@ -9,6 +9,7 @@ import { notificationsService } from '@/services/notifications'
 import { getInAppNotificationsEnabled } from '@/lib/preferences'
 import { cn } from '@/lib/utils'
 import BrandLogo from '@/components/BrandLogo'
+import { authApi } from '@/api/auth'
 import { preloadNavigationRoutes, preloadRoute } from '@/lib/preloadRoute'
 
 export default function Sidebar() {
@@ -98,7 +99,9 @@ export default function Sidebar() {
           </div>
         )}
         <button
-          onClick={logout}
+          onClick={() => {
+            void authApi.logout().catch(() => {}).finally(logout)
+          }}
           className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-alert)] hover:bg-[var(--color-alert-dim)] transition-colors"
         >
           <LogOut size={16} className="shrink-0" />

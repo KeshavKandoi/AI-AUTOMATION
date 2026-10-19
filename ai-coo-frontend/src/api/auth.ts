@@ -9,15 +9,18 @@ import type {
   User,
 } from '@/types/auth'
 
+// Keep session cookies on the website's own domain in production.
+const authRequest = { baseURL: import.meta.env.PROD ? '/' : import.meta.env.VITE_API_BASE_URL }
+
 export const authApi = {
   login: (payload: LoginPayload) =>
-    apiClient.post<{ user: User; access_token: string }>('/auth/login', payload),
+    apiClient.post<{ user: User; access_token: string }>('/auth/login', payload, authRequest),
 
   signup: (payload: SignupPayload) =>
     apiClient.post<{ message: string; email: string }>('/auth/signup', payload),
 
   verifyOtp: (payload: VerifyOtpPayload) =>
-    apiClient.post<{ user: User; access_token: string }>('/auth/verify-otp', payload),
+    apiClient.post<{ user: User; access_token: string }>('/auth/verify-otp', payload, authRequest),
 
   resendOtp: (email: string) =>
     apiClient.post<{ message: string }>('/auth/resend-otp', { email }),
@@ -35,6 +38,7 @@ export const authApi = {
 
   changePassword: (payload: ChangePasswordPayload) =>
     apiClient.post<{ message: string }>('/auth/change-password', payload),
+  logout: () => apiClient.post('/auth/logout', {}, authRequest),
   deleteAccount: (password: string) =>
     apiClient.post<{ message: string }>('/account/delete', { password }),
 }

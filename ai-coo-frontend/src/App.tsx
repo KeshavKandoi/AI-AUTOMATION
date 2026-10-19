@@ -8,9 +8,9 @@ import AppLayout from '@/components/layout/AppLayout'
 import PageErrorBoundary from '@/components/ui/PageErrorBoundary'
 import Memory from '@/pages/memory/Memory'
 import CalendarPage from '@/pages/calendar/Calendar'
+import Login from '@/pages/auth/Login'
+import Signup from '@/pages/auth/Signup'
 
-const Login = lazy(() => import('@/pages/auth/Login'))
-const Signup = lazy(() => import('@/pages/auth/Signup'))
 const VerifyOtp = lazy(() => import('@/pages/auth/VerifyOtp'))
 const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword'))
 const ResetPassword = lazy(() => import('@/pages/auth/ResetPassword'))

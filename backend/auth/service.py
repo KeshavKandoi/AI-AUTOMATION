@@ -287,9 +287,16 @@ def refresh_session(refresh_token: str):
     auth_client = get_auth_client()
     try:
         result = auth_client.auth.refresh_session(refresh_token)
+    except AuthInvalidCredentialsError:
+        raise HTTPException(status_code=401, detail="Session expired. Please sign in again.") from None
+    except AuthApiError as exc:
+        if getattr(exc, "status", None) in (400, 401, 403):
+            raise HTTPException(status_code=401, detail="Session expired. Please sign in again.") from None
+        logger.exception("Refresh service unavailable")
+        raise HTTPException(status_code=503, detail="Authentication service is temporarily unavailable.") from None
     except Exception:
         logger.exception("Refresh failed")
-        raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
+        raise HTTPException(status_code=503, detail="Authentication service is temporarily unavailable.") from None
     if not result.session:
         raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     full_name = (result.user.user_metadata or {}).get("full_name", "") if result.user else ""
