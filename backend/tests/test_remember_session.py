@@ -8,24 +8,23 @@ from auth import service
 from main import app
 
 
-@pytest.mark.parametrize("remember_me, persistent", [(True, True), (False, False)])
-def test_login_and_refresh_preserve_remember_choice(monkeypatch, remember_me, persistent):
+def test_login_and_refresh_keep_session_for_30_days(monkeypatch):
     monkeypatch.setattr(service, "login", lambda *_: ({"id": "user-1"}, "access", "refresh-1"))
     monkeypatch.setattr(service, "refresh_session", lambda *_: ("access-2", "refresh-2", {"id": "user-1"}))
     client = TestClient(app)
 
     login = client.post("/auth/login", json={
-        "email": "test@example.com", "password": "password", "remember_me": remember_me,
+        "email": "test@example.com", "password": "password",
     })
     assert login.status_code == 200
     cookies = login.headers.get_list("set-cookie")
-    assert len(cookies) == 2
-    assert all(("max-age=2592000" in cookie.lower()) == persistent for cookie in cookies)
+    assert len(cookies) == 1
+    assert "max-age=2592000" in cookies[0].lower()
 
     refresh = client.post("/auth/refresh")
     assert refresh.status_code == 200
     assert refresh.json()["access_token"] == "access-2"
-    assert all(("max-age=2592000" in cookie.lower()) == persistent for cookie in refresh.headers.get_list("set-cookie"))
+    assert "max-age=2592000" in refresh.headers.get_list("set-cookie")[0].lower()
 
     logout = client.post("/auth/logout")
     assert logout.status_code == 200

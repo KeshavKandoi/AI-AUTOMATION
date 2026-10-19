@@ -18,7 +18,6 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-    remember_me: bool = True
 
 
 class VerifyOtpRequest(BaseModel):

@@ -19,7 +19,6 @@ type LoginForm = z.infer<typeof loginSchema>
 export default function Login() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
-  const [rememberMe, setRememberMe] = useState(true)
   const [serverError, setServerError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -47,7 +46,7 @@ export default function Login() {
     setServerError(null)
     setLoading(true)
     try {
-      const res = await authApi.login({ ...data, remember_me: rememberMe })
+      const res = await authApi.login(data)
       setAuth(res.data.user, res.data.access_token)
       navigate('/dashboard')
     } catch (err: any) {
@@ -69,7 +68,7 @@ export default function Login() {
 
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-5 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-6 shadow-xl shadow-black/10 sm:p-8"
+          className="flex flex-col gap-6 rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-7 shadow-xl shadow-black/10 sm:p-10"
         >
           {serverError && (
             <div role="alert" className="rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-sm text-[var(--color-alert)]">
@@ -82,7 +81,7 @@ export default function Login() {
             type="email"
             placeholder="you@company.com"
             autoComplete="email"
-            className="h-12 rounded-xl"
+            className="h-14 rounded-xl"
             error={errors.email?.message}
             {...register('email')}
           />
@@ -91,16 +90,12 @@ export default function Login() {
             type="password"
             placeholder="Enter your password"
             autoComplete="current-password"
-            className="h-12 rounded-xl"
+            className="h-14 rounded-xl"
             error={errors.password?.message}
             {...register('password')}
           />
 
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <label className="flex cursor-pointer items-center gap-2.5 text-[var(--color-text-muted)]">
-              <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[var(--color-signal)]" />
-              Remember me
-            </label>
+          <div className="flex justify-end text-sm">
             <button
               type="button"
               onClick={handleForgotPassword}
@@ -109,9 +104,7 @@ export default function Login() {
               Forgot password?
             </button>
           </div>
-          <p className="-mt-2 text-xs text-[var(--color-text-faint)]">{rememberMe ? 'Stay signed in on this device for up to 30 days.' : 'Stay signed in until this browser session ends.'}</p>
-
-          <Button type="submit" loading={loading} className="mt-1 h-12 w-full rounded-xl font-semibold">
+          <Button type="submit" loading={loading} className="mt-1 h-14 w-full rounded-xl font-semibold">
             Sign in
           </Button>
 

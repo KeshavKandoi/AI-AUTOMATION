@@ -61,7 +61,7 @@ export default function Signup() {
 
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-5 rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-6 shadow-xl shadow-black/10 sm:p-8"
+          className="flex flex-col gap-6 rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-7 shadow-xl shadow-black/10 sm:p-10"
         >
           {serverError && (
             <div role="alert" className="rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-sm text-[var(--color-alert)]">
@@ -73,7 +73,7 @@ export default function Signup() {
             label="Full name"
             placeholder="Your full name"
             autoComplete="name"
-            className="h-12 rounded-xl"
+            className="h-14 rounded-xl"
             error={errors.full_name?.message}
             {...register('full_name')}
           />
@@ -82,7 +82,7 @@ export default function Signup() {
             type="email"
             placeholder="you@company.com"
             autoComplete="email"
-            className="h-12 rounded-xl"
+            className="h-14 rounded-xl"
             error={errors.email?.message}
             {...register('email')}
           />
@@ -90,7 +90,7 @@ export default function Signup() {
             label="Organization name"
             placeholder="Your team or company"
             autoComplete="organization"
-            className="h-12 rounded-xl"
+            className="h-14 rounded-xl"
             error={errors.organization_name?.message}
             {...register('organization_name')}
           />
@@ -99,12 +99,12 @@ export default function Signup() {
             type="password"
             placeholder="At least 8 characters"
             autoComplete="new-password"
-            className="h-12 rounded-xl"
+            className="h-14 rounded-xl"
             error={errors.password?.message}
             {...register('password')}
           />
 
-          <Button type="submit" loading={loading} className="mt-1 h-12 w-full rounded-xl font-semibold">
+          <Button type="submit" loading={loading} className="mt-1 h-14 w-full rounded-xl font-semibold">
             Create account
           </Button>
         </form>
