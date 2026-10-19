@@ -6,19 +6,21 @@ import { useAuthStore } from '@/store/authStore'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import PageErrorBoundary from '@/components/ui/PageErrorBoundary'
-import Memory from '@/pages/memory/Memory'
-import CalendarPage from '@/pages/calendar/Calendar'
-import Login from '@/pages/auth/Login'
-import Signup from '@/pages/auth/Signup'
-import Home from '@/pages/home/Home'
-import { FeaturesPage, HowItWorksPage, ConnectionsPage, GoogleDataPage } from '@/pages/home/MarketingPages'
+const Home = lazy(() => import('@/pages/home/Home'))
+const FeaturesPage = lazy(() => import('@/pages/home/MarketingPages').then((module) => ({ default: module.FeaturesPage })))
+const HowItWorksPage = lazy(() => import('@/pages/home/MarketingPages').then((module) => ({ default: module.HowItWorksPage })))
+const ConnectionsPage = lazy(() => import('@/pages/home/MarketingPages').then((module) => ({ default: module.ConnectionsPage })))
+const GoogleDataPage = lazy(() => import('@/pages/home/MarketingPages').then((module) => ({ default: module.GoogleDataPage })))
+const Memory = lazy(() => import('@/pages/memory/Memory'))
+const CalendarPage = lazy(() => import('@/pages/calendar/Calendar'))
+const Login = lazy(() => import('@/pages/auth/Login'))
+const Signup = lazy(() => import('@/pages/auth/Signup'))
 
 const VerifyOtp = lazy(() => import('@/pages/auth/VerifyOtp'))
 const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword'))
 const ResetPassword = lazy(() => import('@/pages/auth/ResetPassword'))
 const Dashboard = lazy(() => import('@/pages/dashboard/Dashboard'))
 const Tasks = lazy(() => import('@/pages/tasks/Tasks'))
-const HumanApproval = lazy(() => import('@/pages/approvals/HumanApproval'))
 const JobHunter = lazy(() => import('@/pages/jobHunter/JobHunter'))
 const Integrations = lazy(() => import('@/pages/integrations/Integrations'))
 const CommitScheduler = lazy(() => import('@/pages/commitScheduler/CommitScheduler'))
@@ -85,7 +87,7 @@ function App() {
               <Route path="/commit-scheduler" element={<PageErrorBoundary><CommitScheduler /></PageErrorBoundary>} />
               <Route path="/pull-requests" element={<PullRequests />} />
               <Route path="/open-source" element={<OpenSource />} />
-              <Route path="/approvals" element={<HumanApproval />} />
+              <Route path="/approvals" element={<Navigate to="/tasks" replace />} />
               <Route path="/job-hunter" element={<JobHunter />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
               <Route path="/integrations" element={<Integrations />} />

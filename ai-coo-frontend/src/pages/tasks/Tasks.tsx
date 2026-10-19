@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { Search, Check, X, Trash2, ListTodo, Sparkles, AlertTriangle } from 'lucide-react'
+import { Search, Check, X, Trash2, ListTodo, Sparkles, AlertTriangle, GitBranch, Mail } from 'lucide-react'
 import { tasksApi } from '@/api/tasks'
 import { useAuthStore } from '@/store/authStore'
 import Badge from '@/components/ui/Badge'
@@ -15,6 +15,12 @@ const priorityTone: Record<string, 'alert' | 'amber' | 'neutral'> = {
   high: 'alert',
   medium: 'amber',
   low: 'neutral',
+}
+
+function providerFromSourceRef(sourceRef?: string | null): 'github' | 'gmail' | null {
+  if (sourceRef?.startsWith('github:')) return 'github'
+  if (sourceRef?.startsWith('gmail:')) return 'gmail'
+  return null
 }
 
 export default function Tasks() {
@@ -81,6 +87,16 @@ export default function Tasks() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['tasks', orgId] }),
   })
 
+  const resolveGithubMutation = useMutation({
+    mutationFn: (taskId: string) => tasksApi.resolveGithub(taskId),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['tasks', orgId] }),
+  })
+
+  const resolveGmailMutation = useMutation({
+    mutationFn: (taskId: string) => tasksApi.resolveGmail(taskId),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['tasks', orgId] }),
+  })
+
   const filtered = useMemo(() => {
     if (!tasks) return []
     return tasks.filter((t) => {
@@ -113,7 +129,7 @@ export default function Tasks() {
 
       <div className="mb-5 flex items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/55 px-4 py-3.5 text-sm text-[var(--color-text-muted)] backdrop-blur-xl">
         <ListTodo size={17} className="mt-0.5 shrink-0 text-[var(--color-signal)]" />
-        <p><span className="font-medium text-[var(--color-text-primary)]">What are these?</span> WorkForge tasks are action items created from events in connected services, such as GitHub issues or workflow runs. Approve or reject open items to handle them; delete removes only the task from WorkForge.</p>
+        <p><span className="font-medium text-[var(--color-text-primary)]">What are these?</span> WorkForge tasks are action items created by connected services and workflows. Review open tasks here, then use the follow-up action on approved GitHub or Gmail tasks when available. Deleting a task removes it from WorkForge only.</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-5">
@@ -221,6 +237,28 @@ export default function Tasks() {
                           <X size={14} className="text-[var(--color-alert)]" />
                         </Button>
                       </div>
+                    )}
+                    {task.status === 'approved' && providerFromSourceRef(task.source_ref) === 'github' && (
+                      <Button
+                        variant="secondary"
+                        className="!px-3 !py-2"
+                        onClick={() => resolveGithubMutation.mutate(task.id)}
+                        loading={resolveGithubMutation.isPending && resolveGithubMutation.variables === task.id}
+                      >
+                        <GitBranch size={14} />
+                        <span className="text-xs">Resolve on GitHub</span>
+                      </Button>
+                    )}
+                    {task.status === 'approved' && providerFromSourceRef(task.source_ref) === 'gmail' && (
+                      <Button
+                        variant="secondary"
+                        className="!px-3 !py-2"
+                        onClick={() => resolveGmailMutation.mutate(task.id)}
+                        loading={resolveGmailMutation.isPending && resolveGmailMutation.variables === task.id}
+                      >
+                        <Mail size={14} />
+                        <span className="text-xs">Send email</span>
+                      </Button>
                     )}
                     <Button
                       variant="secondary"

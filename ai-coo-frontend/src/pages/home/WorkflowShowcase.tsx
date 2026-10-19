@@ -7,7 +7,6 @@ import {
   GitPullRequest,
   ListTodo,
   Mail,
-  ShieldCheck,
   Split,
   type LucideIcon,
 } from 'lucide-react'
@@ -39,7 +38,7 @@ const EXAMPLES: Example[] = [
     summary: 'Route a pull request through your review process.',
     trigger: { title: 'PR opened', detail: 'GitHub event', icon: GitPullRequest },
     condition: { title: 'Check branch', detail: 'Your conditions', icon: Split },
-    review: { title: 'Request review', detail: 'Human approval', icon: ShieldCheck },
+    review: { title: 'Match found', detail: 'Condition passes', icon: CheckCircle2 },
     actions: [
       { title: 'Create task', detail: 'Track the review', icon: ListTodo },
       { title: 'Send update', detail: 'Configured email', icon: Mail },

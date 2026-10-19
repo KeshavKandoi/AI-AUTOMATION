@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from '@/components/ui/Table'
 import { formatDistanceToNow } from 'date-fns'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { getModuleIcon, getModuleLabel, getStatusTone, formatActionLabel } from '@/lib/auditLogDisplay'
 import AuditLogDetailDrawer from './AuditLogDetailDrawer'
 import AuditLogTimeline from './AuditLogTimeline'
@@ -43,6 +44,7 @@ const PAGE_SIZE = 25
 type ViewMode = 'table' | 'timeline'
 
 export default function AuditLogs() {
+  const reducedMotion = useReducedMotion()
   const orgId = useAuthStore((s) => s.user?.organization_id)
 
   const [view, setView] = useState<ViewMode>('table')
@@ -111,7 +113,7 @@ export default function AuditLogs() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             Audit Logs
@@ -144,9 +146,9 @@ export default function AuditLogs() {
             Timeline
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
+      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.06 }} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
         <div className="flex items-center gap-3 flex-wrap mb-4">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
@@ -179,8 +181,9 @@ export default function AuditLogs() {
           </button>
         </div>
 
+        <AnimatePresence initial={false}>
         {filtersOpen && (
-          <div className="flex items-end gap-3 flex-wrap mb-4 pb-4 border-b border-[var(--color-border)]">
+          <motion.div initial={reducedMotion ? false : { opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={reducedMotion ? undefined : { opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="flex items-end gap-3 flex-wrap mb-4 pb-4 border-b border-[var(--color-border)] overflow-hidden">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-[var(--color-text-faint)]">Module</label>
               <select value={module} onChange={(e) => setModule(e.target.value)} className={selectClass()}>
@@ -211,8 +214,9 @@ export default function AuditLogs() {
                 Clear
               </Button>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {isLoading ? (
           <div className="space-y-2">
@@ -233,6 +237,7 @@ export default function AuditLogs() {
             }
           />
         ) : view === 'table' ? (
+          <motion.div key="table" initial={reducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
           <Table>
             <TableHead>
               <TableRow>
@@ -279,8 +284,11 @@ export default function AuditLogs() {
               })}
             </TableBody>
           </Table>
+          </motion.div>
         ) : (
-          <AuditLogTimeline logs={items} onSelect={setSelectedLogId} />
+          <motion.div key="timeline" initial={reducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            <AuditLogTimeline logs={items} onSelect={setSelectedLogId} />
+          </motion.div>
         )}
 
         {items.length > 0 && (
@@ -309,7 +317,7 @@ export default function AuditLogs() {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
 
       <AuditLogDetailDrawer
         open={!!selectedLogId}

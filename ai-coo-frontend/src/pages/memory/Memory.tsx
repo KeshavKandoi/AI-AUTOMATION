@@ -19,6 +19,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/Button'
 import { getCategoryIcon, getCategoryLabel, getImportanceTone, ALL_CATEGORIES } from '@/lib/memoryDisplay'
 import { formatDistanceToNow } from 'date-fns'
+import { motion, useReducedMotion } from 'framer-motion'
 import MemoryFormModal from './MemoryFormModal'
 import MemoryDetailDrawer from './MemoryDetailDrawer'
 
@@ -45,6 +46,7 @@ const STATUS_TABS: { value: MemoryStatusFilter; label: string }[] = [
 type ViewMode = 'grid' | 'list'
 
 export default function Memory() {
+  const reducedMotion = useReducedMotion()
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
 
@@ -192,7 +194,7 @@ export default function Memory() {
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             Memory
@@ -205,10 +207,10 @@ export default function Memory() {
           <Plus size={14} />
           New memory
         </Button>
-      </div>
+      </motion.div>
 
       <div className="flex flex-col lg:flex-row gap-5">
-        <aside className="lg:w-56 shrink-0">
+        <motion.aside initial={reducedMotion ? false : { opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="lg:w-56 shrink-0">
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-3 lg:sticky lg:top-6">
             <button
               onClick={() => setCategory(null)}
@@ -239,9 +241,9 @@ export default function Memory() {
               )
             })}
           </div>
-        </aside>
+        </motion.aside>
 
-        <div className="flex-1 min-w-0">
+        <motion.div initial={reducedMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }} className="flex-1 min-w-0">
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
             <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1 w-fit mb-4">
               {STATUS_TABS.map((tab) => (
@@ -380,11 +382,15 @@ export default function Memory() {
               />
             ) : view === 'grid' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {items.map((m) => {
+                {items.map((m, index) => {
                   const Icon = getCategoryIcon(m.category)
                   return (
-                    <div
+                    <motion.div
                       key={m.id}
+                      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22, delay: Math.min(index, 6) * 0.035 }}
+                      whileHover={reducedMotion ? undefined : { y: -2 }}
                       role="button"
                       tabIndex={0}
                       onClick={() => openDetail(m.id)}
@@ -442,17 +448,20 @@ export default function Memory() {
                         </div>
                         <Badge tone={getImportanceTone(m.importance)}>{m.importance ?? 'medium'}</Badge>
                       </div>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
             ) : (
               <div className="flex flex-col divide-y divide-[var(--color-border)]">
-                {items.map((m) => {
+                {items.map((m, index) => {
                   const Icon = getCategoryIcon(m.category)
                   return (
-                    <div
+                    <motion.div
                       key={m.id}
+                      initial={reducedMotion ? false : { opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.22, delay: Math.min(index, 6) * 0.035 }}
                       role="button"
                       tabIndex={0}
                       onClick={() => openDetail(m.id)}
@@ -475,7 +484,7 @@ export default function Memory() {
                       <span className="text-xs text-[var(--color-text-faint)] font-mono shrink-0 w-24 text-right">
                         {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
                       </span>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
@@ -498,7 +507,7 @@ export default function Memory() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       <MemoryFormModal

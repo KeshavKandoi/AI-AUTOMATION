@@ -25,7 +25,7 @@ const featureCards = [
   { icon: Mail, title: 'Gmail sending', detail: 'Send messages you configure or approve. WorkForge does not read your Gmail inbox.' },
   { icon: CalendarDays, title: 'Google Calendar', detail: 'View upcoming events and create events you request or approve.' },
   { icon: GitCommitHorizontal, title: 'Commit Scheduler', detail: 'Plan repository commits and review scheduled jobs.' },
-  { icon: ShieldCheck, title: 'Approvals and audit logs', detail: 'Add human review where needed and inspect the result of each run.' },
+  { icon: ShieldCheck, title: 'Task review and audit logs', detail: 'Review automation-created tasks in one place and inspect workflow results in audit logs.' },
   { icon: BriefcaseBusiness, title: 'Job Hunter', detail: 'Discover job listings, filter the results, and save roles you want to revisit.' },
   { icon: GitPullRequest, title: 'Pull request overview', detail: 'Keep repository pull requests and their review activity visible in your workspace.' },
   { icon: Bell, title: 'Notifications', detail: 'See relevant updates in one place and control which in-app notifications you receive.' },
@@ -72,7 +72,7 @@ export function FeaturesPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/65 p-5"><Check size={17} className="text-[var(--color-signal)]" /><h3 className="mt-4 font-semibold">Choose your scope</h3><p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">Connect only the services and repositories a workflow needs.</p></div>
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/65 p-5"><ShieldCheck size={17} className="text-[var(--color-signal)]" /><h3 className="mt-4 font-semibold">Review important actions</h3><p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">Add an approval step where a person should make the decision.</p></div>
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/65 p-5"><ShieldCheck size={17} className="text-[var(--color-signal)]" /><h3 className="mt-4 font-semibold">Review proposed tasks</h3><p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">Approve or reject automation-created tasks from the Tasks page.</p></div>
         </div>
       </section>
     </Page>
@@ -82,7 +82,7 @@ export function FeaturesPage() {
 const steps = [
   { number: '01', title: 'Connect the services you choose', detail: 'Authorize GitHub, Gmail, or Google Calendar separately. Configure Discord with an organization webhook.' },
   { number: '02', title: 'Define a trigger and conditions', detail: 'Choose a supported event, then narrow it by repository, branch, or other workflow conditions.' },
-  { number: '03', title: 'Choose actions and approvals', detail: 'Create a task, send an email, notify Discord, or record an audit entry. Add human approval where the workflow calls for it.' },
+  { number: '03', title: 'Choose actions and review tasks', detail: 'Create tasks, send email, notify Discord, or record an audit entry. Review, approve, or reject created tasks from the Tasks page.' },
   { number: '04', title: 'Review each result', detail: 'See recent runs and action results in the workflow and audit views. Scheduled work has its own job controls.' },
 ]
 

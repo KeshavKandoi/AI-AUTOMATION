@@ -5,13 +5,15 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import RedirectResponse
 
 from auth.dependencies import get_current_org_id, get_current_user
 from audit_logs.service import log_event
 from calendar_automation.service import _get_calendar_token_for_org
 from config import encrypt_token, logger, reserve_org_action, settings, supabase_admin
 from oauth_state import _consume_oauth_state, _issue_oauth_state
+from oauth_redirect import integration_return_url
 
 router = APIRouter()
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
@@ -51,8 +53,15 @@ def calendar_login(org_id: str = Depends(get_current_org_id)):
 
 
 @router.get("/calendar/callback")
-async def calendar_callback(code: str, state: str):
+async def calendar_callback(code: str | None = None, state: str | None = None, error: str | None = None, accept: str | None = Header(default=None)):
+    browser_navigation = isinstance(accept, str) and "text/html" in accept
+    if not state:
+        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
     org_id = _consume_oauth_state(state, "calendar")
+    if error or not code:
+        if browser_navigation:
+            return RedirectResponse(integration_return_url("calendar", "cancelled" if error else "failed"), status_code=303)
+        raise HTTPException(status_code=400, detail="Calendar authorization was cancelled" if error else "Calendar authorization failed")
     async with httpx.AsyncClient(timeout=20) as client:
         token_res = await client.post(
             "https://oauth2.googleapis.com/token",
@@ -68,6 +77,8 @@ async def calendar_callback(code: str, state: str):
     access_token = token_data.get("access_token")
     if not access_token:
         logger.error("Calendar OAuth exchange failed: %s", token_data.get("error", "unknown"))
+        if browser_navigation:
+            return RedirectResponse(integration_return_url("calendar", "failed"), status_code=303)
         raise HTTPException(status_code=400, detail="Calendar authorization failed")
 
     integration = supabase_admin.table("integrations").insert({
@@ -81,6 +92,8 @@ async def calendar_callback(code: str, state: str):
         "refresh_token": encrypt_token(token_data.get("refresh_token")),
         "expires_at": expires_at,
     }).execute()
+    if browser_navigation:
+        return RedirectResponse(integration_return_url("calendar", "connected"), status_code=303)
     return {"status": "connected", "integration_id": integration_id}
 
 

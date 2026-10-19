@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, Header, HTTPException
 import httpx
 from datetime import datetime, timedelta, timezone
 
@@ -427,8 +427,18 @@ def gmail_login(org_id: str = Depends(get_current_org_id)):
 
 
 @app.get("/gmail/callback")
-async def gmail_callback(code: str, state: str):
+async def gmail_callback(code: str | None = None, state: str | None = None, error: str | None = None, accept: str | None = Header(default=None)):
+    from fastapi.responses import RedirectResponse
+    from oauth_redirect import integration_return_url
+
+    browser_navigation = isinstance(accept, str) and "text/html" in accept
+    if not state:
+        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
     org_id = _consume_oauth_state(state, "gmail")
+    if error or not code:
+        if browser_navigation:
+            return RedirectResponse(integration_return_url("gmail", "cancelled" if error else "failed"), status_code=303)
+        raise HTTPException(status_code=400, detail="Gmail authorization was cancelled" if error else "Gmail authorization failed")
     async with httpx.AsyncClient(timeout=20) as client:
         token_res = await client.post(
             "https://oauth2.googleapis.com/token",
@@ -442,6 +452,8 @@ async def gmail_callback(code: str, state: str):
     access_token = token_data.get("access_token")
     if not access_token:
         logger.error(f"Gmail OAuth exchange failed: {token_data.get('error', 'unknown')}")
+        if browser_navigation:
+            return RedirectResponse(integration_return_url("gmail", "failed"), status_code=303)
         raise HTTPException(status_code=400, detail="Gmail authorization failed")
 
     integration = supabase_admin.table("integrations").insert({
@@ -456,6 +468,8 @@ async def gmail_callback(code: str, state: str):
         "refresh_token": encrypt_token(token_data.get("refresh_token")), "expires_at": expires_at
     }).execute()
 
+    if browser_navigation:
+        return RedirectResponse(integration_return_url("gmail", "connected"), status_code=303)
     return {"status": "connected", "integration_id": integration_id}
 
 

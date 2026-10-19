@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, ListTodo, Workflow, GitBranch, Calendar,
-  GitCommitHorizontal, GitPullRequest, ShieldCheck, ScrollText,
+  GitCommitHorizontal, GitPullRequest, ScrollText,
   Plug, Brain, Bell, BarChart3, Settings, Briefcase, GitFork,
 } from 'lucide-react'
 
@@ -20,7 +20,6 @@ export const navItems: NavItem[] = [
   { label: 'Commit Scheduler', path: '/commit-scheduler', icon: GitCommitHorizontal },
   { label: 'Open Source', path: '/open-source', icon: GitFork },
   { label: 'Pull Requests', path: '/pull-requests', icon: GitPullRequest },
-  { label: 'Human Approval', path: '/approvals', icon: ShieldCheck },
   { label: 'Job Hunter', path: '/job-hunter', icon: Briefcase },
   { label: 'Audit Logs', path: '/audit-logs', icon: ScrollText },
   { label: 'Integrations', path: '/integrations', icon: Plug },

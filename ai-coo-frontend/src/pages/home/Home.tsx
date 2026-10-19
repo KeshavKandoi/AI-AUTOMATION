@@ -49,7 +49,7 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: 'Human review and history',
-    description: 'Keep approval steps in your process and see workflow results in audit logs.',
+    description: 'Review tasks created by automations and see workflow results in audit logs.',
   },
 ]
 
@@ -91,7 +91,7 @@ export default function Home() {
                 <span className="block">into <span className="text-[var(--color-signal)]">action.</span></span>
               </h1>
               <p className="mt-6 max-w-xl text-base leading-7 text-[var(--color-text-muted)] sm:text-lg sm:leading-8">
-                Connect GitHub and the tools your team relies on. Build workflows that turn repository events into tasks, emails, scheduled commits, and team notifications—with conditions and approvals you control.
+                Connect GitHub and the tools your team relies on. Build workflows that turn repository events into tasks, emails, scheduled commits, and team notifications—with conditions and clear task review.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 {isAuthenticated ? (
@@ -170,7 +170,7 @@ export default function Home() {
           <AnimatedContent>
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">See how one event becomes an action.</h2>
-              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Explore examples of the triggers, conditions, approvals, and actions you can configure in WorkForge.</p>
+              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Explore examples of triggers, conditions, task creation, and actions you can configure in WorkForge.</p>
             </div>
             <WorkflowShowcase />
           </AnimatedContent>

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { getModuleIcon, getModuleLabel } from '@/lib/auditLogDisplay'
 import { getPriorityTone } from '@/lib/notificationDisplay'
 import { formatDistanceToNow } from 'date-fns'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -26,9 +27,10 @@ function selectClass() {
 }
 
 const PAGE_SIZE = 25
-const KNOWN_MODULES = ['tasks', 'workflows', 'commit_scheduler', 'github', 'gmail', 'integrations', 'memory', 'job_hunter', 'system']
+const KNOWN_MODULES = ['tasks', 'workflows', 'commit_scheduler', 'github', 'gmail', 'integrations', 'memory', 'job_hunter']
 
 export default function Notifications() {
+  const reducedMotion = useReducedMotion()
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -110,7 +112,7 @@ export default function Notifications() {
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto">
-      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             Notifications
@@ -128,9 +130,9 @@ export default function Notifications() {
           <CheckCheck size={14} />
           Mark all read
         </Button>
-      </div>
+      </motion.div>
 
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
+      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.06 }} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
         <div className="flex items-center gap-3 flex-wrap mb-4">
           <button
             onClick={() => setUnreadOnly((v) => !v)}
@@ -174,11 +176,17 @@ export default function Notifications() {
           />
         ) : (
           <div className="flex flex-col divide-y divide-[var(--color-border)]">
-            {items.map((n) => {
+            <AnimatePresence initial={false}>
+            {items.map((n, index) => {
               const Icon = getModuleIcon(n.module)
               return (
-                <button
+                <motion.button
                   key={n.id}
+                  layout={!reducedMotion}
+                  initial={reducedMotion ? false : { opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={reducedMotion ? undefined : { opacity: 0, x: 8 }}
+                  transition={{ duration: 0.22, delay: Math.min(index, 6) * 0.035 }}
                   onClick={() => handleClick(n)}
                   className="w-full text-left py-3 flex items-start gap-3 hover:bg-[var(--color-surface-hover)] transition-colors px-2 -mx-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--color-signal)]"
                 >
@@ -208,9 +216,10 @@ export default function Notifications() {
                       )}
                     </div>
                   </div>
-                </button>
+                </motion.button>
               )
             })}
+            </AnimatePresence>
           </div>
         )}
 
@@ -230,7 +239,7 @@ export default function Notifications() {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   )
 }

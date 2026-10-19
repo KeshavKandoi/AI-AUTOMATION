@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle, ShieldCheck, MessageCircle } from 'lucide-react'
 import { integrationsService, type IntegrationProvider } from '@/services/integrations'
 import { organizationSettingsService } from '@/services/organization-settings'
@@ -39,12 +40,19 @@ const PROVIDER_META: Record<IntegrationProvider, { label: string; description: s
 const ALL_PROVIDERS: IntegrationProvider[] = ['github', 'gmail', 'calendar']
 
 export default function Integrations() {
+  const reducedMotion = useReducedMotion()
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
   const [confirmingProvider, setConfirmingProvider] = useState<IntegrationProvider | null>(null)
   const [discordModalOpen, setDiscordModalOpen] = useState(false)
   const [discordWebhookDraft, setDiscordWebhookDraft] = useState('')
   const [confirmDiscordDisconnect, setConfirmDiscordDisconnect] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const callbackProvider = searchParams.get('integration')
+  const callbackStatus = searchParams.get('status')
+  const callbackLabel = callbackProvider && callbackProvider in PROVIDER_META
+    ? PROVIDER_META[callbackProvider as IntegrationProvider].label
+    : null
 
   const { data: integrations, isLoading } = useQuery({
     queryKey: ['integrations', orgId],
@@ -101,14 +109,21 @@ export default function Integrations() {
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
-      <div className="mb-6">
+      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
           Integrations
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
           Connect services so WorkForge can act on your behalf
         </p>
-      </div>
+      </motion.div>
+
+      {callbackLabel && callbackStatus && (
+        <div role={callbackStatus === 'connected' ? 'status' : 'alert'} className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-primary)]">
+          <span>{callbackStatus === 'connected' ? `${callbackLabel} connected successfully.` : `${callbackLabel} connection was ${callbackStatus === 'cancelled' ? 'cancelled' : 'unsuccessful'}. You can try again.`}</span>
+          <button type="button" onClick={() => { setSearchParams({}, { replace: true }) }} aria-label="Dismiss connection message" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">Dismiss</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {ALL_PROVIDERS.map((provider) => {
@@ -119,7 +134,8 @@ export default function Integrations() {
           const isDisconnecting = disconnectMutation.isPending && disconnectMutation.variables === provider
 
           return (
-            <Card key={provider} className="p-5 flex flex-col gap-4">
+            <motion.div key={provider} initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: ALL_PROVIDERS.indexOf(provider) * 0.06 }} whileHover={reducedMotion ? undefined : { y: -3 }} className="h-full">
+            <Card className="p-5 flex flex-col gap-4 h-full">
               <div className="flex items-start justify-between">
                 <div className="h-10 w-10 rounded-xl bg-[var(--color-surface-hover)] flex items-center justify-center">
                   <meta.icon size={18} className="text-[var(--color-text-primary)]" />
@@ -179,9 +195,11 @@ export default function Integrations() {
                 )}
               </div>
             </Card>
+            </motion.div>
           )
         })}
-        <Card className="p-5 flex flex-col gap-4">
+        <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.18 }} whileHover={reducedMotion ? undefined : { y: -3 }} className="h-full">
+        <Card className="p-5 flex flex-col gap-4 h-full">
           <div className="flex items-start justify-between">
             <div className="h-10 w-10 rounded-xl bg-[var(--color-surface-hover)] flex items-center justify-center">
               <MessageCircle size={18} className="text-[var(--color-text-primary)]" />
@@ -219,6 +237,7 @@ export default function Integrations() {
             {discordStatus.data?.configured ? 'Manage' : 'Configure'}
           </Button>
         </Card>
+        </motion.div>
       </div>
       <Modal open={discordModalOpen} onClose={closeDiscordModal} title="Discord integration">
         <div className="flex flex-col gap-4">
