@@ -9,14 +9,14 @@ interface BrandLogoProps {
 }
 
 const MARK_SIZE = {
-  sm: 'h-7 w-[72px]',
-  md: 'h-9 w-[93px]',
-  lg: 'h-10 w-[104px]',
+  sm: 'h-7 w-11',
+  md: 'h-9 w-14',
+  lg: 'h-10 w-16',
 }
 
 export default function BrandLogo({ className, compact = false, size = 'md', to = '/' }: BrandLogoProps) {
   return (
-    <Link to={to} className={cn('inline-flex min-w-0 items-center gap-2.5', className)} aria-label="WorkForge home">
+    <Link to={to} className={cn('inline-flex min-w-0 items-center gap-2', className)} aria-label="WorkForge home">
       <img
         src={compact ? '/workforge-icon.svg' : '/workforge-mark.svg'}
         alt=""

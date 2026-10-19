@@ -54,7 +54,6 @@ export default function Signup() {
   return (
     <AuthShell>
         <div className="mb-8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-signal)]">Get started</p>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">Create your workspace</h1>
           <p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Set up your account, then choose the tools you want to connect.</p>
         </div>
