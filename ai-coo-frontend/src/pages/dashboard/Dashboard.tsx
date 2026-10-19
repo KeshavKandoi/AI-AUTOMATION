@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
-import { ListTodo, AlertCircle, Workflow, Activity, Plug } from 'lucide-react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { ListTodo, AlertCircle, Workflow, Activity, Plug, Sparkles } from 'lucide-react'
 import { tasksApi } from '@/api/tasks'
 import { schedulerApi } from '@/api/scheduler'
 import { integrationsApi } from '@/api/integrations'
@@ -22,6 +22,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 export default function Dashboard() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
+  const reduceMotion = useReducedMotion()
 
   const { data: tasks, isLoading: tasksLoading } = useQuery({
     queryKey: ['tasks', orgId],
@@ -63,27 +64,64 @@ export default function Dashboard() {
   const activeJobs = scheduler?.jobs.length ?? 0
   const connectedCount = (integrations?.filter((i) => i.provider !== 'discord' && i.connected).length ?? 0) + (discordStatus.data?.configured ? 1 : 0)
 
-  return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
-          Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Live status across your WorkForge
-        </p>
-      </div>
+  const panelClass = 'rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 backdrop-blur-xl shadow-[0_18px_55px_-38px_rgba(0,0,0,0.8)]'
+  const sectionHeadingClass = 'text-sm font-semibold tracking-wide text-[var(--color-text-primary)]'
+  const rowMotion = {
+    initial: reduceMotion ? false : { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: reduceMotion ? 0 : 0.28, ease: 'easeOut' as const },
+  }
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  return (
+    <div className="relative isolate mx-auto max-w-7xl overflow-hidden p-5 md:p-8">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-36 -z-10 h-96 w-96 rounded-full bg-[var(--color-signal)]/[0.07] blur-3xl" />
+      <motion.header
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.38, ease: 'easeOut' }}
+        className="mb-7 flex flex-wrap items-end justify-between gap-4"
+      >
+        <div>
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--color-signal)]/20 bg-[var(--color-signal-dim)] px-3 py-1 text-[11px] font-medium tracking-wide text-[var(--color-signal)]">
+            <Sparkles size={13} /> WORKSPACE OVERVIEW
+          </div>
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+            Dashboard
+          </h1>
+          <p className="mt-1.5 text-sm text-[var(--color-text-muted)]">
+            Live status across your WorkForge
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-3.5 py-2 text-xs text-[var(--color-text-muted)]">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-signal)] opacity-40 motion-reduce:animate-none" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-signal)]" />
+          </span>
+          Workspace live
+        </div>
+      </motion.header>
+
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={{ hidden: {}, show: { transition: { staggerChildren: reduceMotion ? 0 : 0.07 } } }}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+      >
         <StatCard label="Open tasks" value={openTasks} icon={ListTodo} tone="signal" loading={tasksLoading} />
         <StatCard label="High priority" value={highPriority} icon={AlertCircle} tone="alert" loading={tasksLoading} />
         <StatCard label="Scheduled jobs" value={activeJobs} icon={Workflow} tone="amber" loading={schedulerLoading} />
         <StatCard label="Connected integrations" value={connectedCount} icon={Plug} tone="signal" loading={integrationsLoading || discordStatus.isLoading} />
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div className="lg:col-span-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-4">Recent tasks</h2>
+        <div className={`${panelClass} lg:col-span-2 p-5 md:p-6`}>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className={sectionHeadingClass}>Recent tasks</h2>
+              <p className="mt-1 text-xs text-[var(--color-text-faint)]">The latest work across your workspace</p>
+            </div>
+            <ListTodo size={16} className="text-[var(--color-signal)]" />
+          </div>
           {tasksLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
@@ -93,10 +131,10 @@ export default function Dashboard() {
           ) : tasks && tasks.length > 0 ? (
             <div className="flex flex-col divide-y divide-[var(--color-border)]">
               {tasks.slice(0, 6).map((task) => (
-                <div key={task.id} className="py-2.5 flex items-center justify-between gap-3">
+                <motion.div key={task.id} {...rowMotion} whileHover={reduceMotion ? undefined : { x: 3 }} className="group -mx-2 flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-[var(--color-surface-hover)]/70">
                   <div className="min-w-0">
                     <p className="text-sm text-[var(--color-text-primary)] truncate">{task.title}</p>
-                    <p className="text-xs text-[var(--color-text-faint)] font-mono">{task.source}</p>
+                    <p className="mt-0.5 text-xs text-[var(--color-text-faint)] font-mono">{task.source}</p>
                   </div>
                   <span
                     className={
@@ -109,7 +147,7 @@ export default function Dashboard() {
                   >
                     {task.priority}
                   </span>
-                </div>
+                </motion.div>
               ))}
             </div>
           ) : (
@@ -117,8 +155,14 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)] mb-4">Integrations</h2>
+        <div className={`${panelClass} p-5 md:p-6`}>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className={sectionHeadingClass}>Integrations</h2>
+              <p className="mt-1 text-xs text-[var(--color-text-faint)]">Your connected services</p>
+            </div>
+            <Plug size={16} className="text-[var(--color-signal)]" />
+          </div>
           {integrationsLoading || discordStatus.isLoading ? (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
@@ -128,7 +172,7 @@ export default function Dashboard() {
           ) : (
             <div className="flex flex-col gap-2">
               {(integrations ?? []).filter((i) => i.provider !== 'discord').map((i) => (
-                <div key={i.id} className="flex items-center justify-between py-1.5">
+                <motion.div key={i.id} {...rowMotion} className="flex items-center justify-between rounded-xl px-2 py-3 hover:bg-[var(--color-surface-hover)]/70">
                   <span className="text-sm text-[var(--color-text-primary)]">
                     {PROVIDER_LABELS[i.provider] ?? i.provider}
                   </span>
@@ -150,9 +194,9 @@ export default function Dashboard() {
                       {i.connected ? 'Connected' : 'Disconnected'}
                     </span>
                   </span>
-                </div>
+                </motion.div>
               ))}
-              <div className="flex items-center justify-between py-1.5">
+              <div className="flex items-center justify-between rounded-xl px-2 py-3 hover:bg-[var(--color-surface-hover)]/70">
                 <span className="text-sm text-[var(--color-text-primary)]">Discord</span>
                 <span className={discordStatus.isError ? 'text-xs text-[var(--color-alert)]' : discordStatus.data?.configured ? 'text-xs text-[var(--color-signal)]' : 'text-xs text-[var(--color-text-faint)]'}>
                   {discordStatus.isError ? 'Status unavailable' : discordStatus.data?.configured ? 'Connected' : 'Not connected'}
@@ -163,10 +207,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5 mb-6">
+      <div className={`${panelClass} p-5 md:p-6 mb-6`}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Recent memories</h2>
-          <Brain size={14} className="text-[var(--color-text-faint)]" />
+          <div>
+            <h2 className={sectionHeadingClass}>Recent memories</h2>
+            <p className="mt-1 text-xs text-[var(--color-text-faint)]">Useful context saved for your workspace</p>
+          </div>
+          <Brain size={16} className="text-[var(--color-signal)]" />
         </div>
         {memoriesLoading ? (
           <div className="space-y-2">
@@ -179,14 +226,14 @@ export default function Dashboard() {
             {recentMemories.map((m: MemoryEntry) => {
               const Icon = getCategoryIcon(m.category)
               return (
-                <div key={m.id} className="py-2.5 flex items-center gap-3">
+                <motion.div key={m.id} {...rowMotion} className="py-3 flex items-center gap-3">
                   <Icon size={13} className="shrink-0 text-[var(--color-text-faint)]" />
                   <span className="text-sm text-[var(--color-text-muted)] truncate flex-1 min-w-0">
                     {m.title ?? 'Untitled'}
                   </span>
                   {m.pinned && <Pin size={11} className="text-[var(--color-signal)] shrink-0" fill="currentColor" />}
                   {m.favorited && <Star size={11} className="text-[var(--color-amber)] shrink-0" fill="currentColor" />}
-                </div>
+                </motion.div>
               )
             })}
           </div>
@@ -195,10 +242,13 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-xl p-5">
+      <div className={`${panelClass} p-5 md:p-6`}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Recent activity</h2>
-          <Activity size={14} className="text-[var(--color-text-faint)]" />
+          <div>
+            <h2 className={sectionHeadingClass}>Recent activity</h2>
+            <p className="mt-1 text-xs text-[var(--color-text-faint)]">A timeline of what has happened</p>
+          </div>
+          <Activity size={16} className="text-[var(--color-signal)]" />
         </div>
         {activityLoading ? (
           <div className="space-y-2">
@@ -213,10 +263,10 @@ export default function Dashboard() {
               return (
                 <motion.div
                   key={log.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className="py-2.5 flex items-center justify-between gap-3"
+                  initial={reduceMotion ? false : { opacity: 0, y: 7 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.25, delay: reduceMotion ? 0 : idx * 0.035 }}
+                  className="flex items-center justify-between gap-3 rounded-xl px-2 py-3 hover:bg-[var(--color-surface-hover)]/70"
                 >
                   <span className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] min-w-0">
                     <Icon size={13} className="shrink-0 text-[var(--color-text-faint)]" />
