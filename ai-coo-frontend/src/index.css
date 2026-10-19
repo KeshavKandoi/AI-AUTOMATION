@@ -71,8 +71,8 @@ body {
 }
 
 .home-page {
-  --color-signal: #ff0066;
-  --color-signal-dim: rgba(255, 0, 102, 0.14);
+  --color-signal: #d94668;
+  --color-signal-dim: rgba(217, 70, 104, 0.16);
 }
 
 @keyframes workflow-flow {
@@ -98,7 +98,7 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: conic-gradient(from var(--star-angle, 0deg), transparent 0deg, transparent 265deg, rgba(255, 255, 255, 0.08) 300deg, #ff0066 330deg, #ffd1e3 342deg, transparent 360deg);
+  background: conic-gradient(from var(--star-angle, 0deg), transparent 0deg, transparent 265deg, rgba(255, 255, 255, 0.08) 300deg, #d94668 330deg, #f4b2c0 342deg, transparent 360deg);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
