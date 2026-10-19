@@ -75,6 +75,11 @@ body {
   --color-signal-dim: rgba(255, 0, 102, 0.14);
 }
 
+.dashboard-theme {
+  --color-signal: #ff0066;
+  --color-signal-dim: rgba(255, 0, 102, 0.14);
+}
+
 @keyframes workflow-flow {
   to { stroke-dashoffset: -26; }
 }
