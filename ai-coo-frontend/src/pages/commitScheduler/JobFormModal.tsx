@@ -86,11 +86,8 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
   const [usePr, setUsePr] = useState(false)
   const [status, setStatus] = useState(job?.status ?? 'active')
 
-  const minExecutionAt = useMemo(
-    () => toLocalDateTimeValue(new Date(Date.now() + 60_000)),
-    [open]
-  )
-  const todayStr = useMemo(() => toLocalDateValue(new Date()), [open])
+  const minExecutionAt = toLocalDateTimeValue(new Date(Date.now() + 60_000))
+  const todayStr = toLocalDateValue(new Date())
 
   useEffect(() => {
     if (job) {
@@ -211,7 +208,22 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Edit scheduled commit' : 'New scheduled commit'}>
-      <div className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
+      <div className="flex flex-col gap-5 max-h-[70vh] overflow-y-auto pr-1">
+        {!isEdit && (
+          <div className="rounded-xl border border-[var(--color-signal)]/15 bg-gradient-to-r from-[var(--color-signal-dim)]/70 to-transparent px-4 py-3">
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">Set up an automated commit</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-muted)]">Choose where it runs, what file to update, and when WorkForge should commit it.</p>
+          </div>
+        )}
+
+        <div className="grid gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/35 p-4">
+          <div className="flex items-center gap-2">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)] text-xs font-semibold">1</span>
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text-primary)]">Choose a destination</p>
+              <p className="text-xs text-[var(--color-text-faint)]">Select the repository and branch to update.</p>
+            </div>
+          </div>
         <div className="flex flex-col gap-1.5">
           <label className={labelClass()}>Repository</label>
           {isEdit ? (
@@ -247,7 +259,16 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
             </select>
           )}
         </div>
+        </div>
 
+        <div className="grid gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/35 p-4">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)] text-xs font-semibold">2</span>
+          <div>
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">Choose the file</p>
+            <p className="text-xs text-[var(--color-text-faint)]">Pick a path and the content to commit.</p>
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Input label="Folder path" placeholder="e.g. logs" value={folderPath} onChange={(e) => setFolderPath(e.target.value)} />
           <Input label="File name" placeholder="e.g. update.md" value={fileName} onChange={(e) => setFileName(e.target.value)} />
@@ -265,7 +286,16 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
         </div>
 
         <Input label="Commit message" placeholder="Auto-commit" value={commitMessage} onChange={(e) => setCommitMessage(e.target.value)} />
+        </div>
 
+        <div className="grid gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-void)]/35 p-4">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-[var(--color-signal-dim)] text-[var(--color-signal)] text-xs font-semibold">3</span>
+          <div>
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">Set the schedule</p>
+            <p className="text-xs text-[var(--color-text-faint)]">Choose when it runs and whether it opens a pull request.</p>
+          </div>
+        </div>
         <div className="flex flex-col gap-1.5">
           <label className={labelClass()}>Mode</label>
           <select value={mode} onChange={(e) => setMode(e.target.value as JobMode)} disabled={isEdit} className={selectClass()}>
@@ -283,7 +313,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
               value={executionAt}
               min={minExecutionAt}
               onChange={(e) => setExecutionAt(e.target.value)}
-              className={selectClass()}
+              className={`${selectClass()} scheduler-datetime`}
             />
             <p className="text-xs text-[var(--color-text-faint)]">
               This job runs once, automatically, at this exact date and time — then marks itself complete.
@@ -298,6 +328,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
                 value={startDate}
                 min={todayStr}
                 onChange={(e) => setStartDate(e.target.value)}
+                className="scheduler-datetime"
               />
               <Input
                 label="End date"
@@ -305,6 +336,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
                 value={endDate}
                 min={startDate || todayStr}
                 onChange={(e) => setEndDate(e.target.value)}
+                className="scheduler-datetime"
               />
             </div>
 
@@ -336,6 +368,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
                   value={guardCutoff}
                   onChange={(e) => setGuardCutoff(e.target.value)}
                   disabled={isEdit}
+                  className="scheduler-datetime"
                 />
                 <p className="text-xs text-[var(--color-text-faint)] -mt-2">
                   On each due day: if a real commit already landed before {guardCutoff.slice(0, 5)}, nothing happens.
@@ -355,6 +388,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
             Repository, mode, PR setting, and guard cutoff can't be changed after creation — delete and recreate the job if these need to change.
           </p>
         )}
+        </div>
 
         {isEdit && (
           <div className="flex flex-col gap-1.5">
@@ -374,7 +408,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
           />
         )}
 
-        <Button className="w-full" disabled={!canSubmit} loading={mutation.isPending} onClick={() => mutation.mutate()}>
+        <Button className="w-full shadow-[0_8px_24px_rgba(94,234,212,0.12)]" disabled={!canSubmit} loading={mutation.isPending} onClick={() => mutation.mutate()}>
           {isEdit ? 'Save changes' : 'Create scheduled commit'}
         </Button>
       </div>

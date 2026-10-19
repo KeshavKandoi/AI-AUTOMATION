@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AlertCircle, GitPullRequest, Search, ExternalLink } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { pullRequestsService, splitRepoFullName, type PRSummary, type PRView } from '@/services/pullRequests'
@@ -39,6 +40,7 @@ function stateBadge(pr: PRSummary) {
 }
 
 export default function PullRequests() {
+  const reduceMotion = useReducedMotion()
   const orgId = useAuthStore((s) => s.user?.organization_id)
 
   const [view, setView] = useState<PRView>('all')
@@ -55,18 +57,27 @@ export default function PullRequests() {
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
-            Pull Requests
-          </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            {data ? `${data.total_count} pull request${data.total_count === 1 ? '' : 's'}` : 'Track your GitHub contributions'}
-          </p>
+      <motion.header
+        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.35 }}
+        className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-br from-[var(--color-signal-dim)]/70 via-[var(--color-surface)] to-[var(--color-surface)] px-5 py-6 sm:px-7"
+      >
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-24 h-56 w-56 rounded-full bg-[var(--color-signal)]/[0.07] blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[var(--color-signal)]/20 bg-[var(--color-void)]/60 text-[var(--color-signal)]"><GitPullRequest size={21} /></span>
+            <div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-signal)]">GitHub collaboration</p>
+              <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">Pull Requests</h1>
+              <p className="mt-1 text-sm text-[var(--color-text-muted)]">Review changes, track feedback, and follow merges.</p>
+            </div>
+          </div>
+          {data && <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-void)]/50 px-3 py-1.5 text-xs text-[var(--color-text-muted)]">{data.total_count} total</span>}
         </div>
-      </div>
+      </motion.header>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <motion.div initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.05 }} className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/65 p-3">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
           <input
@@ -88,7 +99,7 @@ export default function PullRequests() {
         {isFetching && !isLoading && (
           <span className="text-xs text-[var(--color-text-faint)]">Refreshing…</span>
         )}
-      </div>
+      </motion.div>
 
       {isLoading ? (
         <div className="space-y-3">
@@ -107,9 +118,11 @@ export default function PullRequests() {
           />
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
-          {items.map((pr) => (
-            <Card key={pr.repo_full_name + '#' + pr.number} className="p-5">
+        <motion.div layout className={`flex flex-col gap-3 transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
+          <AnimatePresence mode="popLayout" initial={false}>
+          {items.map((pr, index) => (
+            <motion.div key={pr.repo_full_name + '#' + pr.number} layout initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -8 }} transition={{ duration: reduceMotion ? 0 : 0.25, delay: reduceMotion ? 0 : Math.min(index * 0.035, 0.2) }} whileHover={reduceMotion ? undefined : { y: -2 }}>
+            <Card className="p-5 transition-colors hover:border-[var(--color-border-hover)]">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -140,8 +153,10 @@ export default function PullRequests() {
                 </a>
               </div>
             </Card>
+            </motion.div>
           ))}
-        </div>
+          </AnimatePresence>
+        </motion.div>
       )}
 
       <PRDetailDrawer

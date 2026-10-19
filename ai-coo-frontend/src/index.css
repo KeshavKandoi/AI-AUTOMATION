@@ -54,6 +54,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.scheduler-datetime {
+  color-scheme: dark;
+  accent-color: var(--color-signal);
+}
+.scheduler-datetime::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.9;
+  filter: invert(76%) sepia(56%) saturate(444%) hue-rotate(116deg) brightness(100%) contrast(92%);
+}
+:root[data-theme="light"] .scheduler-datetime {
+  color-scheme: light;
+}
+:root[data-theme="light"] .scheduler-datetime::-webkit-calendar-picker-indicator {
+  filter: invert(34%) sepia(76%) saturate(580%) hue-rotate(127deg) brightness(88%) contrast(91%);
+}
+
 .home-page {
   --color-signal: #ff0066;
   --color-signal-dim: rgba(255, 0, 102, 0.14);
