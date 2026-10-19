@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '@/store/authStore'
 
-// Public visitors can load these routes without probing the refresh endpoint.
+
 const PUBLIC_PATHS = ['/', '/features', '/how-it-works', '/connections', '/google-data', '/login', '/signup', '/verify-otp', '/forgot-password', '/reset-password', '/privacy', '/terms', '/security']
 
 export function isPublicPath(pathname: string): boolean {
@@ -13,7 +13,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // sends/receives the httpOnly refresh_token cookie
+  withCredentials: true,
 })
 
 let refreshPromise: Promise<string | null> | null = null
@@ -32,7 +32,7 @@ async function refreshAccessToken(): Promise<string | null> {
         return access_token as string
       })
       .catch((error) => {
-        // A network outage is not proof that the user's session expired.
+
         if (axios.isAxiosError(error) && error.response?.status === 401) {
           useAuthStore.getState().logout()
         }
@@ -45,8 +45,8 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise
 }
 
-// A cached user lets the app shell render at once after a reload. Data
-// requests still wait for the httpOnly-cookie refresh, sharing one request.
+
+
 export function restoreSession(): Promise<string | null> {
   return refreshAccessToken()
 }
@@ -65,7 +65,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
-    // An incorrect current password is a form error, not an expired session.
+
     if (
       error.response?.status === 401 &&
       original?.url === '/auth/change-password' &&

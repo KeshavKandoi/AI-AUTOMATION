@@ -408,7 +408,7 @@ export default function JobFormModal({ open, orgId, job, onClose, onSuccess, ini
           />
         )}
 
-        <Button className="w-full shadow-[0_8px_24px_rgba(94,234,212,0.12)]" disabled={!canSubmit} loading={mutation.isPending} onClick={() => mutation.mutate()}>
+        <Button className="w-full shadow-[0_8px_24px_rgba(255,0,102,0.12)]" disabled={!canSubmit} loading={mutation.isPending} onClick={() => mutation.mutate()}>
           {isEdit ? 'Save changes' : 'Create scheduled commit'}
         </Button>
       </div>

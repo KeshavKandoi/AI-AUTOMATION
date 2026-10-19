@@ -11,10 +11,7 @@ function resolveEffectiveTheme(pref: ThemePreference): 'dark' | 'light' {
   return pref
 }
 
-/** Applies the resolved theme to <html> via data-theme. Dark is the
- * default/original palette (no attribute needed since :root already holds
- * dark values); light sets data-theme="light" to trigger the override block
- * in index.css. */
+
 export function applyTheme(pref: ThemePreference) {
   const effective = resolveEffectiveTheme(pref)
   if (effective === 'light') {
@@ -35,8 +32,7 @@ export function setStoredTheme(pref: ThemePreference) {
   applyTheme(pref)
 }
 
-/** Call once at app startup, before first paint if possible, to avoid a
- * flash of the wrong theme. */
+
 export function initTheme() {
   const pref = getStoredTheme()
   applyTheme(pref)

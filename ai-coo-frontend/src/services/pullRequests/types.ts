@@ -120,8 +120,8 @@ export interface PullRequestsService {
   closePullRequest(orgId: string, owner: string, repo: string, prNumber: number): Promise<unknown>
 }
 
-// repo_full_name from GitHub is always "owner/repo" — split on the first slash only,
-// since repo names themselves never contain a slash.
+
+
 export function splitRepoFullName(repoFullName: string): [string, string] {
   const idx = repoFullName.indexOf('/')
   return [repoFullName.slice(0, idx), repoFullName.slice(idx + 1)]

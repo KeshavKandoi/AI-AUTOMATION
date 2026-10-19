@@ -9,7 +9,7 @@ import type {
   User,
 } from '@/types/auth'
 
-// Keep session cookies on the website's own domain in production.
+
 const authRequest = { baseURL: import.meta.env.PROD ? '/' : import.meta.env.VITE_API_BASE_URL }
 
 export const authApi = {

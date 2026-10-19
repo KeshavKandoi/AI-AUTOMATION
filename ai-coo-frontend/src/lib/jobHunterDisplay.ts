@@ -2,9 +2,9 @@ import type { ApplicationStatus } from '@/services/jobHunter'
 
 type BadgeTone = 'signal' | 'alert' | 'amber' | 'neutral'
 
-// Ordered left-to-right for the Kanban tracker — matches
-// backend/job_hunter/schemas.py ApplicationStatus exactly. Do not add or
-// reorder without checking the backend Literal type first.
+
+
+
 export const APPLICATION_STATUSES: ApplicationStatus[] = [
   'saved',
   'applied',

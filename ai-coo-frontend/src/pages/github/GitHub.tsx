@@ -203,7 +203,7 @@ export default function GitHub() {
         <ErrorBanner message="GitHub could not connect. Please try again." />
       )}
 
-      {/* Connected repo */}
+
       <motion.div initial={reduceMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}>
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-3">
@@ -248,7 +248,7 @@ export default function GitHub() {
         </Card>
       </motion.div>
 
-      {/* AI Summary + Priorities */}
+
       <motion.div initial={reduceMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
@@ -327,7 +327,7 @@ export default function GitHub() {
         </Card>
       </motion.div>
 
-      {/* Repos list */}
+
       <motion.div initial={reduceMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.15 }}>
         <Card className="p-5">
         <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -407,7 +407,7 @@ export default function GitHub() {
         </Card>
       </motion.div>
 
-      {/* Create issue modal */}
+
       <Modal open={issueModalOpen} onClose={() => setIssueModalOpen(false)} title="New GitHub issue">
         <div className="flex flex-col gap-4">
           <Input

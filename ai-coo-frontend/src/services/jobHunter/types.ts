@@ -1,5 +1,5 @@
-// Mirrors backend/job_hunter/schemas.py exactly. Do not add fields not
-// present on the backend response, and do not invent statuses/enums.
+
+
 
 export type ExperienceLevel = 'student' | 'fresher' | 'experienced'
 
@@ -31,9 +31,9 @@ export interface ProjectHighlight {
   description: string
 }
 
-// ---------------------------------------------------------------------------
-// Preferences (onboarding)
-// ---------------------------------------------------------------------------
+
+
+
 
 export interface JobHunterPreferencesCreate {
   full_name: string
@@ -83,9 +83,9 @@ export interface PreferencesResponse {
   preferences: JobHunterPreferencesOut | null
 }
 
-// ---------------------------------------------------------------------------
-// Jobs
-// ---------------------------------------------------------------------------
+
+
+
 
 export interface JobSourceOut {
   id: string
@@ -149,9 +149,9 @@ export interface LastSyncStatus {
   jobs_new_current: number | null
 }
 
-// ---------------------------------------------------------------------------
-// Applications
-// ---------------------------------------------------------------------------
+
+
+
 
 export interface ActivityOut {
   id: string
@@ -191,7 +191,7 @@ export interface ReminderOut {
   created_at: string
 }
 
-// Bare row shape returned by create/update application (no nested job/notes/etc)
+
 export interface ApplicationRow {
   id: string
   organization_id: string
@@ -202,7 +202,7 @@ export interface ApplicationRow {
   updated_at: string
 }
 
-// Full detail shape returned by GET /applications/{id}
+
 export interface ApplicationDetail extends ApplicationRow {
   job: JobOut | null
   activity: ActivityOut[]
@@ -211,9 +211,9 @@ export interface ApplicationDetail extends ApplicationRow {
   reminders: ReminderOut[]
 }
 
-// ---------------------------------------------------------------------------
-// Provider health
-// ---------------------------------------------------------------------------
+
+
+
 
 export interface ProviderStatus {
   organization_id: string
@@ -235,14 +235,14 @@ export interface ProviderHealthResponse {
   unhealthy_platforms: string[]
 }
 
-// ---------------------------------------------------------------------------
-// Search run-now
-// ---------------------------------------------------------------------------
 
-// Backend now returns immediately (202) and runs the sweep in the
-// background — no jobs_found/jobs_new here since they don't exist yet
-// at request time. "already_running" means the existing staleness-aware
-// has_running_search() guard blocked a duplicate/overlapping trigger.
+
+
+
+
+
+
+
 export interface SearchTriggerResponse {
   status: 'started' | 'already_running'
 }

@@ -21,9 +21,9 @@ import Badge from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 
-// Same literal values documented on backend/job_hunter/schemas.py used by
-// the onboarding form — kept as a local copy since JobHunterOnboarding
-// doesn't export them.
+
+
+
 const EMPLOYMENT_TYPES = ['Internship', 'Full-time', 'Part-time', 'Contract', 'Freelance']
 const WORK_MODES = ['Remote', 'Hybrid', 'On-site']
 const JOB_CATEGORIES = [
@@ -76,8 +76,8 @@ function timeAgo(iso: string | null): string {
 }
 
 function readableJobText(value: string): string {
-  // Some providers send escaped HTML (sometimes escaped twice). Decode it
-  // without inserting provider markup into the page, then keep paragraph breaks.
+
+
   const decoder = document.createElement('textarea')
   let plain = value
   for (let i = 0; i < 3; i += 1) {
@@ -114,9 +114,9 @@ export default function JobDiscovery() {
   })
   const detailJob = selectedJobDetails ?? selectedJob
 
-  // Preferences power "For You" — the user's saved desired_roles/skills
-  // become the base personalization, applied as a DB-only query-time
-  // filter (never scraping). They never need to re-type this in Discover.
+
+
+
   const { data: prefsData } = useQuery({
     queryKey: ['job-hunter', 'preferences'],
     queryFn: () => jobHunterService.getPreferences(),
@@ -152,9 +152,9 @@ export default function JobDiscovery() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['job-hunter', 'jobs', filters, offset],
     queryFn: () => jobHunterService.listJobs(PAGE_SIZE, offset, filters),
-    // For You depends on preferences having loaded first, so its filter
-    // is correct on the very first fetch rather than briefly showing
-    // unfiltered results.
+
+
+
     enabled: viewMode === 'all' || prefsData !== undefined,
     refetchInterval: lastSync?.is_running ? 15_000 : false,
   })
@@ -190,7 +190,7 @@ export default function JobDiscovery() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* View toggle and source refresh status. */}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
           <button

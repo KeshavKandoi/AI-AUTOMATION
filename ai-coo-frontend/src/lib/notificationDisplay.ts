@@ -1,7 +1,7 @@
-// Reuses the audit_logs module icon/label mapping since notifications share
-// the same free-text `module` vocabulary (tasks, github, gmail,
-// workflows, commit_scheduler, memory, integrations, system, auth) — no
-// need to duplicate that lookup table here.
+
+
+
+
 export { getModuleIcon, getModuleLabel } from './auditLogDisplay'
 
 type BadgeTone = 'signal' | 'alert' | 'amber' | 'neutral'

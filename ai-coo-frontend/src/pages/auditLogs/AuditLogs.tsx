@@ -59,7 +59,7 @@ export default function AuditLogs() {
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  // Debounce free-text search so we don't fire a request per keystroke.
+
   useEffect(() => {
     const t = setTimeout(() => {
       setSearch(searchInput)

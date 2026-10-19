@@ -22,9 +22,9 @@ function ErrorBanner({ message }: { message: string }) {
 function apiErrorDetail(err: unknown, fallback: string): string {
   const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
   if (typeof detail === 'string') {
-    // GitHub errors often arrive as a JSON string like
-    // {"message":"Unprocessable Entity","errors":["..."],...} — pull out the
-    // first real error message instead of showing raw JSON to the user.
+
+
+
     try {
       const parsed = JSON.parse(detail)
       if (Array.isArray(parsed?.errors) && typeof parsed.errors[0] === 'string') {
@@ -34,7 +34,7 @@ function apiErrorDetail(err: unknown, fallback: string): string {
         return parsed.message
       }
     } catch {
-      // not JSON — fall through and use the raw string
+
     }
     return detail
   }
@@ -138,7 +138,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
           <ErrorBanner message="Couldn't load this pull request." />
         ) : (
           <>
-            {/* Header / read-only overview */}
+
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <h3 className="text-base font-medium text-[var(--color-text-primary)]">{pr.title}</h3>
@@ -161,7 +161,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
               )}
             </div>
 
-            {/* AI Summary */}
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -188,7 +188,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
               )}
             </div>
 
-            {/* Files */}
+
             <div>
               <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Changed files</h4>
               {pr.files.length === 0 ? (
@@ -207,7 +207,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
               )}
             </div>
 
-            {/* Checks */}
+
             <div>
               <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">CI / checks</h4>
               {pr.checks.length === 0 ? (
@@ -227,7 +227,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
               )}
             </div>
 
-            {/* Reviews */}
+
             <div>
               <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Reviews</h4>
               {pr.reviews.length === 0 ? (
@@ -249,7 +249,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
               )}
             </div>
 
-            {/* Comments */}
+
             <div>
               <h4 className="text-sm font-medium text-[var(--color-text-primary)] mb-2">Comments</h4>
               {pr.comments.length === 0 ? (
@@ -269,7 +269,7 @@ export default function PRDetailDrawer({ open, orgId, target, onClose }: PRDetai
               )}
             </div>
 
-            {/* Actions — clearly separated from read-only content above */}
+
             {canAct && (
               <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-4">
                 <h4 className="text-sm font-medium text-[var(--color-text-primary)]">Actions</h4>

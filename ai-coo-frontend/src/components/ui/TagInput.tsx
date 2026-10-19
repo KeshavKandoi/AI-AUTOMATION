@@ -10,9 +10,9 @@ interface TagInputProps {
   error?: string
 }
 
-// Reusable chip/tag input — type + Enter (or comma) to add, click x to
-// remove. Used for free-text multi-value fields like desired roles,
-// skills, and preferred locations.
+
+
+
 export default function TagInput({ label, value, onChange, placeholder, error }: TagInputProps) {
   const [draft, setDraft] = useState('')
 

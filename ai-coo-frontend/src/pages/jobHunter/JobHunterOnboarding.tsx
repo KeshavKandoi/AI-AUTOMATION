@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import TagInput from '@/components/ui/TagInput'
 
-// Exact values documented on backend/job_hunter/schemas.py — the backend
-// stores these as unconstrained list[str] (not an enum), but these are the
-// literal values the field comments specify. Do not diverge from these.
+
+
+
 const EMPLOYMENT_TYPES = ['Internship', 'Full-time', 'Part-time', 'Contract', 'Freelance']
 const WORK_MODES = ['Remote', 'Hybrid', 'Onsite']
 

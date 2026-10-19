@@ -10,9 +10,9 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-// Free-text category on the backend (same philosophy as audit_logs' module
-// field) so new categories work with a sensible fallback icon/label without
-// a schema change.
+
+
+
 export const CATEGORY_ICON: Record<string, LucideIcon> = {
   user_preference: User,
   project: FolderKanban,

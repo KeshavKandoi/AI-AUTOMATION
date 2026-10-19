@@ -15,8 +15,8 @@ import {
 } from 'lucide-react'
 import type { AuditStatus } from '@/services/audit-logs'
 
-// Maps a module string (free text on the backend, so new modules "just work"
-// with a sensible fallback icon) to its display icon.
+
+
 export const MODULE_ICON: Record<string, LucideIcon> = {
   tasks: ListTodo,
   workflows: Workflow,
@@ -59,8 +59,8 @@ export function getModuleLabel(module: string | null): string {
 
 type BadgeTone = 'signal' | 'alert' | 'amber' | 'neutral'
 
-// success -> signal (green), failed -> alert (red), warning -> amber, info -> neutral.
-// Matches the existing tone vocabulary used across Badge in the rest of the app.
+
+
 export function getStatusTone(status: AuditStatus | string | null): BadgeTone {
   switch (status) {
     case 'success':

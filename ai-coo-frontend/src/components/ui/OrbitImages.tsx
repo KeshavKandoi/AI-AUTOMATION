@@ -1,7 +1,7 @@
 'use client';
 
-// Component created by Dominik Koch
-// https://x.com/dominikkoch
+
+
 
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 

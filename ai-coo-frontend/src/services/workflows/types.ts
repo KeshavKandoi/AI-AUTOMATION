@@ -17,8 +17,8 @@ export interface ConditionGroup {
   rules: ConditionRule[]
 }
 
-// Conditions can be the new group format, the legacy flat-dict format
-// (still produced by workflows created before AND/OR support), or empty.
+
+
 export type Conditions = ConditionGroup | Record<string, string> | Record<string, never>
 
 export interface Workflow {
@@ -110,10 +110,10 @@ export const ACTION_OPTIONS: { value: ActionName; label: string; description: st
   { value: 'save_audit_log', label: 'Save audit log', description: 'Records the event in your audit log' },
 ]
 
-// Condition fields available per trigger, matching the real context shape each
-// webhook path builds server-side. Keeping the builder in sync with these
-// prevents selecting fields (like "priority" on a Push trigger) that don't exist
-// on that trigger's context and could never match.
+
+
+
+
 export const TRIGGER_FIELDS: Record<TriggerType, { field: string; label: string; example: string }[]> = {
   issue_created: [
     { field: 'priority', label: 'Priority', example: 'high' },
@@ -150,7 +150,7 @@ export function isConditionGroup(conditions: Conditions): conditions is Conditio
 export function conditionsToRuleList(conditions: Conditions): ConditionRule[] {
   if (!conditions) return []
   if (isConditionGroup(conditions)) return conditions.rules
-  // Legacy flat dict -> treat each key as an eq rule
+
   return Object.entries(conditions as Record<string, string>).map(([field, value]) => ({
     field,
     op: 'eq' as ConditionOp,

@@ -146,14 +146,14 @@ export default function Settings() {
     ? new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
     : '—'
 
-  // --- Appearance ---
+
   const [theme, setTheme] = useState<ThemePreference>(() => getStoredTheme())
   const handleThemeChange = (pref: ThemePreference) => {
     setTheme(pref)
     setStoredTheme(pref)
   }
 
-  // --- Notifications (device-local) ---
+
   const [emailNotifs, setEmailNotifs] = useState(() => getEmailNotificationsEnabled())
   const [inAppNotifs, setInAppNotifs] = useState(() => getInAppNotificationsEnabled())
   const handleEmailNotifsChange = (v: boolean) => {
@@ -163,14 +163,14 @@ export default function Settings() {
   const handleInAppNotifsChange = (v: boolean) => {
     setInAppNotifs(v)
     setInAppNotificationsEnabled(v)
-    // Reflect immediately without requiring a full reload — the sidebar
-    // reads this via a plain function call on render, so a light nudge
-    // (storage event doesn't fire in the same tab) isn't strictly needed
-    // for correctness on next navigation, but a reload guarantees the
-    // badge query re-evaluates right away.
+
+
+
+
+
   }
 
-  // --- Security: change password (identical logic to Profile.tsx) ---
+
   const [mode, setMode] = useState<'password' | 'otp'>('password')
   const [success, setSuccess] = useState(false)
   const {
@@ -233,7 +233,7 @@ export default function Settings() {
   const onSubmit = (data: ChangePasswordForm) => changePasswordMutation.mutate(data)
   const onOtpSubmit = (data: OtpResetForm) => otpResetMutation.mutate(data)
 
-  // --- Danger zone: delete account ---
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
@@ -264,7 +264,7 @@ export default function Settings() {
         </p>
       </div>
 
-      {/* Account Preferences */}
+
       <Card className="p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-12 w-12 rounded-xl bg-[var(--color-signal-dim)] flex items-center justify-center shrink-0">
@@ -289,7 +289,7 @@ export default function Settings() {
         </p>
       </Card>
 
-      {/* Appearance */}
+
       <Card className="p-5">
         <SectionHeader icon={Sun} title="Appearance" />
         <p className="text-xs text-[var(--color-text-muted)] mb-3">
@@ -314,7 +314,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      {/* Notifications */}
+
       <Card className="p-5">
         <SectionHeader icon={Bell} title="Notifications" />
         <p className="text-xs text-[var(--color-text-muted)] mb-1">
@@ -338,7 +338,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      {/* Security */}
+
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -492,7 +492,7 @@ export default function Settings() {
         )}
       </Card>
 
-      {/* Privacy */}
+
       <Card className="p-5">
         <SectionHeader icon={ShieldCheck} title="Privacy" />
         <div className="flex flex-col gap-3 text-xs text-[var(--color-text-muted)] leading-relaxed">
@@ -512,7 +512,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      {/* Support & Legal */}
+
       <Card className="p-5">
         <SectionHeader icon={FileText} title="Support & Legal" />
         <InfoRow icon={Mail} label="Contact / support email" value="testerappp2001@gmail.com" />
@@ -541,7 +541,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      {/* Danger Zone */}
+
       <Card className="p-5 border-[var(--color-alert)]/30">
         <SectionHeader icon={Trash2} title="Danger Zone" tone="alert" />
         <div className="flex items-start justify-between gap-4 flex-wrap">

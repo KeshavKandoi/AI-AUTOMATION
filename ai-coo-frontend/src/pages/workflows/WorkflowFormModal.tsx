@@ -65,7 +65,7 @@ function HelpHint({ text }: { text: string }) {
   )
 }
 
-// --- Trigger presentation -------------------------------------------------
+
 
 const TRIGGER_ICON: Record<TriggerType, typeof FileWarning> = {
   issue_created: FileWarning,
@@ -79,7 +79,7 @@ const TRIGGER_PHRASE: Record<TriggerType, string> = {
   pull_request_opened: 'a pull request is opened',
 }
 
-// --- Action presentation ---------------------------------------------------
+
 
 const ACTION_ICON: Record<ActionName, typeof Mail> = {
   create_task: CheckSquare,
@@ -88,7 +88,7 @@ const ACTION_ICON: Record<ActionName, typeof Mail> = {
   save_audit_log: FileText,
 }
 
-// --- Lifetime presentation --------------------------------------------
+
 
 const LIFETIME_ICON: Record<LifetimeMode, typeof InfinityIcon> = {
   continuous: InfinityIcon,
@@ -133,10 +133,10 @@ function lifetimeClause(mode: LifetimeMode, expiresAtLocal: string): string {
   return ''
 }
 
-// --- Field UI config ---------------------------------------------------
-// Maps each backend-supported condition field (from TRIGGER_FIELDS) to the
-// friendliest input control for its data shape. Every field here must exist
-// in TRIGGER_FIELDS — we never invent a filter the backend can't evaluate.
+
+
+
+
 type FieldControl = 'select' | 'multiselect' | 'text' | 'number' | 'boolean' | 'autocomplete'
 
 interface FieldUIConfig {
@@ -177,7 +177,7 @@ function defaultOpFor(control: FieldControl): ConditionOp {
   return control === 'multiselect' ? 'in' : 'eq'
 }
 
-// --- Row state ---------------------------------------------------------
+
 
 interface ConditionRowUI {
   field: string
@@ -194,9 +194,9 @@ function initialLogic(conditions: Conditions | null | undefined): ConditionLogic
   return 'AND'
 }
 
-// Existing OR-logic workflows carry semantics that Simple mode can't safely
-// represent (it only ever writes AND), so open those in Advanced mode rather
-// than risk silently flattening OR into AND on save.
+
+
+
 function shouldStartAdvanced(conditions: Conditions | null | undefined): boolean {
   if (!conditions) return false
   const rules = conditionsToRuleList(conditions)
@@ -252,7 +252,7 @@ function buildSummary(
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }
 
-// --- Field input renderer ------------------------------------------------
+
 
 function MultiSelectTagInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const [draft, setDraft] = useState('')
@@ -437,8 +437,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
 
   const handleTriggerChange = (next: TriggerType) => {
     setTriggerType(next)
-    // Filters are trigger-specific — stale rows from a different trigger's
-    // field set would silently never match, so clear them.
+
+
     setConditionRows([])
   }
 
@@ -521,7 +521,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
       <div className="flex flex-col gap-6">
         <Input label="Name" placeholder="e.g. High priority issue fan-out" value={name} onChange={(e) => setName(e.target.value)} />
 
-        {/* When this happens... */}
+
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1.5">
             <label className={labelClass()}>When this happens…</label>
@@ -557,7 +557,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           )}
         </div>
 
-        {/* Only if... */}
+
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
@@ -582,7 +582,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
 
           {!advancedMode ? (
             <>
-              {/* Simple mode: pick from field chips, each rendered with its natural control */}
+
               {conditionRows.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {conditionRows.map((row, i) => {
@@ -629,7 +629,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
             </>
           ) : (
             <>
-              {/* Advanced mode: AND/OR groups, explicit operator, any field */}
+
               {conditionRows.length > 1 && (
                 <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
                   <span>Match</span>
@@ -708,7 +708,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           )}
         </div>
 
-        {/* Then do this... */}
+
         <div className="flex flex-col gap-2">
           <label className={labelClass()}>Then do this…</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -741,7 +741,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           )}
         </div>
 
-        {/* Workflow lifetime */}
+
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1.5">
             <label className={labelClass()}>Workflow lifetime</label>
@@ -799,7 +799,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
           </div>
         )}
 
-        {/* Live summary */}
+
         <div className="flex items-start gap-2 rounded-lg border border-[var(--color-signal-dim)] bg-[var(--color-signal-dim)] px-3 py-2.5">
           <ChevronDown size={14} className="text-[var(--color-signal)] shrink-0 mt-0.5 rotate-[-90deg]" />
           <p className="text-sm text-[var(--color-text-primary)]">{summary}</p>

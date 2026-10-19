@@ -6,7 +6,7 @@ import PageErrorBoundary from '@/components/ui/PageErrorBoundary'
 export default function AppLayout() {
   const { pathname } = useLocation()
   return (
-    <div className={`flex h-screen overflow-hidden ${pathname === '/dashboard' ? 'dashboard-theme' : ''}`}>
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
         <PageErrorBoundary key={pathname}>
