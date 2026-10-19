@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/auth/:path*", "destination": "https://ai-automation-d2s2.onrender.com/auth/:path*" },
+    { "source": "/auth/:path*", "destination": "https://ai-automation-sg.onrender.com/auth/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
