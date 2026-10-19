@@ -10,7 +10,6 @@ import { getInAppNotificationsEnabled } from '@/lib/preferences'
 import { cn } from '@/lib/utils'
 import BrandLogo from '@/components/BrandLogo'
 import { authApi } from '@/api/auth'
-import { preloadRoute } from '@/lib/preloadRoute'
 import { tasksApi } from '@/api/tasks'
 
 export default function Sidebar() {
@@ -20,7 +19,6 @@ export default function Sidebar() {
   const queryClient = useQueryClient()
 
   const preloadItem = (path: string) => {
-    preloadRoute(path)
     if (path === '/tasks' && user?.organization_id) {
       const orgId = user.organization_id
       void queryClient.prefetchQuery({
