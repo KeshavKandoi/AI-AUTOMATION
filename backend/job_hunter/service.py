@@ -124,8 +124,8 @@ def ingest_discovered_job(
     Single entry point every platform adapter calls when it finds a job
     posting. Handles: dedup/merge against existing jobs, recording which
     platform(s) a job was found on, and raising a "new job match"
-    notification exactly once per job (never re-notifies on re-discovery
-    unless content meaningfully changed — see _content_changed below).
+    source record for each job. Scheduled searches send a single summary
+    notification after the sweep instead of notifying for each listing.
     """
     from datetime import datetime, timezone
 
@@ -196,20 +196,6 @@ def ingest_discovered_job(
     })
 
     if is_new or content_changed:
-        notify(
-            organization_id=organization_id,
-            module=MODULE,
-            category="new_job_match" if is_new else "job_updated",
-            priority="normal",
-            title=f"{'New job match' if is_new else 'Job updated'}: {job_title} at {company_name}",
-            body=f"{company_name} — {job_title}" + (f" ({location})" if location else ""),
-            resource_type="job_hunter_job",
-            resource_id=job["id"],
-            action_url=f"/job-hunter/jobs/{job['id']}",
-            action_label="View Job",
-            metadata={"platform": platform, "company_name": company_name, "job_title": job_title},
-            dedup_key=f"job_hunter:job_match:{job['id']}" if is_new else f"job_hunter:job_updated:{job['id']}:{datetime.now(timezone.utc).date().isoformat()}",
-        )
         log_event(
             organization_id=organization_id,
             module=MODULE,

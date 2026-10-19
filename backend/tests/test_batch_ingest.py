@@ -24,8 +24,7 @@ def test_new_job_is_counted_as_inserted():
     client timestamps differ by a few milliseconds."""
     raw_jobs = [_make_raw_job()]
 
-    with patch("job_hunter.batch_ingest.repository") as repo, \
-         patch("job_hunter.batch_ingest.notify_job_match"):
+    with patch("job_hunter.batch_ingest.repository") as repo:
         repo.get_existing_by_dedup_keys.return_value = {}  # no existing rows
         repo.batch_upsert_jobs.return_value = [
             {"id": "job1", "dedup_key": "dk1", "first_discovered_at": "T2", "last_seen_at": "T1"}
@@ -45,8 +44,7 @@ def test_rediscovered_job_is_counted_as_updated():
     """An existing dedup key is an update regardless of timestamp values."""
     raw_jobs = [_make_raw_job()]
 
-    with patch("job_hunter.batch_ingest.repository") as repo, \
-         patch("job_hunter.batch_ingest.notify_job_match"):
+    with patch("job_hunter.batch_ingest.repository") as repo:
         repo.get_existing_by_dedup_keys.return_value = {
             "dk1": {"id": "job1", "work_mode": "Remote", "employment_type": "Full-time",
                     "is_active": True, "description": "old", "salary_min": None, "salary_max": None}
@@ -63,8 +61,7 @@ def test_rediscovered_job_is_counted_as_updated():
 
 def test_sources_are_deduplicated_and_written_once_per_batch():
     raw_jobs = [_make_raw_job(), _make_raw_job()]
-    with patch("job_hunter.batch_ingest.repository") as repo, \
-         patch("job_hunter.batch_ingest.notify_job_match"):
+    with patch("job_hunter.batch_ingest.repository") as repo:
         repo.get_existing_by_dedup_keys.return_value = {}
         repo.batch_upsert_jobs.return_value = [
             {"id": "job1", "dedup_key": "dk1", "first_discovered_at": "T2", "last_seen_at": "T1"}
@@ -85,8 +82,7 @@ def test_duplicate_within_same_batch_produces_one_row():
     enforced upstream in each provider adapter."""
     raw_jobs = [_make_raw_job(title="SWE"), _make_raw_job(title="SWE")]  # identical -> same dedup_key
 
-    with patch("job_hunter.batch_ingest.repository") as repo, \
-         patch("job_hunter.batch_ingest.notify_job_match"):
+    with patch("job_hunter.batch_ingest.repository") as repo:
         repo.get_existing_by_dedup_keys.return_value = {}
         # Supabase upsert with duplicate dedup_keys in the same payload
         # collapses to ONE row in the response (last value wins) -- this
@@ -150,8 +146,7 @@ def test_batch_upsert_failure_marks_entire_batch_as_permanent_failure():
     silently disappears without being accounted for."""
     raw_jobs = [_make_raw_job(title="Job A"), _make_raw_job(title="Job B")]
 
-    with patch("job_hunter.batch_ingest.repository") as repo, \
-         patch("job_hunter.batch_ingest.notify_job_match"):
+    with patch("job_hunter.batch_ingest.repository") as repo:
         repo.get_existing_by_dedup_keys.return_value = {}
         repo.batch_upsert_jobs.side_effect = RuntimeError("simulated batch upsert failure")
         with patch("job_hunter.batch_ingest.build_dedup_key", side_effect=["dk1", "dk2"]):
@@ -182,8 +177,7 @@ def test_multiple_batches_are_processed_when_exceeding_batch_size():
             for row in rows
         ]
 
-    with patch("job_hunter.batch_ingest.repository") as repo, \
-         patch("job_hunter.batch_ingest.notify_job_match"):
+    with patch("job_hunter.batch_ingest.repository") as repo:
         repo.get_existing_by_dedup_keys.return_value = {}
         repo.batch_upsert_jobs.side_effect = fake_upsert
         dedup_keys = [f"dk{i}" for i in range(BATCH_SIZE + 50)]
@@ -217,8 +211,7 @@ def test_duplicate_dedup_keys_never_sent_to_upsert_together():
             for row in rows
         ]
 
-    with patch("job_hunter.batch_ingest.repository") as repo, \
-         patch("job_hunter.batch_ingest.notify_job_match"):
+    with patch("job_hunter.batch_ingest.repository") as repo:
         repo.get_existing_by_dedup_keys.return_value = {}
         repo.batch_upsert_jobs.side_effect = fake_upsert
         # First two raw_jobs share dk1 (duplicate), third has dk2
@@ -253,8 +246,7 @@ def test_real_postgres_conflict_error_would_have_failed_whole_batch_before_fix()
         "constrained values.'}"
     )
 
-    with patch("job_hunter.batch_ingest.repository") as repo, \
-         patch("job_hunter.batch_ingest.notify_job_match"):
+    with patch("job_hunter.batch_ingest.repository") as repo:
         repo.get_existing_by_dedup_keys.return_value = {}
         repo.batch_upsert_jobs.side_effect = postgres_conflict_error
         with patch("job_hunter.batch_ingest.build_dedup_key", side_effect=["dk1", "dk2"]):

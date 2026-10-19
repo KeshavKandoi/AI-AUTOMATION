@@ -15,6 +15,7 @@ from job_hunter.platforms import __init__ as _register_platforms  # noqa: F401 â
 from job_hunter.batch_ingest import ingest_discovered_jobs_batch
 from job_hunter.retention import JOB_HUNTER_RETENTION_DAYS
 from audit_logs.service import log_event
+from notifications.service import notify
 
 MODULE = "job_hunter"
 
@@ -123,6 +124,21 @@ async def run_search_for_org(organization_id: str) -> dict:
             else "success"
         )
         repository.finish_search_run(run["id"], status=overall_status, jobs_found=jobs_found, jobs_new=jobs_new)
+        if jobs_new:
+            notify(
+                organization_id=organization_id,
+                module=MODULE,
+                category="search_summary",
+                priority="normal",
+                title=f"{jobs_new} new jobs found",
+                body="Your latest job search finished. Browse the new listings in Job Hunter.",
+                resource_type="job_hunter_search_run",
+                resource_id=run["id"],
+                action_url="/job-hunter",
+                action_label="Browse jobs",
+                metadata={"jobs_new": jobs_new, "jobs_found": jobs_found},
+                dedup_key=f"job_hunter:search_summary:{run['id']}",
+            )
         log_event(
             organization_id=organization_id,
             module=MODULE,

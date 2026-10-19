@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
@@ -97,6 +98,7 @@ function readableJobText(value: string): string {
 }
 
 export default function JobDiscovery() {
+  const reduceMotion = useReducedMotion()
   const queryClient = useQueryClient()
 
   const [viewMode, setViewMode] = useState<ViewMode>('all')
@@ -304,15 +306,23 @@ export default function JobDiscovery() {
         </Card>
       ) : (
         <>
-          <div className="flex flex-col gap-3">
-            {items.map((job) => {
+          <motion.div className="flex flex-col gap-3" layout>
+            {items.map((job, index) => {
               const salary = formatSalary(job)
               const isSaved = savedJobIds.has(job.id)
               return (
-                <Card
+                <motion.div
                   key={job.id}
-                  className="p-5 cursor-pointer hover:border-[var(--color-border-hover)] transition-colors"
+                  layout="position"
+                  initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 27, delay: reduceMotion ? 0 : Math.min(index, 8) * 0.035 }}
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-5 cursor-pointer hover:border-[var(--color-border-hover)] transition-colors"
                   onClick={() => setSelectedJob(job)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedJob(job) } }}
                 >
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="min-w-0">
@@ -358,10 +368,10 @@ export default function JobDiscovery() {
                       </div>
                     </div>
                   </div>
-                </Card>
+                </motion.div>
               )
             })}
-          </div>
+          </motion.div>
 
           <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
             <span>{total > 0 ? `Showing ${rangeStart}-${rangeEnd} of ${total}` : ''}</span>

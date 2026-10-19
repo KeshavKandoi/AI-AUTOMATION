@@ -24,15 +24,13 @@ Preserves every existing guarantee:
   retrying a whole batch is idempotent since upsert re-applies the same
   values regardless of whether the prior attempt actually landed.
 """
-import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
 from config import logger
 from job_hunter import repository
-from job_hunter.service import build_dedup_key, _content_changed
+from job_hunter.service import build_dedup_key
 from job_hunter.retention import job_is_within_retention
-from job_hunter.notifications_shim import notify_job_match  # see below
 
 # Configurable batch size -- validated via a real 200-row upsert
 # benchmark (0.93s, no errors). Do not increase without re-benchmarking
@@ -42,7 +40,6 @@ BATCH_SIZE = 200
 
 # Bounded concurrency for notifications on new or changed jobs. Source
 # records are written together in one database request per batch.
-PER_JOB_CONCURRENCY = 15
 
 
 def _build_upsert_row(organization_id: str, raw_job, dedup_key: str, existing: Optional[dict]) -> dict:
@@ -88,17 +85,6 @@ def _build_upsert_row(organization_id: str, raw_job, dedup_key: str, existing: O
     return row
 
 
-async def _notify_job(organization_id: str, job_row: dict, raw_job, is_new: bool, sem: asyncio.Semaphore):
-    async with sem:
-        try:
-            await asyncio.to_thread(
-                notify_job_match,
-                organization_id, job_row, raw_job, is_new,
-            )
-        except Exception as e:
-            logger.error(f"[job_hunter] batch: failed to notify/log for job {job_row['id']}: {e}")
-
-
 async def ingest_discovered_jobs_batch(organization_id: str, raw_jobs: list) -> dict:
     """Batched replacement for the sequential
     `for raw_job in raw_jobs: service.ingest_discovered_job(...)` loop.
@@ -108,7 +94,6 @@ async def ingest_discovered_jobs_batch(organization_id: str, raw_jobs: list) -> 
     inserted = 0
     updated = 0
     permanent_failures = []
-    sem = asyncio.Semaphore(PER_JOB_CONCURRENCY)
 
     for batch_start in range(0, len(raw_jobs), BATCH_SIZE):
         batch = raw_jobs[batch_start:batch_start + BATCH_SIZE]
@@ -174,7 +159,6 @@ async def ingest_discovered_jobs_batch(organization_id: str, raw_jobs: list) -> 
         # may carry a distinct platform_url worth recording as a source).
         upserted_by_key = {row["dedup_key"]: row for row in upserted}
         counted_keys = set()
-        followup_tasks = []
         source_rows_by_key = {}
         for rj, dk in zip(batch, dedup_keys):
             job_row = upserted_by_key.get(dk)
@@ -187,7 +171,6 @@ async def ingest_discovered_jobs_batch(organization_id: str, raw_jobs: list) -> 
 
             existing = existing_map.get(dk)
             is_new = existing is None
-            content_changed = _content_changed(existing, rj.description, rj.salary_min, rj.salary_max) if existing else False
 
             source_row = {
                 "job_id": job_row["id"],
@@ -204,18 +187,10 @@ async def ingest_discovered_jobs_batch(organization_id: str, raw_jobs: list) -> 
                 else:
                     updated += 1
 
-            if is_new or content_changed:
-                followup_tasks.append(
-                    _notify_job(organization_id, job_row, rj, is_new, sem)
-                )
-
         try:
             repository.batch_add_job_sources(list(source_rows_by_key.values()))
         except Exception as e:
             logger.error(f"[job_hunter] batch: failed to add sources for batch at offset {batch_start}: {e}")
-
-        if followup_tasks:
-            await asyncio.gather(*followup_tasks)
 
     return {
         "inserted": inserted,

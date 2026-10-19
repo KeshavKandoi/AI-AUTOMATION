@@ -9,6 +9,7 @@ import {
 import { useAuthStore } from '@/store/authStore'
 import { analyticsService, type AnalyticsRangePreset } from '@/services/analytics'
 import StatCard from '@/components/ui/StatCard'
+import MagicBentoTile from '@/components/ui/MagicBentoTile'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
@@ -154,6 +155,7 @@ export default function Analytics() {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <MagicBentoTile>
             <StatCard
               label="Total events"
               value={data?.total_events ?? 0}
@@ -161,6 +163,8 @@ export default function Analytics() {
               tone="signal"
               loading={isLoading}
             />
+            </MagicBentoTile>
+            <MagicBentoTile>
             <StatCard
               label="Failed events"
               value={data?.failed_events ?? 0}
@@ -168,6 +172,8 @@ export default function Analytics() {
               tone="alert"
               loading={isLoading}
             />
+            </MagicBentoTile>
+            <MagicBentoTile>
             <StatCard
               label="Open tasks"
               value={data?.tasks.open ?? 0}
@@ -175,6 +181,8 @@ export default function Analytics() {
               tone="amber"
               loading={isLoading}
             />
+            </MagicBentoTile>
+            <MagicBentoTile>
             <StatCard
               label="Workflow runs"
               value={data?.workflows.total_runs ?? 0}
@@ -182,8 +190,10 @@ export default function Analytics() {
               tone="signal"
               loading={isLoading}
             />
+            </MagicBentoTile>
           </div>
 
+          <MagicBentoTile className="mb-6">
           <Card className="p-5 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Activity trend</h2>
@@ -229,6 +239,7 @@ export default function Analytics() {
               />
             )}
           </Card>
+          </MagicBentoTile>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <Card className="p-5">

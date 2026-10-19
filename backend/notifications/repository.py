@@ -5,6 +5,8 @@ service.py should never call supabase_admin directly — only through this file.
 from typing import Optional
 from config import supabase_admin
 
+VISIBLE_NOTIFICATION_CATEGORIES = "category.is.null,category.not.in.(new_job_match,job_updated)"
+
 
 def insert_notification(row: dict) -> Optional[dict]:
     """Inserts a notification, deduplicating on (organization_id, dedup_key)
@@ -34,6 +36,9 @@ def list_notifications(
 ) -> tuple[list[dict], int]:
     query = supabase_admin.table("notifications").select("*", count="exact") \
         .eq("organization_id", organization_id)
+    # Individual discovery alerts from older sweeps overwhelmed the inbox.
+    # Job Hunter now sends one summary per sweep; retain legacy rows for audit.
+    query = query.or_(VISIBLE_NOTIFICATION_CATEGORIES)
 
     if module:
         query = query.eq("module", module)
@@ -52,6 +57,7 @@ def count_unread(organization_id: str) -> int:
         .select("id", count="exact") \
         .eq("organization_id", organization_id) \
         .eq("read", False) \
+        .or_(VISIBLE_NOTIFICATION_CATEGORIES) \
         .execute()
     return result.count or 0
 
