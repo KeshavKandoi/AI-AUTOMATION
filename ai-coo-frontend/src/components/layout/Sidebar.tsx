@@ -9,6 +9,7 @@ import { notificationsService } from '@/services/notifications'
 import { getInAppNotificationsEnabled } from '@/lib/preferences'
 import { cn } from '@/lib/utils'
 import BrandLogo from '@/components/BrandLogo'
+import { preloadRoute } from '@/lib/preloadRoute'
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -39,6 +40,8 @@ export default function Sidebar() {
           <NavLink
             key={item.path}
             to={item.path}
+            onPointerEnter={() => preloadRoute(item.path)}
+            onFocus={() => preloadRoute(item.path)}
             className={({ isActive }) =>
               cn(
                 'group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-colors',

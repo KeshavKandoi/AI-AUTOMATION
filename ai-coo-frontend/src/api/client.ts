@@ -16,14 +16,6 @@ export const apiClient = axios.create({
   withCredentials: true, // sends/receives the httpOnly refresh_token cookie
 })
 
-apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
-
 let refreshPromise: Promise<string | null> | null = null
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -49,6 +41,22 @@ async function refreshAccessToken(): Promise<string | null> {
   }
   return refreshPromise
 }
+
+// A cached user lets the app shell render at once after a reload. Data
+// requests still wait for the httpOnly-cookie refresh, sharing one request.
+export function restoreSession(): Promise<string | null> {
+  return refreshAccessToken()
+}
+
+apiClient.interceptors.request.use(async (config) => {
+  if (config.url === '/auth/refresh') return config
+  const state = useAuthStore.getState()
+  const protectedPage = !isPublicPath(window.location.pathname)
+  const token = state.accessToken || (protectedPage && state.user ? await refreshAccessToken() : null)
+  if (protectedPage && state.user && !token) throw new Error('Session expired')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
 apiClient.interceptors.response.use(
   (response) => response,

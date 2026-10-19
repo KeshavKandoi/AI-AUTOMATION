@@ -1,7 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { apiClient, isPublicPath } from '@/api/client'
+import { isPublicPath, restoreSession } from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
@@ -44,35 +44,20 @@ const queryClient = new QueryClient({
 })
 
 function App() {
-  const [bootstrapped, setBootstrapped] = useState(false)
-  const setAuth = useAuthStore((s) => s.setAuth)
-  const logout = useAuthStore((s) => s.logout)
+  const [checkingUncachedSession, setCheckingUncachedSession] = useState(
+    () => !isPublicPath(window.location.pathname) && !useAuthStore.getState().user
+  )
+  const restoreOnMount = useRef(!!useAuthStore.getState().user || checkingUncachedSession)
 
   useEffect(() => {
-    const isPublic = isPublicPath(window.location.pathname)
-    const hasSavedUser = !!useAuthStore.getState().user
-
-    if (isPublic) {
-      setBootstrapped(true)
-      if (!hasSavedUser) return
-
-      // Public pages do not need authentication to render. Refresh a saved
-      // session in the background so a slow or sleeping API cannot blank them.
-      apiClient
-        .post('/auth/refresh')
-        .then((res) => setAuth(res.data.user, res.data.access_token))
-        .catch(() => logout())
-      return
+    if (restoreOnMount.current) {
+      void restoreSession().finally(() => setCheckingUncachedSession(false))
     }
-    apiClient
-      .post('/auth/refresh')
-      .then((res) => setAuth(res.data.user, res.data.access_token))
-      .catch(() => logout())
-      .finally(() => setBootstrapped(true))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  if (!bootstrapped) return null
+  if (checkingUncachedSession) {
+    return <div className="min-h-screen bg-[var(--color-void)] p-8 text-sm text-[var(--color-text-muted)]">Restoring your session…</div>
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
