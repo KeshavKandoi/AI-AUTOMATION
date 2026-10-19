@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   GitBranch, Sparkles, ListChecks, Search, Plus, RefreshCw,
   ExternalLink, AlertCircle, CheckCircle2,
@@ -29,7 +30,34 @@ function apiErrorMessage(error: unknown, fallback: string) {
   return typeof detail === 'string' && detail.trim() ? detail : fallback
 }
 
+function FormattedAiText({ text }: { text: string }) {
+  const lines = text.split(/\r?\n/)
+
+  return (
+    <div className="space-y-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
+      {lines.map((line, index) => {
+        const trimmed = line.trim()
+        if (!trimmed) return null
+        const heading = trimmed.match(/^#{1,6}\s+(.+)$/)
+        const listItem = trimmed.match(/^(?:[-*•]|\d+[.)])\s+(.+)$/)
+        const content = (heading?.[1] ?? listItem?.[1] ?? trimmed).split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, partIndex) => {
+          const bold = part.match(/^\*\*(.+)\*\*$/)
+          if (bold) return <strong key={partIndex} className="font-semibold text-[var(--color-text-primary)]">{bold[1]}</strong>
+          const italic = part.match(/^\*(.+)\*$/)
+          if (italic) return <em key={partIndex}>{italic[1]}</em>
+          return part
+        })
+
+        if (heading) return <h3 key={index} className="pt-2 font-semibold text-[var(--color-text-primary)]">{content}</h3>
+        if (listItem) return <p key={index} className="pl-4 before:mr-2 before:content-['•']">{content}</p>
+        return <p key={index}>{content}</p>
+      })}
+    </div>
+  )
+}
+
 export default function GitHub() {
+  const reduceMotion = useReducedMotion()
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
@@ -75,7 +103,7 @@ export default function GitHub() {
     refetch: refetchPriorities,
     isFetching: prioritiesFetching,
   } = useQuery({
-    queryKey: ['github', 'priorities', orgId],
+    queryKey: ['github', 'priorities', orgId, connectedRepo],
     queryFn: () => githubService.getPriorities(orgId!),
     enabled: false,
     retry: false,
@@ -125,13 +153,6 @@ export default function GitHub() {
     },
   })
 
-  const createTasksMutation = useMutation({
-    mutationFn: () => githubService.createTasksFromPriorities(orgId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] })
-    },
-  })
-
   const filteredRepos = useMemo(() => {
     if (!repos) return []
     const q = search.trim().toLowerCase()
@@ -148,7 +169,7 @@ export default function GitHub() {
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <motion.div initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
             GitHub
@@ -161,7 +182,7 @@ export default function GitHub() {
           <Plus size={15} />
           New issue
         </Button>
-      </div>
+      </motion.div>
 
       {githubConnectResult === 'connected' && !connectedRepo && (
         <div className="rounded-lg border border-[var(--color-signal)]/30 bg-[var(--color-signal-dim)] px-4 py-3 text-sm text-[var(--color-text-primary)]" role="status">
@@ -183,51 +204,52 @@ export default function GitHub() {
       )}
 
       {/* Connected repo */}
-      <Card className="p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <GitBranch size={16} className="text-[var(--color-signal)]" />
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Connected repository</h2>
-        </div>
-        {repoLoading ? (
-          <Skeleton className="h-9 w-64" />
-        ) : connectedRepo ? (
-          <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
-            <CheckCircle2 size={14} className="text-[var(--color-signal)]" />
-            
+      <motion.div initial={reduceMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}>
+        <Card className="p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <GitBranch size={16} className="text-[var(--color-signal)]" />
+            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">Connected repository</h2>
+          </div>
+          {repoLoading ? (
+            <Skeleton className="h-9 w-64" />
+          ) : connectedRepo ? (
+            <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
+              <CheckCircle2 size={14} className="text-[var(--color-signal)]" />
               <a href={`https://github.com/${connectedRepo}`}
-              target="_blank"
-              rel="noreferrer"
-              className="hover:underline flex items-center gap-1"
-            >
-              {connectedRepo}
-              <ExternalLink size={12} />
-            </a>
-          </div>
-        ) : (
-          <p className="text-sm text-[var(--color-text-faint)] mb-3">Choose a repository below to receive issue, push, and pull request events in WorkForge.</p>
-        )}
-        <div className="flex flex-wrap gap-2 mt-3">
-          {connectedRepo && (
-            <Button
-              variant={confirmingDisconnect ? 'primary' : 'ghost'}
-              onClick={handleDisconnectClick}
-              onBlur={() => setConfirmingDisconnect(false)}
-              loading={disconnectRepoMutation.isPending}
-              className={confirmingDisconnect ? '!bg-[var(--color-alert)] !text-white' : ''}
-            >
-              {confirmingDisconnect ? 'Confirm?' : 'Disconnect'}
-            </Button>
+                target="_blank"
+                rel="noreferrer"
+                className="hover:underline flex items-center gap-1"
+              >
+                {connectedRepo}
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--color-text-faint)] mb-3">Choose a repository below to receive issue, push, and pull request events in WorkForge.</p>
           )}
-        </div>
-        {disconnectRepoMutation.isError && (
-          <div className="mt-2">
-            <ErrorBanner message="Failed to disconnect repository." />
+          <div className="flex flex-wrap gap-2 mt-3">
+            {connectedRepo && (
+              <Button
+                variant={confirmingDisconnect ? 'primary' : 'ghost'}
+                onClick={handleDisconnectClick}
+                onBlur={() => setConfirmingDisconnect(false)}
+                loading={disconnectRepoMutation.isPending}
+                className={confirmingDisconnect ? '!bg-[var(--color-alert)] !text-white' : ''}
+              >
+                {confirmingDisconnect ? 'Confirm?' : 'Disconnect'}
+              </Button>
+            )}
           </div>
-        )}
-      </Card>
+          {disconnectRepoMutation.isError && (
+            <div className="mt-2">
+              <ErrorBanner message="Failed to disconnect repository." />
+            </div>
+          )}
+        </Card>
+      </motion.div>
 
       {/* AI Summary + Priorities */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <motion.div initial={reduceMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -261,9 +283,7 @@ export default function GitHub() {
               </Button>
             </div>
           ) : (
-            <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-line leading-relaxed">
-              {summary}
-            </p>
+            <FormattedAiText text={summary} />
           )}
         </Card>
 
@@ -275,14 +295,16 @@ export default function GitHub() {
             </div>
             <button
               onClick={() => refetchPriorities()}
-              disabled={prioritiesFetching}
+              disabled={prioritiesFetching || !connectedRepo}
               className="text-[var(--color-text-faint)] hover:text-[var(--color-text-primary)] transition-colors"
               title="Refresh"
             >
               <RefreshCw size={14} className={prioritiesFetching ? 'animate-spin' : ''} />
             </button>
           </div>
-          {prioritiesLoading ? (
+          {!connectedRepo ? (
+            <p className="text-sm text-[var(--color-text-faint)]">Enable events for a repository to see its prioritized issues.</p>
+          ) : prioritiesLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-5/6" />
@@ -293,42 +315,21 @@ export default function GitHub() {
           ) : priorities === undefined ? (
             <div className="flex flex-col items-start gap-2 mb-4">
               <p className="text-xs text-[var(--color-text-faint)]">
-                Uses your AI quota — load on demand.
+                Priorities for {connectedRepo}. Uses your AI quota — load on demand.
               </p>
               <Button variant="secondary" onClick={() => refetchPriorities()}>
                 Load prioritized issues
               </Button>
             </div>
           ) : (
-            <p className="text-sm text-[var(--color-text-muted)] whitespace-pre-line leading-relaxed mb-4">
-              {priorities}
-            </p>
-          )}
-          <Button
-            variant="secondary"
-            className="w-full"
-            loading={createTasksMutation.isPending}
-            onClick={() => createTasksMutation.mutate()}
-          >
-            Create tasks from priorities
-          </Button>
-          {createTasksMutation.isSuccess && (
-            <p className="mt-2 text-xs text-[var(--color-signal)]">
-              {createTasksMutation.data.tasks_created > 0
-                ? `${createTasksMutation.data.tasks_created} task(s) created.`
-                : createTasksMutation.data.message ?? 'No new tasks created.'}
-            </p>
-          )}
-          {createTasksMutation.isError && (
-            <div className="mt-2">
-              <ErrorBanner message="Failed to create tasks from priorities." />
-            </div>
+            <div className="mb-4"><FormattedAiText text={priorities} /></div>
           )}
         </Card>
-      </div>
+      </motion.div>
 
       {/* Repos list */}
-      <Card className="p-5">
+      <motion.div initial={reduceMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.15 }}>
+        <Card className="p-5">
         <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
           <div>
             <h2 className="text-sm font-medium text-[var(--color-text-primary)]">
@@ -368,11 +369,10 @@ export default function GitHub() {
           />
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
-            {filteredRepos.map((repo: GitHubRepo) => (
-              <div key={repo.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3">
+            {filteredRepos.map((repo: GitHubRepo, index) => (
+              <motion.div key={repo.id} initial={reduceMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, delay: Math.min(index * 0.035, 0.25) }} whileHover={reduceMotion ? undefined : { x: 3 }} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  
-                    <a href={repo.html_url}
+                  <a href={repo.html_url}
                     target="_blank"
                     rel="noreferrer"
                     className="text-sm text-[var(--color-text-primary)] hover:underline flex items-center gap-1 w-fit"
@@ -404,11 +404,12 @@ export default function GitHub() {
                     Issue
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
-      </Card>
+        </Card>
+      </motion.div>
 
       {/* Create issue modal */}
       <Modal open={issueModalOpen} onClose={() => setIssueModalOpen(false)} title="New GitHub issue">

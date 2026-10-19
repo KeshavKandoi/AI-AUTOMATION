@@ -165,15 +165,31 @@ Keep it under 150 words."""
 @app.get("/planner/priorities")
 async def planner_priorities(org_id: str = Depends(get_current_org_id)):
     from closeout import _resolve_access_token
+    org_res = supabase_admin.table("organizations").select("github_repo").eq("id", org_id).execute()
+    repo_full_name = org_res.data[0].get("github_repo") if org_res.data else None
+    if not repo_full_name:
+        return {"priorities": "Enable events for a repository to see its prioritized issues."}
     _rate_limit(org_id, "ai_call", "AI_CALLS_MAX_PER_ORG_PER_HOUR")
     access_token = _resolve_access_token(org_id, "github")
-    issues_data = await fetch_github_repos_and_issues(access_token)
+    issues = await github_get_paginated(
+        f"https://api.github.com/repos/{repo_full_name}/issues",
+        access_token,
+        params={"state": "open"},
+    )
+    issues_data = [
+        {"title": issue.get("title"), "created_at": issue.get("created_at"), "comments": issue.get("comments")}
+        for issue in issues if not issue.get("pull_request")
+    ]
+
+    if not issues_data:
+        return {"priorities": f"No open issues in {repo_full_name}."}
 
     prompt = f"""You are a Planner AI for a busy developer/founder.
-Here is their open GitHub issues data: {issues_data}
+Repository: {repo_full_name}
+Here are its open GitHub issues: {issues_data}
 
 Task: Create a prioritized action list (max 5 items) of what needs attention first.
-Consider: how old the issue is, how many comments (engagement), and which repo it's in.
+Consider how old the issue is and how many comments it has. Only include issues from this repository.
 
 Format your response as a numbered list like:
 1. [Repo name] Issue title — brief reason why it's priority
