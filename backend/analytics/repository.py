@@ -11,12 +11,10 @@ already handle it (e.g. get_workflow -> fetch recent_runs by workflow_id).
 """
 from config import supabase_admin
 
-# Analytics reads full ranges rather than paginating like the audit-logs API
-# does (that 200-row cap is a UI list-page concern, not a DB limit). Capped
-# here at 5000 rows per range as a sane ceiling — if an org's audit_logs
-# volume in a 90-day window regularly exceeds this, that's worth revisiting
-# with real pagination, but there's no evidence of that scale yet.
-AUDIT_LOG_FETCH_CAP = 10000
+# Headline audit counts are queried separately. The trend and module charts
+# sample the most recent rows so a large audit history cannot hold up the page.
+AUDIT_LOG_FETCH_CAP = 1000
+METRIC_ROW_FETCH_CAP = 10000
 
 
 def get_tasks_in_range(organization_id: str, start_date: str, end_date: str) -> list[dict]:
@@ -27,13 +25,13 @@ def get_tasks_in_range(organization_id: str, start_date: str, end_date: str) -> 
     page_size = 1000
     all_rows: list[dict] = []
     offset = 0
-    while offset < AUDIT_LOG_FETCH_CAP:
+    while offset < METRIC_ROW_FETCH_CAP:
         query = supabase_admin.table("tasks").select("*").eq("organization_id", organization_id)
         if start_date:
             query = query.gte("created_at", start_date)
         if end_date:
             query = query.lte("created_at", end_date)
-        page_end = min(offset + page_size, AUDIT_LOG_FETCH_CAP) - 1
+        page_end = min(offset + page_size, METRIC_ROW_FETCH_CAP) - 1
         page = query.range(offset, page_end).execute().data
         all_rows.extend(page)
         if len(page) < page_size:
@@ -56,7 +54,7 @@ def get_workflow_runs_in_range(workflow_ids: list[str], start_date: str, end_dat
     page_size = 1000
     all_rows: list[dict] = []
     offset = 0
-    while offset < AUDIT_LOG_FETCH_CAP:
+    while offset < METRIC_ROW_FETCH_CAP:
         query = supabase_admin.table("workflow_runs") \
             .select("id, workflow_id, status, executed_at") \
             .in_("workflow_id", workflow_ids)
@@ -64,7 +62,7 @@ def get_workflow_runs_in_range(workflow_ids: list[str], start_date: str, end_dat
             query = query.gte("executed_at", start_date)
         if end_date:
             query = query.lte("executed_at", end_date)
-        page_end = min(offset + page_size, AUDIT_LOG_FETCH_CAP) - 1
+        page_end = min(offset + page_size, METRIC_ROW_FETCH_CAP) - 1
         page = query.order("executed_at", desc=False).range(offset, page_end).execute().data
         all_rows.extend(page)
         if len(page) < page_size:
@@ -87,7 +85,7 @@ def get_commit_job_runs_in_range(job_ids: list[str], start_date: str, end_date: 
     page_size = 1000
     all_rows: list[dict] = []
     offset = 0
-    while offset < AUDIT_LOG_FETCH_CAP:
+    while offset < METRIC_ROW_FETCH_CAP:
         query = supabase_admin.table("commit_job_runs") \
             .select("id, job_id, status, executed_at") \
             .in_("job_id", job_ids)
@@ -95,7 +93,7 @@ def get_commit_job_runs_in_range(job_ids: list[str], start_date: str, end_date: 
             query = query.gte("executed_at", start_date)
         if end_date:
             query = query.lte("executed_at", end_date)
-        page_end = min(offset + page_size, AUDIT_LOG_FETCH_CAP) - 1
+        page_end = min(offset + page_size, METRIC_ROW_FETCH_CAP) - 1
         page = query.order("executed_at", desc=False).range(offset, page_end).execute().data
         all_rows.extend(page)
         if len(page) < page_size:
@@ -126,7 +124,7 @@ def get_audit_logs_in_range(organization_id: str, start_date: str, end_date: str
         if end_date:
             query = query.lte("created_at", end_date)
         page_end = min(offset + page_size, AUDIT_LOG_FETCH_CAP) - 1
-        query = query.order("created_at", desc=False).range(offset, page_end)
+        query = query.order("created_at", desc=True).range(offset, page_end)
         page = query.execute().data
         all_rows.extend(page)
         if len(page) < page_size:

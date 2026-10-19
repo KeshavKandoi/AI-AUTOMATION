@@ -5,6 +5,7 @@ and executes the ones that are due right now, based on their mode:
   - recurring: fires on due days per start/end/frequency (any time of day)
   - guard: fires on due days, only once the guard cutoff time has passed
 """
+import asyncio
 from datetime import date, datetime, time as dt_time
 from zoneinfo import ZoneInfo
 from commit_scheduler import repository, service
@@ -69,6 +70,12 @@ def is_due_now(job: dict, today: date, now_ist: datetime) -> bool:
 
 
 async def run_due_commit_jobs():
+    # The job executor uses the synchronous Supabase client. Run its own
+    # event loop in a worker so a due commit never stalls unrelated requests.
+    return await asyncio.to_thread(lambda: asyncio.run(_run_due_commit_jobs()))
+
+
+async def _run_due_commit_jobs():
     now_ist = datetime.now(IST)
     today = now_ist.date()
 
@@ -76,16 +83,16 @@ async def run_due_commit_jobs():
     if not active_jobs:
         return
 
+    remaining_jobs = []
     for job in active_jobs:
         if job.get("mode") in ("recurring", "guard") and job.get("end_date"):
             end_date = date.fromisoformat(job["end_date"])
             if today > end_date:
                 logger.info(f"Job {job['id']} ({job['repo_full_name']}) past end_date {end_date} with no terminal status — marking completed")
                 repository.update_job(job["id"], {"status": "completed"})
-    active_jobs = [j for j in active_jobs if j["id"] not in {
-        updated["id"] for updated in []
-    }]  # placeholder no-op, real filtering below via re-fetch is simpler
-    active_jobs = repository.list_active_jobs()
+                continue
+        remaining_jobs.append(job)
+    active_jobs = remaining_jobs
 
     due_jobs = [job for job in active_jobs if is_due_now(job, today, now_ist)]
     if not due_jobs:

@@ -1,5 +1,6 @@
 """Google Calendar OAuth and organization-scoped calendar actions."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
@@ -85,7 +86,7 @@ async def calendar_callback(code: str, state: str):
 
 @router.get("/calendar/events")
 async def calendar_events(org_id: str = Depends(get_current_org_id)):
-    access_token = _get_calendar_token_for_org(org_id)
+    access_token = await asyncio.to_thread(_get_calendar_token_for_org, org_id)
     async with httpx.AsyncClient(timeout=20) as client:
         res = await client.get(
             CALENDAR_EVENTS_URL,

@@ -151,7 +151,10 @@ def list_jobs(
     semantics matching.matches_preferences() used to apply at discovery
     time, now applied at query time instead against the already-stored
     database inventory. Purely a DB filter; never triggers scraping."""
-    query = supabase_admin.table("job_hunter_jobs").select("*", count="exact") \
+    # Discovery cards need metadata only. Large provider descriptions are
+    # fetched from /jobs/{id} when a user opens a listing.
+    list_columns = "id,organization_id,company_name,job_title,location,work_mode,employment_type,experience_required,salary_min,salary_max,salary_currency,original_apply_url,posted_at,first_discovered_at,last_seen_at,required_skills"
+    query = supabase_admin.table("job_hunter_jobs").select(list_columns, count="exact") \
         .eq("organization_id", organization_id)
 
     if not include_inactive:

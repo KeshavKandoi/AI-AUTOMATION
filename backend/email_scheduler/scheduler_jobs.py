@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 from email_scheduler import repository, service
@@ -20,6 +21,10 @@ def is_job_due(job: dict, now: datetime) -> bool:
     return now_ist.time().replace(tzinfo=None) >= send_time
 
 async def run_due_email_jobs():
+    return await asyncio.to_thread(lambda: asyncio.run(_run_due_email_jobs()))
+
+
+async def _run_due_email_jobs():
     now_ist = datetime.now(IST)
     today = now_ist.date()
     logger.info(f"Checking email_jobs due for {today.isoformat()}")

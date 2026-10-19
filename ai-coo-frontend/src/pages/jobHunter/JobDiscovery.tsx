@@ -107,6 +107,12 @@ export default function JobDiscovery() {
   const [workMode, setWorkMode] = useState('')
   const [offset, setOffset] = useState(0)
   const [selectedJob, setSelectedJob] = useState<JobOut | null>(null)
+  const { data: selectedJobDetails, isLoading: detailsLoading, isError: detailsError } = useQuery({
+    queryKey: ['job-hunter', 'job-detail', selectedJob?.id],
+    queryFn: () => jobHunterService.getJob(selectedJob!.id),
+    enabled: !!selectedJob,
+  })
+  const detailJob = selectedJobDetails ?? selectedJob
 
   // Preferences power "For You" — the user's saved desired_roles/skills
   // become the base personalization, applied as a DB-only query-time
@@ -396,79 +402,81 @@ export default function JobDiscovery() {
       )}
 
       <Modal open={!!selectedJob} onClose={() => setSelectedJob(null)} title={selectedJob?.job_title} className="max-w-2xl">
-        {selectedJob && (
+        {detailsLoading ? <Skeleton className="h-40 w-full" /> : detailsError ? (
+          <ErrorBanner message="Couldn't load this job's details. Please try again." />
+        ) : detailJob && (
           <div className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--color-text-muted)]">
               <span className="flex items-center gap-1">
                 <Building2 size={13} />
-                {selectedJob.company_name}
+                {detailJob.company_name}
               </span>
-              {selectedJob.location && (
+              {detailJob.location && (
                 <span className="flex items-center gap-1">
                   <MapPin size={13} />
-                  {selectedJob.location}
+                  {detailJob.location}
                 </span>
               )}
-              {formatSalary(selectedJob) && (
+              {formatSalary(detailJob) && (
                 <span className="flex items-center gap-1">
                   <Wallet size={13} />
-                  {formatSalary(selectedJob)}
+                  {formatSalary(detailJob)}
                 </span>
               )}
             </div>
 
             <div className="flex flex-wrap gap-1.5">
-              {selectedJob.employment_type && <Badge tone="neutral">{selectedJob.employment_type}</Badge>}
-              {selectedJob.work_mode && <Badge tone="neutral">{selectedJob.work_mode}</Badge>}
-              {selectedJob.experience_required && <Badge tone="neutral">{selectedJob.experience_required}</Badge>}
+              {detailJob.employment_type && <Badge tone="neutral">{detailJob.employment_type}</Badge>}
+              {detailJob.work_mode && <Badge tone="neutral">{detailJob.work_mode}</Badge>}
+              {detailJob.experience_required && <Badge tone="neutral">{detailJob.experience_required}</Badge>}
             </div>
 
-            {selectedJob.description && (
+            {detailJob.description && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Description</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.description)}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.description)}</p>
               </div>
             )}
-            {selectedJob.responsibilities && (
+            {detailJob.responsibilities && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Responsibilities</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.responsibilities)}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.responsibilities)}</p>
               </div>
             )}
-            {selectedJob.required_skills.length > 0 && (
+            {detailJob.required_skills.length > 0 && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Required skills</h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {selectedJob.required_skills.map((s) => (
+                  {detailJob.required_skills.map((s) => (
                     <Badge key={s} tone="neutral">{s}</Badge>
                   ))}
                 </div>
               </div>
             )}
-            {selectedJob.qualifications && (
+            {detailJob.qualifications && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Qualifications</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.qualifications)}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.qualifications)}</p>
               </div>
             )}
-            {selectedJob.benefits && (
+            {detailJob.benefits && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Benefits</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.benefits)}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.benefits)}</p>
               </div>
             )}
-            {selectedJob.company_info && (
+            {detailJob.company_info && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">About the company</h4>
-                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(selectedJob.company_info)}</p>
+                <p className="text-sm leading-6 text-[var(--color-text-primary)] whitespace-pre-wrap break-words">{readableJobText(detailJob.company_info)}</p>
               </div>
             )}
 
-            {selectedJob.sources.length > 0 && (
+            {detailJob.sources.length > 0 && (
               <div>
                 <h4 className="text-xs font-medium text-[var(--color-text-muted)] mb-1">Sources</h4>
                 <div className="flex flex-col gap-1">
-                  {selectedJob.sources.map((s) => (
+                  {detailJob.sources.map((s) => (
                     <a
                       key={s.id}
                       href={s.platform_url}
@@ -487,13 +495,13 @@ export default function JobDiscovery() {
             {saveMutation.isError && <ErrorBanner message="Couldn't save this job to your tracker." />}
 
             <div className="flex items-center gap-2 pt-2 border-t border-[var(--color-border)]">
-              <a href={selectedJob.original_apply_url} target="_blank" rel="noreferrer" className="flex-1">
+              <a href={detailJob.original_apply_url} target="_blank" rel="noreferrer" className="flex-1">
                 <Button variant="secondary" className="w-full">
                   <ExternalLink size={14} />
                   Apply on original site
                 </Button>
               </a>
-              {savedJobIds.has(selectedJob.id) ? (
+              {savedJobIds.has(detailJob.id) ? (
                 <Button variant="ghost" disabled className="flex-1">
                   <CheckCircle2 size={14} />
                   Already in tracker
@@ -501,9 +509,9 @@ export default function JobDiscovery() {
               ) : (
                 <Button
                   className="flex-1"
-                  loading={saveMutation.isPending && saveMutation.variables === selectedJob.id}
+                  loading={saveMutation.isPending && saveMutation.variables === detailJob.id}
                   disabled={saveMutation.isPending}
-                  onClick={() => saveMutation.mutate(selectedJob.id)}
+                  onClick={() => saveMutation.mutate(detailJob.id)}
                 >
                   Save to tracker
                 </Button>

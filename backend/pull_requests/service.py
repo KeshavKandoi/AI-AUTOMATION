@@ -107,7 +107,7 @@ async def list_pull_requests(
     page: int = 1,
     per_page: int = 30,
 ) -> dict:
-    access_token = _get_token(organization_id)
+    access_token = await asyncio.to_thread(_get_token, organization_id)
     login = await _get_login(access_token)
     query = _build_query(view, login, repo, author, search)
 
@@ -144,7 +144,7 @@ def _review_decision(reviews: list[dict]) -> str:
 
 
 async def get_pull_request_detail(organization_id: str, repo_full_name: str, pr_number: int) -> dict:
-    access_token = _get_token(organization_id)
+    access_token = await asyncio.to_thread(_get_token, organization_id)
 
     try:
         pr, reviews, review_comments, issue_comments, commits, files = await asyncio.gather(

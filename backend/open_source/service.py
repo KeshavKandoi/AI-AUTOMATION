@@ -3,6 +3,7 @@ Business logic for Open Source discovery. Same design as pull_requests:
 GitHub is the sole source of truth, nothing is persisted locally. Curation
 comes from query construction, not from a database.
 """
+import asyncio
 from typing import Optional
 from fastapi import HTTPException
 
@@ -82,7 +83,7 @@ async def list_issues(
     org: Optional[str] = None,
     repo: Optional[str] = None,
 ) -> dict:
-    access_token = _get_token(organization_id)
+    access_token = await asyncio.to_thread(_get_token, organization_id)
     query = _build_issue_query(language, label, unassigned_only, search, org, repo)
 
     try:
@@ -141,7 +142,7 @@ async def list_repositories(
     per_page: int = 30,
     org: Optional[str] = None,
 ) -> dict:
-    access_token = _get_token(organization_id)
+    access_token = await asyncio.to_thread(_get_token, organization_id)
     query = _build_repo_query(language, topic, search, org)
 
     try:
@@ -156,7 +157,7 @@ async def list_repositories(
 
 
 async def get_repository_detail(organization_id: str, repo_full_name: str) -> dict:
-    access_token = _get_token(organization_id)
+    access_token = await asyncio.to_thread(_get_token, organization_id)
     try:
         repo = await gh.get_repository(access_token, repo_full_name)
     except gh.GitHubRateLimitError as e:
@@ -174,7 +175,7 @@ async def get_repository_detail(organization_id: str, repo_full_name: str) -> di
 
 
 async def get_issue_detail(organization_id: str, repo_full_name: str, issue_number: int) -> dict:
-    access_token = _get_token(organization_id)
+    access_token = await asyncio.to_thread(_get_token, organization_id)
     try:
         issue = await gh.get_issue(access_token, repo_full_name, issue_number)
         comments = await gh.list_issue_comments(access_token, repo_full_name, issue_number)
