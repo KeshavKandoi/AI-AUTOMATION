@@ -24,6 +24,11 @@ function ErrorBanner({ message }: { message: string }) {
   )
 }
 
+function apiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  return typeof detail === 'string' && detail.trim() ? detail : fallback
+}
+
 export default function GitHub() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
@@ -199,7 +204,7 @@ export default function GitHub() {
             </a>
           </div>
         ) : (
-          <p className="text-sm text-[var(--color-text-faint)] mb-3">No repository connected yet.</p>
+          <p className="text-sm text-[var(--color-text-faint)] mb-3">Choose a repository below to receive issue, push, and pull request events in WorkForge.</p>
         )}
         <div className="flex flex-wrap gap-2 mt-3">
           {connectedRepo && (
@@ -214,11 +219,6 @@ export default function GitHub() {
             </Button>
           )}
         </div>
-        {connectRepoMutation.isError && (
-          <div className="mt-2">
-            <ErrorBanner message="Failed to connect repository. It may already be connected, or the repo name is invalid." />
-          </div>
-        )}
         {disconnectRepoMutation.isError && (
           <div className="mt-2">
             <ErrorBanner message="Failed to disconnect repository." />
@@ -330,9 +330,12 @@ export default function GitHub() {
       {/* Repos list */}
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-          <h2 className="text-sm font-medium text-[var(--color-text-primary)]">
-            Repositories {repos && <span className="text-[var(--color-text-faint)]">({repos.length})</span>}
-          </h2>
+          <div>
+            <h2 className="text-sm font-medium text-[var(--color-text-primary)]">
+              Repositories {repos && <span className="text-[var(--color-text-faint)]">({repos.length})</span>}
+            </h2>
+            <p className="mt-1 text-xs text-[var(--color-text-faint)]">GitHub is authorized to list these repositories. Enable events on one repository to use it for WorkForge automations; this requires repository admin access.</p>
+          </div>
           <div className="relative w-full max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)]" />
             <input
@@ -343,6 +346,12 @@ export default function GitHub() {
             />
           </div>
         </div>
+
+        {connectRepoMutation.isError && (
+          <div className="mb-4">
+            <ErrorBanner message={`${connectRepoMutation.variables}: ${apiErrorMessage(connectRepoMutation.error, 'Could not enable events for this repository. Check your GitHub permissions and try again.')}`} />
+          </div>
+        )}
 
         {reposLoading ? (
           <div className="space-y-2">
@@ -384,10 +393,11 @@ export default function GitHub() {
                   )}
                   <Button
                     variant={connectedRepo === repo.full_name ? 'secondary' : 'primary'}
+                    disabled={connectedRepo === repo.full_name || connectRepoMutation.isPending}
                     loading={connectRepoMutation.isPending && connectRepoMutation.variables === repo.full_name}
                     onClick={() => connectRepoMutation.mutate(repo.full_name)}
                   >
-                    {connectedRepo === repo.full_name ? 'Connected' : 'Connect'}
+                    {connectedRepo === repo.full_name ? 'Events enabled' : 'Enable events'}
                   </Button>
                   <Button variant="ghost" onClick={() => openIssueModal(repo.full_name)}>
                     <Plus size={13} />

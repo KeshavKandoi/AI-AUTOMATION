@@ -517,8 +517,8 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
   )
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'Edit workflow' : 'New workflow'}>
-      <div className="flex flex-col gap-6 max-h-[70vh] overflow-y-auto pr-1">
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Edit workflow' : 'New workflow'} className="max-w-3xl">
+      <div className="flex flex-col gap-6">
         <Input label="Name" placeholder="e.g. High priority issue fan-out" value={name} onChange={(e) => setName(e.target.value)} />
 
         {/* When this happens... */}
@@ -747,7 +747,7 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
             <label className={labelClass()}>Workflow lifetime</label>
             <HelpHint text="Choose whether this workflow keeps running, runs once and stops, or stops automatically after a date and time." />
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {LIFETIME_MODE_OPTIONS.map((opt) => {
               const Icon = LIFETIME_ICON[opt.value]
               const selected = lifetimeMode === opt.value
@@ -756,17 +756,18 @@ export default function WorkflowFormModal({ open, orgId, workflow, onClose, onSu
                   key={opt.value}
                   type="button"
                   onClick={() => handleLifetimeChange(opt.value)}
+                  aria-pressed={selected}
                   className={
                     (selected
                       ? 'border-[var(--color-signal)] bg-[var(--color-signal-dim)]'
-                      : 'border-[var(--color-border)] hover:border-[var(--color-signal)]') +
-                    ' flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors'
+                      : 'border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface-hover)]') +
+                    ' flex h-full items-start gap-2.5 rounded-xl border p-3.5 text-left transition-colors'
                   }
                 >
                   <Icon size={16} className={(selected ? 'text-[var(--color-signal)]' : 'text-[var(--color-text-muted)]') + ' mt-0.5 shrink-0'} />
                   <div>
                     <p className="text-sm font-medium text-[var(--color-text-primary)]">{opt.label}</p>
-                    <p className="text-xs text-[var(--color-text-faint)]">{opt.description}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--color-text-faint)]">{opt.description}</p>
                   </div>
                 </button>
               )

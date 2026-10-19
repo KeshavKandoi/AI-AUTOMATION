@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2, Clock, Pause, Play, Plus, Trash2, Workflow as WorkflowIcon } from 'lucide-react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { AlertCircle, ArrowRight, CheckCircle2, Clock, Pause, Play, Plus, Sparkles, Trash2, Workflow as WorkflowIcon } from 'lucide-react'
 import {
   workflowService,
   ALL_TRIGGER_TYPES,
@@ -50,6 +51,7 @@ function triggerLabel(trigger: Workflow['trigger_type']) {
 export default function Workflows() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
+  const reduceMotion = useReducedMotion()
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
@@ -100,6 +102,8 @@ export default function Workflows() {
     const order: Record<WorkflowStatus, number> = { active: 0, paused: 1, completed: 2, expired: 3 }
     return [...workflows].sort((a, b) => order[a.status] - order[b.status])
   }, [workflows])
+  const activeCount = sortedWorkflows.filter((workflow) => workflow.status === 'active').length
+  const pausedCount = sortedWorkflows.filter((workflow) => workflow.status === 'paused').length
 
   const openCreate = () => {
     setEditingWorkflow(null)
@@ -112,10 +116,14 @@ export default function Workflows() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="relative isolate mx-auto flex max-w-7xl flex-col gap-6 overflow-hidden p-5 md:p-8">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-28 -top-36 -z-10 h-96 w-96 rounded-full bg-[var(--color-signal)]/[0.06] blur-3xl" />
+      <motion.header initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.35 }} className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[var(--color-signal)]/20 bg-[var(--color-signal-dim)] px-3 py-1 text-[11px] font-medium tracking-wide text-[var(--color-signal)]">
+            <Sparkles size={13} /> AUTOMATION STUDIO
+          </div>
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-[var(--color-text-primary)]">
             Workflow Automations
           </h1>
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
@@ -126,7 +134,28 @@ export default function Workflows() {
           <Plus size={15} />
           New workflow
         </Button>
-      </div>
+      </motion.header>
+
+      {!isLoading && !isError && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Total workflows', value: sortedWorkflows.length, tone: 'text-[var(--color-text-primary)]' },
+            { label: 'Active', value: activeCount, tone: 'text-[var(--color-signal)]' },
+            { label: 'Paused', value: pausedCount, tone: 'text-[var(--color-amber)]' },
+          ].map((stat, index) => (
+            <motion.div
+              key={stat.label}
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : index * 0.06 }}
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 px-4 py-3.5 shadow-[0_16px_44px_-34px_rgba(0,0,0,0.8)]"
+            >
+              <p className="text-xs text-[var(--color-text-muted)]">{stat.label}</p>
+              <p className={`mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold ${stat.tone}`}>{stat.value}</p>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -146,8 +175,15 @@ export default function Workflows() {
         </Card>
       ) : (
         <div className="flex flex-col gap-3">
-          {sortedWorkflows.map((workflow) => (
-            <Card key={workflow.id} className="p-5">
+          {sortedWorkflows.map((workflow, index) => (
+            <motion.div
+              key={workflow.id}
+              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={reduceMotion ? undefined : { y: -2, borderColor: 'var(--color-border-hover)' }}
+              transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : Math.min(index * 0.045, 0.3) }}
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-5 shadow-[0_16px_44px_-34px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+            >
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -157,23 +193,16 @@ export default function Workflows() {
                     >
                       {workflow.name}
                     </button>
-                    <Badge tone="neutral">{triggerLabel(workflow.trigger_type)}</Badge>
                     {statusBadge(workflow.status)}
                   </div>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    {summarizeConditions(workflow.conditions)}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-faint)] mt-1">
-                    {workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''} ·{' '}
-                    {workflow.actions.join(', ')}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setDetailWorkflowId(workflow.id)}
-                    className="mt-2 text-xs text-[var(--color-signal)] hover:underline"
-                  >
-                    View run history
-                  </button>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                    <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-1.5">{triggerLabel(workflow.trigger_type)}</span>
+                    <ArrowRight size={12} className="text-[var(--color-text-faint)]" />
+                    <span className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-hover)] px-2.5 py-1.5">{summarizeConditions(workflow.conditions)}</span>
+                    <ArrowRight size={12} className="text-[var(--color-text-faint)]" />
+                    <span className="rounded-lg border border-[var(--color-signal)]/25 bg-[var(--color-signal-dim)] px-2.5 py-1.5 text-[var(--color-signal)]">{workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-[var(--color-text-faint)]">{workflow.actions.map((action) => action.replaceAll('_', ' ')).join(' · ')}</p>
                   {runNowFeedback?.id === workflow.id && runNowFeedback.error && (
                     <p className="text-xs text-[var(--color-alert)] mt-1">{runNowFeedback.error}</p>
                   )}
@@ -191,7 +220,7 @@ export default function Workflows() {
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {workflow.status === 'active' && (
                     <Button
                       variant="ghost"
@@ -249,7 +278,7 @@ export default function Workflows() {
                   )}
                 </div>
               </div>
-            </Card>
+            </motion.div>
           ))}
         </div>
       )}

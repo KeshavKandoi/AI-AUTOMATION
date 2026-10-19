@@ -49,7 +49,17 @@ async def register_github_webhook(access_token: str, repo_full_name: str, org_id
     already_exists = res.status_code == 422 and "already exists" in res.text.lower()
     if not already_exists:
         logger.error(f"Failed to auto-register webhook for {repo_full_name}: status {res.status_code}")
-        return None
+        if res.status_code == 401:
+            raise HTTPException(status_code=401, detail="GitHub authorization has expired. Reconnect GitHub in Integrations.")
+        if res.status_code == 403:
+            if res.headers.get("x-ratelimit-remaining") == "0":
+                raise HTTPException(status_code=429, detail="GitHub's API limit was reached. Try again later.")
+            raise HTTPException(status_code=403, detail="GitHub denied webhook access. Check repository admin permissions and organization app restrictions.")
+        if res.status_code == 404:
+            raise HTTPException(status_code=404, detail="GitHub could not find this repository or allow webhook access. Check your repository permissions.")
+        if res.status_code == 422:
+            raise HTTPException(status_code=422, detail="GitHub rejected the webhook for this repository. Check for a conflicting webhook or repository restrictions.")
+        raise HTTPException(status_code=502, detail="GitHub could not enable repository events. Please try again shortly.")
 
     try:
         async with httpx.AsyncClient(timeout=20) as client2:
