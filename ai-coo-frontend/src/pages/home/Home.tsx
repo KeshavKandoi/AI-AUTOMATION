@@ -3,6 +3,7 @@ import AnimatedContent from '@/components/ui/AnimatedContent'
 import MarketingHeader from '@/components/layout/MarketingHeader'
 import MarketingFooter from '@/components/layout/MarketingFooter'
 import OrbitImages from '@/components/ui/OrbitImages'
+import WorkflowShowcase from './WorkflowShowcase'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
 import {
@@ -169,23 +170,10 @@ export default function Home() {
           <AnimatedContent>
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">Inside WorkForge</p>
-              <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">See your workflows in one place.</h2>
-              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Review triggers, conditions, actions, and recent results from the Workflow Automations page.</p>
+              <h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">See how one event becomes an action.</h2>
+              <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[var(--color-text-muted)] sm:text-base">Explore examples of the triggers, conditions, approvals, and actions you can configure in WorkForge.</p>
             </div>
-            <figure className="mt-8 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl shadow-black/30">
-              <div className="overflow-x-auto">
-                <img
-                  src="/workflow-automations-demo.png"
-                  alt="WorkForge Workflow Automations page showing three example workflows with their triggers, actions, statuses, and recent results"
-                  width={1440}
-                  height={650}
-                  loading="lazy"
-                  decoding="async"
-                  className="block h-auto min-w-[720px] w-full"
-                />
-              </div>
-              <figcaption className="border-t border-[var(--color-border)] px-5 py-3 text-xs text-[var(--color-text-muted)]">Actual WorkForge interface shown with example data. <span className="sm:hidden">Swipe to see more.</span></figcaption>
-            </figure>
+            <WorkflowShowcase />
           </AnimatedContent>
         </section>
 

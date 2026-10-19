@@ -59,6 +59,18 @@ body {
   --color-signal-dim: rgba(255, 0, 102, 0.14);
 }
 
+@keyframes workflow-flow {
+  to { stroke-dashoffset: -26; }
+}
+
+.workflow-flow-line {
+  animation: workflow-flow 1.7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflow-flow-line { animation: none; }
+}
+
 .star-border-card {
   position: relative;
   isolation: isolate;
