@@ -51,6 +51,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--color-text-primary) !important;
+  caret-color: var(--color-text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface) inset !important;
+  box-shadow: 0 0 0 1000px var(--color-surface) inset !important;
+}
+
 .scheduler-datetime {
   color-scheme: dark;
   accent-color: var(--color-signal);
