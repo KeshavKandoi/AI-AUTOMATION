@@ -70,7 +70,7 @@ export default function Login() {
 
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-8 rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-7 pb-16 shadow-xl shadow-black/10 sm:px-9 sm:pt-12 sm:pb-24"
+          className="flex flex-col gap-8 rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-surface)]/75 p-7 pb-10 shadow-xl shadow-black/10 sm:px-9 sm:pt-12 sm:pb-14"
         >
           {serverError && (
             <div role="alert" className="rounded-lg bg-[var(--color-alert-dim)] border border-[var(--color-alert)]/30 px-3 py-2 text-sm text-[var(--color-alert)]">
