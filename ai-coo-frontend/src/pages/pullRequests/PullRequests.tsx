@@ -68,7 +68,6 @@ export default function PullRequests() {
           <div className="flex items-center gap-4">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[var(--color-signal)]/20 bg-[var(--color-void)]/60 text-[var(--color-signal)]"><GitPullRequest size={21} /></span>
             <div>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-signal)]">GitHub collaboration</p>
               <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-text-primary)]">Pull Requests</h1>
               <p className="mt-1 text-sm text-[var(--color-text-muted)]">Review changes, track feedback, and follow merges.</p>
             </div>
