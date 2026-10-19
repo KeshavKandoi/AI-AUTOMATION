@@ -70,6 +70,7 @@ export default function Signup() {
 
           <Input
             label="Full name"
+            leadingAdornment="👤"
             placeholder="Your full name"
             autoComplete="name"
             className="h-14 rounded-xl"
@@ -78,6 +79,7 @@ export default function Signup() {
           />
           <Input
             label="Email"
+            leadingAdornment="✉️"
             type="email"
             placeholder="you@company.com"
             autoComplete="email"
@@ -87,6 +89,7 @@ export default function Signup() {
           />
           <Input
             label="Organization name"
+            leadingAdornment="🏢"
             placeholder="Your team or company"
             autoComplete="organization"
             className="h-14 rounded-xl"
@@ -95,6 +98,7 @@ export default function Signup() {
           />
           <Input
             label="Password"
+            leadingAdornment="🔒"
             type="password"
             placeholder="At least 8 characters"
             autoComplete="new-password"

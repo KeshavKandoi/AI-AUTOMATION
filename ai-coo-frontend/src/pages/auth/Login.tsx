@@ -78,6 +78,7 @@ export default function Login() {
 
           <Input
             label="Email"
+            leadingAdornment="✉️"
             type="email"
             placeholder="you@company.com"
             autoComplete="email"
@@ -87,6 +88,7 @@ export default function Login() {
           />
           <Input
             label="Password"
+            leadingAdornment="🔒"
             type="password"
             placeholder="Enter your password"
             autoComplete="current-password"

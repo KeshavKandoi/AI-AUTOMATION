@@ -1,14 +1,15 @@
-import { forwardRef, useState, type InputHTMLAttributes } from 'react'
+import { forwardRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
+  leadingAdornment?: ReactNode
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, type, className, id, ...props }, ref) => {
+  ({ label, error, leadingAdornment, type, className, id, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false)
     const isPassword = type === 'password'
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
@@ -24,19 +25,25 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           </label>
         )}
         <div className="relative">
+          {leadingAdornment && (
+            <span aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg leading-none">
+              {leadingAdornment}
+            </span>
+          )}
           <input
             ref={ref}
             id={inputId}
             type={isPassword ? (showPassword ? 'text' : 'password') : type}
             className={cn(
               'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]',
-              'px-3.5 py-2.5 text-sm text-[var(--color-text-primary)]',
+              'py-2.5 pl-3.5 pr-3.5 text-sm text-[var(--color-text-primary)]',
               'placeholder:text-[var(--color-text-faint)]',
               'transition-colors duration-150',
               'focus:outline-none focus:border-[var(--color-signal)] focus:ring-1 focus:ring-[var(--color-signal)]',
               'hover:border-[var(--color-border-hover)]',
               error && 'border-[var(--color-alert)] focus:border-[var(--color-alert)] focus:ring-[var(--color-alert)]',
               isPassword && 'pr-10',
+              leadingAdornment && 'pl-12',
               className
             )}
             {...props}
@@ -45,6 +52,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] transition-colors"
               tabIndex={-1}
             >
