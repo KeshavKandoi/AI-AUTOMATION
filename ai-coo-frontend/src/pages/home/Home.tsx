@@ -81,8 +81,8 @@ export default function Home() {
       <main>
         <section className="relative isolate">
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-            <div className="absolute -top-56 left-[8%] h-[34rem] w-[34rem] rounded-full bg-rose-900/[0.18] blur-[120px]" />
-            <div className="absolute right-[-10rem] top-24 h-[30rem] w-[30rem] rounded-full bg-red-950/[0.24] blur-[120px]" />
+            <div className="absolute -top-56 left-[8%] h-[34rem] w-[34rem] rounded-full bg-pink-500/[0.10] blur-[120px]" />
+            <div className="absolute right-[-10rem] top-24 h-[30rem] w-[30rem] rounded-full bg-fuchsia-600/[0.10] blur-[120px]" />
           </div>
           <div className="mx-auto grid max-w-7xl items-start gap-10 px-5 pb-16 pt-16 sm:px-8 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20 lg:pt-24">
             <div>
@@ -104,7 +104,7 @@ export default function Home() {
             </div>
 
             <div className="relative mx-auto w-full max-w-xl">
-              <div aria-hidden="true" className="absolute inset-8 rounded-full bg-rose-900/20 blur-3xl" />
+              <div aria-hidden="true" className="absolute inset-8 rounded-full bg-pink-500/10 blur-3xl" />
               <OrbitImages
                 images={ORBIT_ITEMS}
                 renderItem={(_, index) => {
@@ -134,7 +134,7 @@ export default function Home() {
                 depth={0.08}
                 hoverSpeed={0}
                 showPath
-                pathColor="rgba(217, 70, 104, 0.28)"
+                pathColor="rgba(255, 0, 110, 0.22)"
                 pathWidth={1.5}
                 width="100%"
                 className="max-w-[38rem]"
@@ -178,7 +178,7 @@ export default function Home() {
 
         <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-20">
           <AnimatedContent className="relative overflow-hidden rounded-[1.75rem] border border-[var(--color-signal)]/20 bg-gradient-to-br from-[var(--color-signal-dim)] via-[var(--color-surface)] to-[var(--color-surface)] p-7 sm:p-10 lg:p-12">
-            <div aria-hidden="true" className="absolute -right-10 -top-24 h-72 w-72 rounded-full bg-rose-900/[0.20] blur-3xl" />
+            <div aria-hidden="true" className="absolute -right-10 -top-24 h-72 w-72 rounded-full bg-pink-300/[0.09] blur-3xl" />
             <div className="relative flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
               <div className="max-w-2xl"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">Start with one workflow</p><h2 className="mt-3 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Put your repeatable work on a clear path.</h2><p className="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">Connect a service, choose what should trigger, and keep the results visible.</p></div>
               {isAuthenticated ? (
