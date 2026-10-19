@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
@@ -9,9 +9,13 @@ import { notificationsService } from '@/services/notifications'
 import { getInAppNotificationsEnabled } from '@/lib/preferences'
 import { cn } from '@/lib/utils'
 import BrandLogo from '@/components/BrandLogo'
-import { preloadRoute } from '@/lib/preloadRoute'
+import { preloadNavigationRoutes, preloadRoute } from '@/lib/preloadRoute'
 
 export default function Sidebar() {
+  useEffect(() => {
+    const timer = window.setTimeout(preloadNavigationRoutes, 1_500)
+    return () => window.clearTimeout(timer)
+  }, [])
   const [collapsed, setCollapsed] = useState(false)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)

@@ -7,6 +7,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import PageErrorBoundary from '@/components/ui/PageErrorBoundary'
 import Memory from '@/pages/memory/Memory'
+import CalendarPage from '@/pages/calendar/Calendar'
 
 const Login = lazy(() => import('@/pages/auth/Login'))
 const Signup = lazy(() => import('@/pages/auth/Signup'))
@@ -22,7 +23,6 @@ const CommitScheduler = lazy(() => import('@/pages/commitScheduler/CommitSchedul
 const PullRequests = lazy(() => import('@/pages/pullRequests/PullRequests'))
 const OpenSource = lazy(() => import('@/pages/openSource/OpenSource'))
 const GitHub = lazy(() => import('@/pages/github/GitHub'))
-const CalendarPage = lazy(() => import('@/pages/calendar/Calendar'))
 const Workflows = lazy(() => import('@/pages/workflows/Workflows'))
 const AuditLogs = lazy(() => import('@/pages/auditLogs/AuditLogs'))
 const Settings = lazy(() => import('@/pages/settings/Settings'))
