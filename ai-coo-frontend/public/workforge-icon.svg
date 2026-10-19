@@ -12,7 +12,7 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="128" fill="#0b101a"/>
-  <g transform="translate(11 142) scale(.55)">
+  <g transform="translate(-229 44) scale(1.19)">
     <path d="m305 118 48-50c15-16 34-16 50 0l28 29" stroke="url(#branch)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M218 139h190l79-79c16-16 36-16 52 0l99 99c16 16 16 36 0 52l-91 91c-16 16-36 16-52 0l-26-27" stroke="url(#flow)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M223 151c12 23 30 35 57 37l30 2c19 1 32 9 45 24l30 37c14 17 34 17 50 2l63-65" stroke="url(#flow)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>

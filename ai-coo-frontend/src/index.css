@@ -11,8 +11,8 @@
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-hover: rgba(255, 255, 255, 0.16);
 
-  --color-signal: #ff0066;
-  --color-signal-dim: rgba(255, 0, 102, 0.14);
+  --color-signal: #5eead4;
+  --color-signal-dim: rgba(94, 234, 212, 0.12);
   --color-alert: #fb7185;
   --color-alert-dim: rgba(251, 113, 133, 0.12);
   --color-amber: #fbbf24;
@@ -31,8 +31,8 @@
   --color-border: rgba(0, 0, 0, 0.08);
   --color-border-hover: rgba(0, 0, 0, 0.16);
 
-  --color-signal: #c2185b;
-  --color-signal-dim: rgba(194, 24, 91, 0.10);
+  --color-signal: #0d9488;
+  --color-signal-dim: rgba(13, 148, 136, 0.10);
   --color-alert: #e11d48;
   --color-alert-dim: rgba(225, 29, 72, 0.10);
   --color-amber: #b45309;
@@ -58,13 +58,23 @@ body {
 .scheduler-datetime::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0.9;
-  filter: invert(22%) sepia(89%) saturate(5747%) hue-rotate(326deg) brightness(100%) contrast(105%);
+  filter: invert(76%) sepia(56%) saturate(444%) hue-rotate(116deg) brightness(100%) contrast(92%);
 }
 :root[data-theme="light"] .scheduler-datetime {
   color-scheme: light;
 }
 :root[data-theme="light"] .scheduler-datetime::-webkit-calendar-picker-indicator {
-  filter: invert(22%) sepia(89%) saturate(5747%) hue-rotate(326deg) brightness(100%) contrast(105%);
+  filter: invert(34%) sepia(76%) saturate(580%) hue-rotate(127deg) brightness(88%) contrast(91%);
+}
+
+.home-page {
+  --color-signal: #ff0066;
+  --color-signal-dim: rgba(255, 0, 102, 0.14);
+}
+
+.dashboard-theme {
+  --color-signal: #ff0066;
+  --color-signal-dim: rgba(255, 0, 102, 0.14);
 }
 
 @keyframes workflow-flow {
@@ -133,8 +143,8 @@ body {
 }
 
 @keyframes pulse-signal {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255, 0, 102, 0.4); }
-  50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(255, 0, 102, 0); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-signal) 40%, transparent); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-signal) 0%, transparent); }
 }
 .animate-pulse-signal {
   animation: pulse-signal 2s ease-in-out infinite;
