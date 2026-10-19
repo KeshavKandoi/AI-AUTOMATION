@@ -92,12 +92,16 @@ export default function Memory() {
     queryKey: ['memory', 'filters', orgId],
     queryFn: () => memoryService.getFilterOptions(orgId!),
     enabled: !!orgId,
+    staleTime: 5 * 60_000,
+    refetchOnMount: 'always',
   })
 
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ['memory', 'list', orgId, PAGE_SIZE, offset, filters],
     queryFn: () => memoryService.list(orgId!, PAGE_SIZE, offset, filters),
     enabled: !!orgId,
+    staleTime: 5 * 60_000,
+    refetchOnMount: 'always',
     placeholderData: (prev) => prev,
   })
 

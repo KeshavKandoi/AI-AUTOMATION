@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import AppLayout from '@/components/layout/AppLayout'
 import PageErrorBoundary from '@/components/ui/PageErrorBoundary'
+import Memory from '@/pages/memory/Memory'
 
 const Login = lazy(() => import('@/pages/auth/Login'))
 const Signup = lazy(() => import('@/pages/auth/Signup'))
@@ -25,7 +26,6 @@ const CalendarPage = lazy(() => import('@/pages/calendar/Calendar'))
 const Workflows = lazy(() => import('@/pages/workflows/Workflows'))
 const AuditLogs = lazy(() => import('@/pages/auditLogs/AuditLogs'))
 const Settings = lazy(() => import('@/pages/settings/Settings'))
-const Memory = lazy(() => import('@/pages/memory/Memory'))
 const Notifications = lazy(() => import('@/pages/notifications/Notifications'))
 const Analytics = lazy(() => import('@/pages/analytics/Analytics'))
 const Home = lazy(() => import('@/pages/home/Home'))
