@@ -85,7 +85,7 @@ export default function Home() {
             <div className="absolute right-[-10rem] top-24 h-[30rem] w-[30rem] rounded-full bg-fuchsia-600/[0.10] blur-[120px]" />
           </div>
           <div className="mx-auto grid max-w-7xl items-start gap-10 px-5 pb-16 pt-16 sm:px-8 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-20 lg:pt-24">
-            <AnimatedContent>
+            <div>
               <h1 className="max-w-2xl font-[family-name:var(--font-display)] text-4xl font-semibold leading-[1.06] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
                 <span className="block">Turn project activity</span>
                 <span className="block">into <span className="text-[var(--color-signal)]">action.</span></span>
@@ -101,9 +101,9 @@ export default function Home() {
                 )}
                 <Link to="/how-it-works" className="inline-flex items-center rounded-xl border border-[var(--color-border)] px-5 py-3.5 text-sm font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]">See how it works</Link>
               </div>
-            </AnimatedContent>
+            </div>
 
-            <AnimatedContent className="relative mx-auto w-full max-w-xl">
+            <div className="relative mx-auto w-full max-w-xl">
               <div aria-hidden="true" className="absolute inset-8 rounded-full bg-pink-500/10 blur-3xl" />
               <OrbitImages
                 images={ORBIT_ITEMS}
@@ -142,7 +142,7 @@ export default function Home() {
                 clickToFront={false}
                 intro
               />
-            </AnimatedContent>
+            </div>
           </div>
         </section>
 

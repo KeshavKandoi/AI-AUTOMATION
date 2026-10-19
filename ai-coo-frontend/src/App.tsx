@@ -10,6 +10,7 @@ import Memory from '@/pages/memory/Memory'
 import CalendarPage from '@/pages/calendar/Calendar'
 import Login from '@/pages/auth/Login'
 import Signup from '@/pages/auth/Signup'
+import Home from '@/pages/home/Home'
 
 const VerifyOtp = lazy(() => import('@/pages/auth/VerifyOtp'))
 const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword'))
@@ -28,7 +29,6 @@ const AuditLogs = lazy(() => import('@/pages/auditLogs/AuditLogs'))
 const Settings = lazy(() => import('@/pages/settings/Settings'))
 const Notifications = lazy(() => import('@/pages/notifications/Notifications'))
 const Analytics = lazy(() => import('@/pages/analytics/Analytics'))
-const Home = lazy(() => import('@/pages/home/Home'))
 const FeaturesPage = lazy(() => import('@/pages/home/MarketingPages').then((m) => ({ default: m.FeaturesPage })))
 const HowItWorksPage = lazy(() => import('@/pages/home/MarketingPages').then((m) => ({ default: m.HowItWorksPage })))
 const ConnectionsPage = lazy(() => import('@/pages/home/MarketingPages').then((m) => ({ default: m.ConnectionsPage })))
