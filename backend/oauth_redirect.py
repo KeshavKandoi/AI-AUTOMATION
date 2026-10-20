@@ -7,6 +7,19 @@ from fastapi import HTTPException
 from config import settings
 
 
+def google_callback_uri(provider: str) -> str:
+    """Use this Render service's URL so an old callback setting cannot point elsewhere."""
+    if provider not in {"gmail", "calendar"}:
+        raise ValueError("Unsupported Google provider")
+    service_url = settings.RENDER_EXTERNAL_URL.strip().rstrip("/")
+    if service_url:
+        return f"{service_url}/{provider}/callback"
+    return (
+        settings.GOOGLE_GMAIL_REDIRECT_URI if provider == "gmail"
+        else settings.GOOGLE_CALENDAR_REDIRECT_URI
+    )
+
+
 def integration_return_url(provider: str, result: str) -> str:
     allowed_origins = [
         origin.strip().rstrip("/")

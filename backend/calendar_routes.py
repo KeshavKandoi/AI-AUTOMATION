@@ -13,7 +13,7 @@ from audit_logs.service import log_event
 from calendar_automation.service import _get_calendar_token_for_org
 from config import encrypt_token, logger, reserve_org_action, settings, supabase_admin
 from oauth_state import _consume_oauth_state, _issue_oauth_state
-from oauth_redirect import integration_return_url
+from oauth_redirect import google_callback_uri, integration_return_url
 
 router = APIRouter()
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
@@ -42,7 +42,7 @@ def calendar_login(org_id: str = Depends(get_current_org_id)):
     state = _issue_oauth_state(org_id, "calendar")
     params = urlencode({
         "client_id": settings.GOOGLE_CLIENT_ID,
-        "redirect_uri": settings.GOOGLE_CALENDAR_REDIRECT_URI,
+        "redirect_uri": google_callback_uri("calendar"),
         "response_type": "code",
         "scope": CALENDAR_SCOPE,
         "access_type": "offline",
@@ -69,7 +69,7 @@ async def calendar_callback(code: str | None = None, state: str | None = None, e
                 "client_id": settings.GOOGLE_CLIENT_ID,
                 "client_secret": settings.GOOGLE_CLIENT_SECRET,
                 "code": code,
-                "redirect_uri": settings.GOOGLE_CALENDAR_REDIRECT_URI,
+                "redirect_uri": google_callback_uri("calendar"),
                 "grant_type": "authorization_code",
             },
         )

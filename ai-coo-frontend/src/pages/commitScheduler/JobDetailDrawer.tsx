@@ -64,6 +64,7 @@ export default function JobDetailDrawer({ open, orgId, jobId, onClose }: JobDeta
     queryKey: ['commit-scheduler', 'job', jobId],
     queryFn: () => commitSchedulerService.getJob(jobId!, orgId),
     enabled: open && !!jobId,
+    refetchInterval: (query) => open && query.state.data?.status === 'active' ? 3000 : false,
   })
 
   const { data: files, isLoading: filesLoading } = useQuery({
@@ -76,6 +77,7 @@ export default function JobDetailDrawer({ open, orgId, jobId, onClose }: JobDeta
     mutationFn: () => commitSchedulerService.runNow(jobId!, orgId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['commit-scheduler', 'job', jobId] })
+      queryClient.invalidateQueries({ queryKey: ['commit-scheduler', 'jobs'] })
     },
   })
 

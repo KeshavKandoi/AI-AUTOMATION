@@ -75,6 +75,7 @@ export default function CommitScheduler() {
     queryKey: ['commit-scheduler', 'jobs', orgId],
     queryFn: () => commitSchedulerService.listJobs(orgId!),
     enabled: !!orgId,
+    refetchInterval: (query) => query.state.data?.some((job) => job.status === 'active') ? 3000 : false,
   })
 
   const toggleStatusMutation = useMutation({

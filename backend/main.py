@@ -413,12 +413,13 @@ async def approve_and_create_issue(task_id: str, repo_full_name: str | None = No
 
 @app.get("/gmail/login")
 def gmail_login(org_id: str = Depends(get_current_org_id)):
+    from oauth_redirect import google_callback_uri
     prompt_param = "&prompt=consent"
     state = _issue_oauth_state(org_id, "gmail")
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
-        f"&redirect_uri={settings.GOOGLE_GMAIL_REDIRECT_URI}"
+        f"&redirect_uri={google_callback_uri('gmail')}"
         f"&response_type=code"
         f"&scope=https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email"
         f"&access_type=offline{prompt_param}&state={state}"
@@ -429,7 +430,7 @@ def gmail_login(org_id: str = Depends(get_current_org_id)):
 @app.get("/gmail/callback")
 async def gmail_callback(code: str | None = None, state: str | None = None, error: str | None = None, accept: str | None = Header(default=None)):
     from fastapi.responses import RedirectResponse
-    from oauth_redirect import integration_return_url
+    from oauth_redirect import google_callback_uri, integration_return_url
 
     browser_navigation = isinstance(accept, str) and "text/html" in accept
     if not state:
@@ -444,7 +445,7 @@ async def gmail_callback(code: str | None = None, state: str | None = None, erro
             "https://oauth2.googleapis.com/token",
             data={
                 "client_id": settings.GOOGLE_CLIENT_ID, "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "code": code, "redirect_uri": settings.GOOGLE_GMAIL_REDIRECT_URI, "grant_type": "authorization_code"
+                "code": code, "redirect_uri": google_callback_uri("gmail"), "grant_type": "authorization_code"
             }
         )
         token_data = token_res.json()
@@ -455,6 +456,13 @@ async def gmail_callback(code: str | None = None, state: str | None = None, erro
         if browser_navigation:
             return RedirectResponse(integration_return_url("gmail", "failed"), status_code=303)
         raise HTTPException(status_code=400, detail="Gmail authorization failed")
+
+    granted_scopes = set(token_data.get("scope", "").split())
+    if "https://www.googleapis.com/auth/gmail.send" not in granted_scopes:
+        logger.warning("Gmail OAuth did not grant the required send scope for org %s", org_id)
+        if browser_navigation:
+            return RedirectResponse(integration_return_url("gmail", "missing-permission"), status_code=303)
+        raise HTTPException(status_code=400, detail="Gmail send permission was not granted. Please reconnect Gmail and allow sending email.")
 
     integration = supabase_admin.table("integrations").insert({
         "organization_id": org_id, "provider": "gmail", "connected": True

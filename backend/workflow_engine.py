@@ -277,7 +277,7 @@ async def _action_send_email(organization_id: str, context: dict) -> dict:
             except (AttributeError, TypeError, ValueError):
                 insufficient_scope = False
             if insufficient_scope:
-                raise RuntimeError("Gmail authorization is missing send permission — please reconnect Gmail in Settings")
+                raise RuntimeError("Gmail authorization is missing send permission — reconnect Gmail in Integrations and approve email sending")
         raise RuntimeError(f"Gmail send failed with status {res.status_code}")
     return {"message_id": res.json().get("id")}
 
@@ -289,7 +289,7 @@ async def _action_notify_discord(organization_id: str, context: dict) -> dict:
     org_webhook = org_res.data[0].get("discord_webhook_url")
     webhook_url = pick_discord_webhook(organization_id, org_webhook)
     if not webhook_url:
-        raise RuntimeError("Discord webhook is not configured for this organization — add one in Settings → Discord notifications")
+        raise RuntimeError("Discord webhook is not configured for this organization — configure Discord in Integrations")
 
     message = f"**Workflow triggered**\n{single_line(context.get('title', ''))[:500]}"
     try:

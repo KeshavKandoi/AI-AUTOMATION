@@ -245,6 +245,7 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
 
             <div>
               <h3 className="text-sm font-medium text-text-primary mb-2">Execution history</h3>
+              <p className="mb-2 text-xs text-text-faint">These are saved results from past runs. Connection changes do not alter them; use Run now to check the current setup.</p>
               {workflow.recent_runs.length === 0 ? (
                 <EmptyState icon={Clock} title="No runs yet" description="Runs will appear here once this workflow fires, or you use Run now." />
               ) : (

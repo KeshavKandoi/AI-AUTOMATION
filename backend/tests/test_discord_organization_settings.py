@@ -67,7 +67,7 @@ def test_missing_webhook_has_useful_setup_message(monkeypatch):
     response = TestClient(app).get("/organization-settings/discord-webhook")
     assert response.status_code == 200
     assert response.json() == {"configured": False, "masked_url": None, "source": None}
-    with pytest.raises(RuntimeError, match="add one in Settings"):
+    with pytest.raises(RuntimeError, match="configure Discord in Integrations"):
         asyncio.run(workflow_engine._action_notify_discord("org-a", {"title": "test"}))
 
 

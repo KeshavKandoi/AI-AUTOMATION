@@ -120,7 +120,7 @@ export default function Integrations() {
 
       {callbackLabel && callbackStatus && (
         <div role={callbackStatus === 'connected' ? 'status' : 'alert'} className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary">
-          <span>{callbackStatus === 'connected' ? `${callbackLabel} connected successfully.` : `${callbackLabel} connection was ${callbackStatus === 'cancelled' ? 'cancelled' : 'unsuccessful'}. You can try again.`}</span>
+          <span>{callbackStatus === 'connected' ? `${callbackLabel} connected successfully.` : callbackStatus === 'missing-permission' ? 'Gmail needs permission to send email. Reconnect Gmail and allow the requested send permission.' : `${callbackLabel} connection was ${callbackStatus === 'cancelled' ? 'cancelled' : 'unsuccessful'}. You can try again.`}</span>
           <button type="button" onClick={() => { setSearchParams({}, { replace: true }) }} aria-label="Dismiss connection message" className="text-text-muted hover:text-text-primary">Dismiss</button>
         </div>
       )}
@@ -160,6 +160,9 @@ export default function Integrations() {
                   <h3 className="text-sm font-medium text-text-primary">{meta.label}</h3>
                 </div>
                 <p className="mt-1 text-xs text-text-faint">{meta.description}</p>
+                {provider === 'gmail' && isConnected && (
+                  <p className="mt-2 text-xs text-text-muted">Connection status shows the saved Google account. If a new workflow run reports a send permission error, reconnect Gmail and approve email sending in Google.</p>
+                )}
               </div>
 
               {meta.dataUseNote && !isConnected && (
