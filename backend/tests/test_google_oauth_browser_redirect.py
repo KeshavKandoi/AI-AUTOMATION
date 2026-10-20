@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import calendar_routes
@@ -66,6 +67,26 @@ def test_gmail_reconnect_reuses_existing_integration(monkeypatch):
     integration_table.update.assert_called_once_with({"connected": True})
 
 
+def test_calendar_reconnect_reuses_existing_integration(monkeypatch):
+    monkeypatch.setattr(oauth_redirect.settings, "FRONTEND_URL", "https://workforge.tech")
+    monkeypatch.setattr(oauth_redirect.settings, "ALLOWED_ORIGINS", "https://workforge.tech")
+    token_table = _mock_google_callback(monkeypatch, calendar_routes, "calendar")
+    integration_table = calendar_routes.supabase_admin.table("integrations")
+    integration_table.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = [{"id": "existing-calendar"}]
+
+    response = TestClient(main.app).get(
+        "/calendar/callback",
+        params={"code": "google-code", "state": "valid-state"},
+        headers={"Accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    integration_table.insert.assert_not_called()
+    assert token_table.insert.call_args.args[0]["integration_id"] == "existing-calendar"
+    integration_table.update.assert_called_once_with({"connected": True})
+
+
 def test_google_callbacks_redirect_browser_to_integrations(monkeypatch):
     monkeypatch.setattr(oauth_redirect.settings, "FRONTEND_URL", "https://workforge.tech")
     monkeypatch.setattr(oauth_redirect.settings, "ALLOWED_ORIGINS", "https://workforge.tech")
@@ -105,6 +126,30 @@ def test_google_callbacks_redirect_cancelled_browser_without_token_exchange(monk
         assert response.status_code == 303
         assert response.headers["location"] == f"https://workforge.tech/integrations?integration={provider}&status=cancelled"
         google_client.assert_not_called()
+
+
+def test_expired_calendar_state_returns_browser_to_integrations(monkeypatch):
+    monkeypatch.setattr(oauth_redirect.settings, "FRONTEND_URL", "https://workforge.tech")
+    monkeypatch.setattr(oauth_redirect.settings, "ALLOWED_ORIGINS", "https://workforge.tech")
+
+    def expired_state(state, provider):
+        raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
+
+    monkeypatch.setattr(calendar_routes, "_consume_oauth_state", expired_state)
+    response = TestClient(main.app).get(
+        "/calendar/callback",
+        params={"code": "google-code", "state": "expired-state"},
+        headers={"Accept": "application/json", "Sec-Fetch-Mode": "navigate"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "https://workforge.tech/integrations?integration=calendar&status=expired"
+    api_response = TestClient(main.app).get(
+        "/calendar/callback",
+        params={"code": "google-code", "state": "expired-state"},
+    )
+    assert api_response.status_code == 400
 
 
 def test_gmail_callback_rejects_missing_send_permission(monkeypatch):

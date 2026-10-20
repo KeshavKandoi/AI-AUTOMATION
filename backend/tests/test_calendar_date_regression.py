@@ -103,6 +103,7 @@ def test_calendar_oauth_callback_stores_encrypted_tokens(monkeypatch):
     monkeypatch.setattr(routes, "_consume_oauth_state", lambda state, provider: "org-1")
     monkeypatch.setattr(routes, "encrypt_token", lambda token: f"encrypted:{token}" if token else None)
     integration_table = MagicMock()
+    integration_table.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
     integration_table.insert.return_value.execute.return_value.data = [{"id": "calendar-int"}]
     token_table = MagicMock()
     token_table.insert.return_value.execute.return_value.data = []

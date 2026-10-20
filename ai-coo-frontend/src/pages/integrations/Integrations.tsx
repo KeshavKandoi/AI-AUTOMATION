@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle, ShieldCheck, MessageCircle } from 'lucide-react'
-import { integrationsService, type IntegrationProvider } from '@/services/integrations'
+import { integrationsService, type Integration, type IntegrationProvider } from '@/services/integrations'
 import { organizationSettingsService } from '@/services/organization-settings'
 import { useAuthStore } from '@/store/authStore'
 import Card from '@/components/ui/Card'
@@ -40,7 +39,6 @@ const PROVIDER_META: Record<IntegrationProvider, { label: string; description: s
 const ALL_PROVIDERS: IntegrationProvider[] = ['github', 'gmail', 'calendar']
 
 export default function Integrations() {
-  const reducedMotion = useReducedMotion()
   const orgId = useAuthStore((s) => s.user?.organization_id)
   const queryClient = useQueryClient()
   const [confirmingProvider, setConfirmingProvider] = useState<IntegrationProvider | null>(null)
@@ -85,7 +83,12 @@ export default function Integrations() {
 
   const disconnectMutation = useMutation({
     mutationFn: (provider: IntegrationProvider) => integrationsService.disconnect(provider, orgId!),
-    onSuccess: () => {
+    onSuccess: (_, provider) => {
+      queryClient.setQueryData<Integration[]>(['integrations', orgId], (current) =>
+        current?.map((integration) =>
+          integration.provider === provider ? { ...integration, connected: false } : integration
+        )
+      )
       queryClient.invalidateQueries({ queryKey: ['integrations', orgId] })
       setConfirmingProvider(null)
     },
@@ -110,18 +113,18 @@ export default function Integrations() {
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
-      <motion.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28 }} className="mb-6">
+      <div className="mb-6">
         <h1 className="font-display text-2xl font-semibold text-text-primary">
           Integrations
         </h1>
         <p className="mt-1 text-sm text-text-muted">
           Connect services so WorkForge can act on your behalf
         </p>
-      </motion.div>
+      </div>
 
       {callbackLabel && callbackStatus && (
         <div role={callbackStatus === 'connected' ? 'status' : 'alert'} className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary">
-          <span>{callbackStatus === 'connected' ? `${callbackLabel} connected successfully.` : callbackStatus === 'missing-permission' ? 'Gmail needs permission to send email. Reconnect Gmail and allow the requested send permission.' : `${callbackLabel} connection was ${callbackStatus === 'cancelled' ? 'cancelled' : 'unsuccessful'}. You can try again.`}</span>
+          <span>{callbackStatus === 'connected' ? `${callbackLabel} connected successfully.` : callbackStatus === 'expired' ? `${callbackLabel} sign-in expired. Start the connection again.` : callbackStatus === 'missing-permission' ? 'Gmail needs permission to send email. Start the connection again and allow sending in Google.' : `${callbackLabel} connection was ${callbackStatus === 'cancelled' ? 'cancelled' : 'unsuccessful'}. You can try again.`}</span>
           <button type="button" onClick={() => { setSearchParams({}, { replace: true }) }} aria-label="Dismiss connection message" className="text-text-muted hover:text-text-primary">Dismiss</button>
         </div>
       )}
@@ -135,7 +138,7 @@ export default function Integrations() {
           const isDisconnecting = disconnectMutation.isPending && disconnectMutation.variables === provider
 
           return (
-            <motion.div key={provider} initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: ALL_PROVIDERS.indexOf(provider) * 0.06 }} whileHover={reducedMotion ? undefined : { y: -3 }} className="h-full">
+            <div key={provider} className="h-full">
             <Card className="p-5 flex flex-col gap-4 h-full">
               <div className="flex items-start justify-between">
                 <div className="h-10 w-10 rounded-xl bg-surface-hover flex items-center justify-center">
@@ -165,7 +168,7 @@ export default function Integrations() {
                 <p className="mt-1 text-xs text-text-faint">{meta.description}</p>
               </div>
 
-              {meta.dataUseNote && !statusLoading && !isError && !isConnected && (
+              {meta.dataUseNote && (
                 <div className="flex items-start gap-1.5 text-[11px] text-text-faint leading-relaxed">
                   <ShieldCheck size={12} className="shrink-0 mt-0.5" />
                   <span>
@@ -182,34 +185,27 @@ export default function Integrations() {
                   <Skeleton className="h-10 w-full" />
                 ) : isError ? (
                   <span className="text-xs text-text-muted">Refresh to check connection status.</span>
-                ) : (
-                  <>
-                  <Button
-                    variant={isConnected ? 'secondary' : 'primary'}
-                    onClick={() => handleConnect(provider)}
-                    className="flex-1"
-                  >
-                    {isConnected ? (provider === 'github' ? 'Switch account' : 'Reconnect') : 'Connect'}
-                  </Button>
-                  {isConnected && (
+                ) : isConnected ? (
                     <Button
                       variant={isConfirming ? 'primary' : 'ghost'}
                       onClick={() => handleDisconnectClick(provider)}
                       onBlur={() => setConfirmingProvider(null)}
                       loading={isDisconnecting}
-                      className={isConfirming ? 'bg-alert! text-white!' : ''}
+                      className={`w-full ${isConfirming ? 'bg-alert! text-white!' : ''}`}
                     >
                       {isConfirming ? 'Confirm?' : 'Disconnect'}
                     </Button>
-                  )}
-                  </>
+                ) : (
+                    <Button onClick={() => handleConnect(provider)} className="w-full">
+                      Connect
+                    </Button>
                 )}
               </div>
             </Card>
-            </motion.div>
+            </div>
           )
         })}
-        <motion.div initial={reducedMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.18 }} whileHover={reducedMotion ? undefined : { y: -3 }} className="h-full">
+        <div className="h-full">
         <Card className="p-5 flex flex-col gap-4 h-full">
           <div className="flex items-start justify-between">
             <div className="h-10 w-10 rounded-xl bg-surface-hover flex items-center justify-center">
@@ -252,7 +248,7 @@ export default function Integrations() {
             </Button>
           )}
         </Card>
-        </motion.div>
+        </div>
       </div>
       <Modal open={discordModalOpen} onClose={closeDiscordModal} title="Discord integration">
         <div className="flex flex-col gap-4">

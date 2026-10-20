@@ -428,14 +428,21 @@ def gmail_login(org_id: str = Depends(get_current_org_id)):
 
 
 @app.get("/gmail/callback")
-async def gmail_callback(code: str | None = None, state: str | None = None, error: str | None = None, accept: str | None = Header(default=None)):
+async def gmail_callback(code: str | None = None, state: str | None = None, error: str | None = None, accept: str | None = Header(default=None), sec_fetch_mode: str | None = Header(default=None)):
     from fastapi.responses import RedirectResponse
-    from oauth_redirect import google_callback_uri, integration_return_url
+    from oauth_redirect import google_callback_uri, integration_return_url, is_browser_navigation
 
-    browser_navigation = isinstance(accept, str) and "text/html" in accept
+    browser_navigation = is_browser_navigation(accept, sec_fetch_mode)
     if not state:
+        if browser_navigation:
+            return RedirectResponse(integration_return_url("gmail", "expired"), status_code=303)
         raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
-    org_id = _consume_oauth_state(state, "gmail")
+    try:
+        org_id = _consume_oauth_state(state, "gmail")
+    except HTTPException as exc:
+        if browser_navigation and exc.status_code == 400:
+            return RedirectResponse(integration_return_url("gmail", "expired"), status_code=303)
+        raise
     if error or not code:
         if browser_navigation:
             return RedirectResponse(integration_return_url("gmail", "cancelled" if error else "failed"), status_code=303)

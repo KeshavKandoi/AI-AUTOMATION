@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 from config import supabase_admin
 
-OAUTH_STATE_TTL_MINUTES = 10
+OAUTH_STATE_TTL_MINUTES = 30
 
 
 def _issue_oauth_state(org_id: str, provider: str) -> str:

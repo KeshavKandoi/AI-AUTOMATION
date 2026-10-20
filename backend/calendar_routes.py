@@ -13,7 +13,7 @@ from audit_logs.service import log_event
 from calendar_automation.service import _get_calendar_token_for_org
 from config import encrypt_token, logger, reserve_org_action, settings, supabase_admin
 from oauth_state import _consume_oauth_state, _issue_oauth_state
-from oauth_redirect import google_callback_uri, integration_return_url
+from oauth_redirect import google_callback_uri, integration_return_url, is_browser_navigation
 
 router = APIRouter()
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
@@ -53,11 +53,18 @@ def calendar_login(org_id: str = Depends(get_current_org_id)):
 
 
 @router.get("/calendar/callback")
-async def calendar_callback(code: str | None = None, state: str | None = None, error: str | None = None, accept: str | None = Header(default=None)):
-    browser_navigation = isinstance(accept, str) and "text/html" in accept
+async def calendar_callback(code: str | None = None, state: str | None = None, error: str | None = None, accept: str | None = Header(default=None), sec_fetch_mode: str | None = Header(default=None)):
+    browser_navigation = is_browser_navigation(accept, sec_fetch_mode)
     if not state:
+        if browser_navigation:
+            return RedirectResponse(integration_return_url("calendar", "expired"), status_code=303)
         raise HTTPException(status_code=400, detail="Invalid or expired authentication request")
-    org_id = _consume_oauth_state(state, "calendar")
+    try:
+        org_id = _consume_oauth_state(state, "calendar")
+    except HTTPException as exc:
+        if browser_navigation and exc.status_code == 400:
+            return RedirectResponse(integration_return_url("calendar", "expired"), status_code=303)
+        raise
     if error or not code:
         if browser_navigation:
             return RedirectResponse(integration_return_url("calendar", "cancelled" if error else "failed"), status_code=303)
@@ -81,10 +88,19 @@ async def calendar_callback(code: str | None = None, state: str | None = None, e
             return RedirectResponse(integration_return_url("calendar", "failed"), status_code=303)
         raise HTTPException(status_code=400, detail="Calendar authorization failed")
 
-    integration = supabase_admin.table("integrations").insert({
-        "organization_id": org_id, "provider": "calendar", "connected": True,
-    }).execute()
-    integration_id = integration.data[0]["id"]
+    existing = supabase_admin.table("integrations") \
+        .select("id") \
+        .eq("organization_id", org_id) \
+        .eq("provider", "calendar") \
+        .order("created_at", desc=True) \
+        .limit(1) \
+        .execute()
+    integration_id = existing.data[0]["id"] if existing.data else None
+    if integration_id is None:
+        integration = supabase_admin.table("integrations").insert({
+            "organization_id": org_id, "provider": "calendar", "connected": False,
+        }).execute()
+        integration_id = integration.data[0]["id"]
     expires_at = (datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3599))).isoformat()
     supabase_admin.table("oauth_tokens").insert({
         "integration_id": integration_id,
@@ -92,6 +108,7 @@ async def calendar_callback(code: str | None = None, state: str | None = None, e
         "refresh_token": encrypt_token(token_data.get("refresh_token")),
         "expires_at": expires_at,
     }).execute()
+    supabase_admin.table("integrations").update({"connected": True}).eq("id", integration_id).execute()
     if browser_navigation:
         return RedirectResponse(integration_return_url("calendar", "connected"), status_code=303)
     return {"status": "connected", "integration_id": integration_id}

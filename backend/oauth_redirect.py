@@ -7,6 +7,11 @@ from fastapi import HTTPException
 from config import settings
 
 
+def is_browser_navigation(accept: str | None, fetch_mode: str | None) -> bool:
+    """OAuth redirects are top-level navigations even with JSON viewer extensions."""
+    return fetch_mode == "navigate" or isinstance(accept, str) and "text/html" in accept
+
+
 def google_callback_uri(provider: str) -> str:
     """Use this Render service's URL so an old callback setting cannot point elsewhere."""
     if provider not in {"gmail", "calendar"}:
