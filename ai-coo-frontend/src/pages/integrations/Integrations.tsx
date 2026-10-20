@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { GitBranch, Mail, Calendar as CalendarIcon, CheckCircle2, Circle, ShieldCheck, MessageCircle } from 'lucide-react'
 import { integrationsService, type Integration, type IntegrationProvider } from '@/services/integrations'
-import { organizationSettingsService } from '@/services/organization-settings'
+import { organizationSettingsService, type DiscordWebhookSettings } from '@/services/organization-settings'
 import { useAuthStore } from '@/store/authStore'
 import Card from '@/components/ui/Card'
 import Skeleton from '@/components/ui/Skeleton'
@@ -105,8 +105,8 @@ export default function Integrations() {
       return status
     },
     enabled: !!orgId,
-    placeholderData: () => {
-      const cached = readStatusCache<Awaited<ReturnType<typeof organizationSettingsService.getDiscordWebhook>>>(discordCacheKey)
+    placeholderData: (): DiscordWebhookSettings | undefined => {
+      const cached = readStatusCache<DiscordWebhookSettings>(discordCacheKey)
       return callbackProvider === 'discord' && callbackStatus === 'connected'
         ? { configured: true, masked_url: 'Discord webhook ••••••••', source: 'settings' }
         : cached
