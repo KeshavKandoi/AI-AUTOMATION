@@ -43,7 +43,7 @@ export default function Login() {
   const handleForgotPassword = async () => {
     if (!(await trigger('email'))) return
     const email = getValues('email')
-    navigate('/forgot-password', { state: { email } })
+    navigate('/reset-password', { state: { email, sendCode: true } })
   }
 
   const onSubmit = async (data: LoginForm) => {

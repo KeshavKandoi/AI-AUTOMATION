@@ -82,6 +82,11 @@ input:-webkit-autofill:active {
   --color-signal-dim: rgba(255, 0, 102, 0.14);
 }
 
+.reset-otp-page {
+  --color-signal: #9f1d4e;
+  --color-signal-dim: rgba(159, 29, 78, 0.16);
+}
+
 @keyframes workflow-flow {
   to { stroke-dashoffset: -26; }
 }
