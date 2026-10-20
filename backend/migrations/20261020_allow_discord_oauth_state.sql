@@ -1,5 +1,4 @@
--- Run this on the WorkForge Supabase project before connecting Discord.
--- Keep the existing OAuth providers while admitting Discord state records.
+
 BEGIN;
 
 ALTER TABLE public.oauth_states
