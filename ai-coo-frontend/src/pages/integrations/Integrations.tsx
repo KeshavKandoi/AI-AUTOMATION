@@ -64,13 +64,13 @@ export default function Integrations() {
   const [confirmingProvider, setConfirmingProvider] = useState<IntegrationProvider | null>(null)
   const [discordModalOpen, setDiscordModalOpen] = useState(false)
   const [discordWebhookDraft, setDiscordWebhookDraft] = useState('')
+  const [discordConnectError, setDiscordConnectError] = useState<string | null>(null)
   const [confirmDiscordDisconnect, setConfirmDiscordDisconnect] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
   const callbackProvider = searchParams.get('integration')
   const callbackStatus = searchParams.get('status')
-  const callbackLabel = callbackProvider && callbackProvider in PROVIDER_META
-    ? PROVIDER_META[callbackProvider as IntegrationProvider].label
-    : null
+  const callbackLabel = callbackProvider === 'discord' ? 'Discord' : callbackProvider && callbackProvider in PROVIDER_META
+    ? PROVIDER_META[callbackProvider as IntegrationProvider].label : null
   const integrationCacheKey = `workforge-integrations:${orgId}`
   const discordCacheKey = `workforge-discord-status:${orgId}`
 
@@ -105,7 +105,12 @@ export default function Integrations() {
       return status
     },
     enabled: !!orgId,
-    placeholderData: () => readStatusCache<Awaited<ReturnType<typeof organizationSettingsService.getDiscordWebhook>>>(discordCacheKey),
+    placeholderData: () => {
+      const cached = readStatusCache<Awaited<ReturnType<typeof organizationSettingsService.getDiscordWebhook>>>(discordCacheKey)
+      return callbackProvider === 'discord' && callbackStatus === 'connected'
+        ? { configured: true, masked_url: 'Discord webhook ••••••••', source: 'settings' }
+        : cached
+    },
   })
   const discordMutation = useMutation({
     mutationFn: organizationSettingsService.saveDiscordWebhook,
@@ -149,6 +154,15 @@ export default function Integrations() {
     if (!orgId) return
     const url = await integrationsService.getLoginUrl(provider)
     window.location.href = url
+  }
+
+  const handleDiscordConnect = async () => {
+    setDiscordConnectError(null)
+    try {
+      window.location.href = await organizationSettingsService.getDiscordLoginUrl()
+    } catch (error) {
+      setDiscordConnectError(discordApiError(error))
+    }
   }
 
   const handleDisconnectClick = (provider: IntegrationProvider) => {
@@ -277,7 +291,7 @@ export default function Integrations() {
           <div>
             <h3 className="text-sm font-medium text-text-primary">Discord</h3>
             <p className="mt-1 text-xs text-text-faint">
-              Sends workflow notifications to your organization’s Discord webhook.
+              Sends workflow notifications to a channel you choose in Discord.
             </p>
             {discordStatus.data?.configured && (
               <p className="mt-2 text-xs text-text-faint">
@@ -285,16 +299,16 @@ export default function Integrations() {
               </p>
             )}
           </div>
+          {discordConnectError && <p className="text-xs text-alert" role="alert">{discordConnectError}</p>}
           {discordStatus.isPending || !orgId ? (
             <Skeleton className="mt-auto h-10 w-full" />
+          ) : discordStatus.data?.configured ? (
+            <Button type="button" variant="secondary" className="mt-auto" onClick={() => setDiscordModalOpen(true)}>Manage</Button>
           ) : (
-            <Button
-              type="button"
-              className="mt-auto"
-              onClick={() => setDiscordModalOpen(true)}
-            >
-              {discordStatus.data?.configured ? 'Manage' : 'Configure'}
-            </Button>
+            <div className="mt-auto flex flex-col gap-2">
+              <Button type="button" onClick={handleDiscordConnect}>Connect Discord</Button>
+              <Button type="button" variant="ghost" onClick={() => setDiscordModalOpen(true)}>Use a webhook URL</Button>
+            </div>
           )}
         </Card>
         </div>
@@ -308,7 +322,7 @@ export default function Integrations() {
               Connected via {discordStatus.data.source === 'environment' ? 'backend environment' : 'saved webhook'} · {discordStatus.data.masked_url}
             </p>
           ) : (
-            <p className="text-sm text-text-muted" role="status">Not connected. Add a Discord webhook URL to enable workflow notifications.</p>
+            <p className="text-sm text-text-muted" role="status">Connect a Discord channel, or add its webhook URL below.</p>
           )}
           {discordStatus.data?.source === 'environment' && (
             <p className="text-xs text-text-muted">

@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     GOOGLE_CALENDAR_REDIRECT_URI: str
     DISCORD_WEBHOOK_URL: str = ""
     DISCORD_ENV_ORG_ID: str = ""
+    DISCORD_CLIENT_ID: str = ""
+    DISCORD_CLIENT_SECRET: str = ""
+    DISCORD_REDIRECT_URI: str = ""
     TEST_ORG_ID: str = ""
     SCHEDULER_ORG_ID: str = ""
     SCHEDULER_REPOSITORY: str = ""

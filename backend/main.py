@@ -30,6 +30,7 @@ from auth.routes import router as auth_router
 from notifications.routes import router as notifications_router
 from job_hunter.routes import router as job_hunter_router
 from organization_settings.routes import router as organization_settings_router
+from discord_oauth import router as discord_oauth_router
 
 app = FastAPI(title="WorkForge Backend")
 
@@ -72,6 +73,7 @@ app.include_router(github_oauth_router)
 app.include_router(calendar_router)
 app.include_router(lunch_block_router)
 app.include_router(organization_settings_router)
+app.include_router(discord_oauth_router)
 
 
 @app.on_event("startup")
