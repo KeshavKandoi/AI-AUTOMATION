@@ -358,7 +358,7 @@ export default function Settings() {
               onClick={() => setMode('password')}
               className={
                 mode === 'password'
-                  ? 'px-2.5 py-1 bg-[#c33b64] text-white'
+                  ? 'px-2.5 py-1 bg-[#166b55] text-white'
                   : 'px-2.5 py-1 bg-surface text-text-primary hover:bg-surface-hover'
               }
             >
@@ -369,7 +369,7 @@ export default function Settings() {
               onClick={() => setMode('otp')}
               className={
                 mode === 'otp'
-                  ? 'px-2.5 py-1 bg-[#c33b64] text-white'
+                  ? 'px-2.5 py-1 bg-[#166b55] text-white'
                   : 'px-2.5 py-1 bg-surface text-text-primary hover:bg-surface-hover'
               }
             >

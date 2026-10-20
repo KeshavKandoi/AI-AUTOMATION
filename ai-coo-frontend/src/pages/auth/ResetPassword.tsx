@@ -136,7 +136,7 @@ export default function ResetPassword() {
             Set a new password
           </h1>
           <p className="mt-1.5 text-sm text-text-muted">
-            Enter the code sent to{' '}
+            If this email has a WorkForge account, enter the code sent to{' '}
             <span className="text-text-primary font-mono">{email || 'your email'}</span>
           </p>
         </div>
@@ -153,6 +153,9 @@ export default function ResetPassword() {
             className="rounded-2xl border border-signal/25 bg-surface/80 backdrop-blur-xl p-6 flex flex-col gap-5"
           >
             {sendingCode && <p role="status" className="text-sm text-text-muted">Sending a reset code to {email}…</p>}
+            {!sendingCode && !codeRequestError && !serverError && (
+              <p className="text-xs text-text-muted">No code arrived? Check that you entered the email used for your WorkForge account, then check Spam or request another code.</p>
+            )}
             {codeRequestError && (
               <div role="alert" className="rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-sm text-alert">
                 <p>{codeRequestError}</p>
