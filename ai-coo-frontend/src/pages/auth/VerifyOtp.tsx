@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { useLocation, useNavigate, Link } from 'react-router-dom'
+import { useLocation, useNavigate, Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/store/authStore'
+import BrandLogo from '@/components/BrandLogo'
 
 export default function VerifyOtp() {
   const navigate = useNavigate()
@@ -15,6 +16,8 @@ export default function VerifyOtp() {
   const [serverError, setServerError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [cooldown, setCooldown] = useState(0)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendStatus, setResendStatus] = useState<string | null>(null)
   const inputsRef = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
@@ -63,17 +66,25 @@ export default function VerifyOtp() {
   }
 
   const handleResend = async () => {
-    if (cooldown > 0) return
+    if (cooldown > 0 || resendLoading) return
+    setServerError(null)
+    setResendStatus(null)
+    setResendLoading(true)
     try {
       await authApi.resendOtp(email)
       setCooldown(30)
+      setResendStatus('If this address still needs verification, check your inbox for a recent code.')
     } catch (err: any) {
       setServerError(err?.response?.data?.detail ?? 'Could not resend the code.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
+  if (!email) return <Navigate to="/signup" replace />
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+    <div className="reset-otp-page min-h-screen flex items-center justify-center bg-void px-4 relative overflow-hidden">
       <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 h-96 w-96 rounded-full bg-signal opacity-[0.06] blur-[120px]" />
 
       <motion.div
@@ -82,17 +93,18 @@ export default function VerifyOtp() {
         transition={{ duration: 0.4, ease: 'easeOut' }}
         className="w-full max-w-sm relative"
       >
+        <div className="mb-8 text-center"><BrandLogo size="md" /></div>
         <div className="mb-8 text-center">
           <h1 className="font-display text-2xl font-semibold text-text-primary">
-            Check your email
+            Verify your email
           </h1>
           <p className="mt-1.5 text-sm text-text-muted">
-            Enter the 6-digit code we sent to{' '}
+            Enter the 6-digit code for{' '}
             <span className="text-text-primary font-mono">{email || 'your email'}</span>
           </p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-surface/60 backdrop-blur-xl p-6 flex flex-col gap-5">
+        <div className="rounded-2xl border border-signal/25 bg-surface/80 backdrop-blur-xl p-6 flex flex-col gap-5">
           {serverError && (
             <div className="rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-xs text-alert">
               {serverError}
@@ -109,29 +121,33 @@ export default function VerifyOtp() {
                 onKeyDown={(e) => handleKeyDown(i, e)}
                 maxLength={1}
                 inputMode="numeric"
-                className="w-11 h-12 text-center rounded-lg border border-border bg-surface text-lg font-mono text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal transition-colors"
+                aria-label={`Verification code digit ${i + 1}`}
+                className="w-11 h-12 text-center rounded-lg border border-signal/25 bg-surface text-lg font-mono text-text-primary focus:outline-none focus:border-signal focus:ring-1 focus:ring-signal transition-colors"
               />
             ))}
           </div>
 
-          <Button onClick={handleVerify} loading={loading} disabled={otp.length !== 6} className="w-full">
+          <Button onClick={handleVerify} loading={loading} disabled={otp.length !== 6} className="w-full text-white">
             Verify email
           </Button>
 
           <button
             type="button"
             onClick={handleResend}
-            disabled={cooldown > 0}
-            className="text-sm text-signal hover:brightness-110 transition-all disabled:text-text-faint disabled:cursor-not-allowed"
+            disabled={cooldown > 0 || resendLoading}
+            className="text-sm text-[#e88cab] hover:brightness-110 transition-all disabled:text-text-faint disabled:cursor-not-allowed"
           >
-            {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+            {resendLoading ? 'Checking…' : cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
           </button>
+          {resendStatus && <p role="status" className="text-center text-xs text-text-muted">{resendStatus}</p>}
         </div>
 
         <p className="mt-6 text-center text-sm text-text-muted">
-          Wrong email?{' '}
-          <Link to="/signup" className="text-signal hover:brightness-110 transition-all">
-            Go back
+          Already verified?{' '}
+          <Link to="/login" className="text-[#e88cab] hover:brightness-110 transition-all">Sign in</Link>
+          <span className="mx-2 text-text-faint">·</span>
+          <Link to="/signup" className="text-[#e88cab] hover:brightness-110 transition-all">
+            Change email
           </Link>
         </p>
       </motion.div>
