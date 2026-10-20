@@ -54,7 +54,7 @@ export default function Integrations() {
     ? PROVIDER_META[callbackProvider as IntegrationProvider].label
     : null
 
-  const { data: integrations, isLoading } = useQuery({
+  const { data: integrations, isPending, isError } = useQuery({
     queryKey: ['integrations', orgId],
     queryFn: () => integrationsService.list(orgId!),
     enabled: !!orgId,
@@ -92,6 +92,7 @@ export default function Integrations() {
   })
 
   const connectedByProvider = new Map((integrations ?? []).map((i) => [i.provider, i]))
+  const statusLoading = !orgId || isPending
 
   const handleConnect = async (provider: IntegrationProvider) => {
     if (!orgId) return
@@ -140,8 +141,10 @@ export default function Integrations() {
                 <div className="h-10 w-10 rounded-xl bg-surface-hover flex items-center justify-center">
                   <meta.icon size={18} className="text-text-primary" />
                 </div>
-                {isLoading ? (
+                {statusLoading ? (
                   <Skeleton className="h-5 w-20" />
+                ) : isError ? (
+                  <span className="text-xs text-text-faint">Status unavailable</span>
                 ) : isConnected ? (
                   <span className="flex items-center gap-1.5 text-xs text-signal">
                     <CheckCircle2 size={13} />
@@ -160,12 +163,9 @@ export default function Integrations() {
                   <h3 className="text-sm font-medium text-text-primary">{meta.label}</h3>
                 </div>
                 <p className="mt-1 text-xs text-text-faint">{meta.description}</p>
-                {provider === 'gmail' && isConnected && (
-                  <p className="mt-2 text-xs text-text-muted">Connection status shows the saved Google account. If a new workflow run reports a send permission error, reconnect Gmail and approve email sending in Google.</p>
-                )}
               </div>
 
-              {meta.dataUseNote && !isConnected && (
+              {meta.dataUseNote && !statusLoading && !isError && !isConnected && (
                 <div className="flex items-start gap-1.5 text-[11px] text-text-faint leading-relaxed">
                   <ShieldCheck size={12} className="shrink-0 mt-0.5" />
                   <span>
@@ -178,23 +178,31 @@ export default function Integrations() {
               )}
 
               <div className="mt-auto flex gap-2">
-                <Button
-                  variant={isConnected ? 'secondary' : 'primary'}
-                  onClick={() => handleConnect(provider)}
-                  className="flex-1"
-                >
-                  {isConnected ? (provider === 'github' ? 'Switch account' : 'Reconnect') : 'Connect'}
-                </Button>
-                {isConnected && (
+                {statusLoading ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : isError ? (
+                  <span className="text-xs text-text-muted">Refresh to check connection status.</span>
+                ) : (
+                  <>
                   <Button
-                    variant={isConfirming ? 'primary' : 'ghost'}
-                    onClick={() => handleDisconnectClick(provider)}
-                    onBlur={() => setConfirmingProvider(null)}
-                    loading={isDisconnecting}
-                    className={isConfirming ? 'bg-alert! text-white!' : ''}
+                    variant={isConnected ? 'secondary' : 'primary'}
+                    onClick={() => handleConnect(provider)}
+                    className="flex-1"
                   >
-                    {isConfirming ? 'Confirm?' : 'Disconnect'}
+                    {isConnected ? (provider === 'github' ? 'Switch account' : 'Reconnect') : 'Connect'}
                   </Button>
+                  {isConnected && (
+                    <Button
+                      variant={isConfirming ? 'primary' : 'ghost'}
+                      onClick={() => handleDisconnectClick(provider)}
+                      onBlur={() => setConfirmingProvider(null)}
+                      loading={isDisconnecting}
+                      className={isConfirming ? 'bg-alert! text-white!' : ''}
+                    >
+                      {isConfirming ? 'Confirm?' : 'Disconnect'}
+                    </Button>
+                  )}
+                  </>
                 )}
               </div>
             </Card>
@@ -207,9 +215,9 @@ export default function Integrations() {
             <div className="h-10 w-10 rounded-xl bg-surface-hover flex items-center justify-center">
               <MessageCircle size={18} className="text-text-primary" />
             </div>
-            {discordStatus.isLoading && orgId ? (
+            {discordStatus.isPending || !orgId ? (
               <Skeleton className="h-5 w-20" />
-            ) : discordStatus.isError || !orgId ? (
+            ) : discordStatus.isError ? (
               <span className="text-xs text-text-faint">Status unavailable</span>
             ) : discordStatus.data?.configured ? (
               <span className="flex items-center gap-1.5 text-xs text-signal">
@@ -232,13 +240,17 @@ export default function Integrations() {
               </p>
             )}
           </div>
-          <Button
-            type="button"
-            className="mt-auto"
-            onClick={() => setDiscordModalOpen(true)}
-          >
-            {discordStatus.data?.configured ? 'Manage' : 'Configure'}
-          </Button>
+          {discordStatus.isPending || !orgId ? (
+            <Skeleton className="mt-auto h-10 w-full" />
+          ) : (
+            <Button
+              type="button"
+              className="mt-auto"
+              onClick={() => setDiscordModalOpen(true)}
+            >
+              {discordStatus.data?.configured ? 'Manage' : 'Configure'}
+            </Button>
+          )}
         </Card>
         </motion.div>
       </div>

@@ -464,10 +464,19 @@ async def gmail_callback(code: str | None = None, state: str | None = None, erro
             return RedirectResponse(integration_return_url("gmail", "missing-permission"), status_code=303)
         raise HTTPException(status_code=400, detail="Gmail send permission was not granted. Please reconnect Gmail and allow sending email.")
 
-    integration = supabase_admin.table("integrations").insert({
-        "organization_id": org_id, "provider": "gmail", "connected": True
-    }).execute()
-    integration_id = integration.data[0]["id"]
+    existing = supabase_admin.table("integrations") \
+        .select("id") \
+        .eq("organization_id", org_id) \
+        .eq("provider", "gmail") \
+        .order("created_at", desc=True) \
+        .limit(1) \
+        .execute()
+    integration_id = existing.data[0]["id"] if existing.data else None
+    if integration_id is None:
+        integration = supabase_admin.table("integrations").insert({
+            "organization_id": org_id, "provider": "gmail", "connected": False
+        }).execute()
+        integration_id = integration.data[0]["id"]
 
     expires_at = (datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3599))).isoformat()
 
@@ -475,6 +484,7 @@ async def gmail_callback(code: str | None = None, state: str | None = None, erro
         "integration_id": integration_id, "access_token": encrypt_token(access_token),
         "refresh_token": encrypt_token(token_data.get("refresh_token")), "expires_at": expires_at
     }).execute()
+    supabase_admin.table("integrations").update({"connected": True}).eq("id", integration_id).execute()
 
     if browser_navigation:
         return RedirectResponse(integration_return_url("gmail", "connected"), status_code=303)

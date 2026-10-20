@@ -23,6 +23,7 @@ def _mock_google_callback(monkeypatch, module, provider):
     monkeypatch.setattr(module, "encrypt_token", lambda value: f"encrypted:{value}" if value else None)
 
     integration_table = MagicMock()
+    integration_table.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
     integration_table.insert.return_value.execute.return_value.data = [{"id": "integration-1"}]
     token_table = MagicMock()
     monkeypatch.setattr(
@@ -42,6 +43,27 @@ def _mock_google_callback(monkeypatch, module, provider):
     google_client.post.return_value = google_response
     monkeypatch.setattr(module.httpx, "AsyncClient", lambda **kwargs: google_client)
     return token_table
+
+
+def test_gmail_reconnect_reuses_existing_integration(monkeypatch):
+    monkeypatch.setattr(oauth_redirect.settings, "FRONTEND_URL", "https://workforge.tech")
+    monkeypatch.setattr(oauth_redirect.settings, "ALLOWED_ORIGINS", "https://workforge.tech")
+    token_table = _mock_google_callback(monkeypatch, main, "gmail")
+    integration_table = main.supabase_admin.table("integrations")
+    integration_table.select.return_value.eq.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = [{"id": "existing-integration"}]
+
+    response = TestClient(main.app).get(
+        "/gmail/callback",
+        params={"code": "google-code", "state": "valid-state"},
+        headers={"Accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"].endswith("integration=gmail&status=connected")
+    integration_table.insert.assert_not_called()
+    assert token_table.insert.call_args.args[0]["integration_id"] == "existing-integration"
+    integration_table.update.assert_called_once_with({"connected": True})
 
 
 def test_google_callbacks_redirect_browser_to_integrations(monkeypatch):
