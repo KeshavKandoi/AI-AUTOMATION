@@ -156,7 +156,9 @@ def delete_account(user_id: str, email: str, password: str) -> None:
                 raise RuntimeError("Organization deletion did not return a row")
 
         stage = "authentication account"
-        auth_client.auth.admin.delete_user(user_id)
+        # sign_in_with_password changes that client's Authorization header to
+        # the user's token. Admin deletion needs a fresh service-role client.
+        get_auth_client().auth.admin.delete_user(user_id)
         stage = "authentication verification"
         try:
             get_auth_client().auth.sign_in_with_password({"email": email, "password": password})

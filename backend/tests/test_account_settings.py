@@ -168,6 +168,19 @@ def test_sole_member_deletion_removes_jobs_tokens_and_org(monkeypatch):
     auth.auth.admin.delete_user.assert_called_once_with("user-1")
 
 
+def test_account_deletion_uses_fresh_service_role_client_for_auth_removal(monkeypatch):
+    _db, signer = _account_setup(monkeypatch, ["user-1"])
+    admin = _auth_client()
+    verifier = _auth_client()
+    verifier.auth.sign_in_with_password.side_effect = AuthInvalidCredentialsError("invalid")
+    monkeypatch.setattr(account_service, "get_auth_client", MagicMock(side_effect=[signer, admin, verifier]))
+
+    account_service.delete_account("user-1", "test@example.com", "placeholder")
+
+    signer.auth.admin.delete_user.assert_not_called()
+    admin.auth.admin.delete_user.assert_called_once_with("user-1")
+
+
 def test_child_records_are_deleted_using_parent_ids(monkeypatch):
     db, _auth = _account_setup(monkeypatch, ["user-1"])
     original_table = db.table
