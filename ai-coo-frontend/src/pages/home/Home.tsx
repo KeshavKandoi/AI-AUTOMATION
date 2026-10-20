@@ -72,7 +72,7 @@ const FAQS = [
 
 export default function Home() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   return (
     <div className="home-page min-h-screen overflow-hidden bg-void text-text-primary">
