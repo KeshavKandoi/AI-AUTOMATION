@@ -453,11 +453,11 @@ async def execute_workflow(workflow: dict, context: dict, record_skipped: bool =
         source="backend",
     )
 
-    # A run_once workflow retires after its first clean success. A partial
-    # failure does NOT retire it — it stays active so it can fire again on
-    # the next matching event or a manual Run Now.
-    if run_status == "success" and workflow.get("lifetime_mode") == "run_once":
-        supabase_admin.table("workflows").update({"status": "completed"}).eq("id", workflow["id"]).execute()
+    # A one-time workflow is consumed by its first matching execution, even
+    # when an individual action fails. The run keeps its partial_failure status
+    # and action errors in history. A condition skip returns above unchanged.
+    if workflow.get("lifetime_mode") == "run_once":
+        supabase_admin.table("workflows").update({"status": "completed"}).eq("id", workflow["id"]).eq("status", "active").execute()
 
     return run.data[0]
 

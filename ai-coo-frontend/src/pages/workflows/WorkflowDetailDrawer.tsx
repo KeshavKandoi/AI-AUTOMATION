@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, Pause, Play, XCircle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Clock, Pause, XCircle } from 'lucide-react'
 import {
   workflowService,
   ALL_TRIGGER_TYPES,
@@ -15,7 +15,6 @@ import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import Skeleton from '@/components/ui/Skeleton'
 import EmptyState from '@/components/ui/EmptyState'
-import { Button } from '@/components/ui/Button'
 
 function ErrorBanner({ message }: { message: string }) {
   return (
@@ -24,11 +23,6 @@ function ErrorBanner({ message }: { message: string }) {
       <span>{message}</span>
     </div>
   )
-}
-
-function requestErrorMessage(error: unknown): string {
-  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-  return typeof detail === 'string' ? detail : 'Workflow run failed. Please try again.'
 }
 
 function runStatusBadge(status: RunStatus) {
@@ -143,20 +137,11 @@ interface WorkflowDetailDrawerProps {
 }
 
 export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose }: WorkflowDetailDrawerProps) {
-  const queryClient = useQueryClient()
-
   const { data: workflow, isLoading, isError } = useQuery({
     queryKey: ['workflows', 'detail', workflowId],
     queryFn: () => workflowService.getWorkflow(workflowId!, orgId),
     enabled: open && !!workflowId,
-  })
-
-  const runNowMutation = useMutation({
-    mutationFn: () => workflowService.runNow(workflowId!, orgId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workflows', 'detail', workflowId] })
-      queryClient.invalidateQueries({ queryKey: ['workflows', 'list'] })
-    },
+    refetchInterval: (query) => open && query.state.data?.status === 'active' ? 3000 : false,
   })
 
   const conditionRules = workflow ? conditionsToRuleList(workflow.conditions) : []
@@ -174,22 +159,13 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
           <ErrorBanner message="Couldn't load this workflow." />
         ) : (
           <>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2 text-sm text-text-muted flex-wrap">
                 {workflowStatusBadge(workflow.status)}
                 <span className="text-text-primary">{triggerLabel(workflow.trigger_type)}</span>
                 {' · '}
                 {workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''}
               </div>
-              <Button
-                variant="secondary"
-                loading={runNowMutation.isPending}
-                disabled={workflow.status !== 'active'}
-                onClick={() => runNowMutation.mutate()}
-              >
-                <Play size={13} />
-                Run now
-              </Button>
             </div>
             <p className="text-xs text-text-faint -mt-4">{describeLifetime(workflow)}</p>
             {(workflow.status === 'completed' || workflow.status === 'expired') && (
@@ -197,23 +173,6 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
                 This workflow is {workflow.status} and won't run again{workflow.status === 'expired' ? '' : ' automatically'}.
               </p>
             )}
-
-            {runNowMutation.isSuccess && (
-              <div
-                className={
-                  runNowMutation.data.status === 'success'
-                    ? 'rounded-lg border border-signal-dim bg-signal-dim px-3 py-2 text-xs text-signal'
-                    : runNowMutation.data.status === 'partial_failure'
-                    ? 'rounded-lg border border-alert-dim bg-alert-dim px-3 py-2 text-xs text-alert'
-                    : 'rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted'
-                }
-              >
-                Run {runNowMutation.data.status.replace('_', ' ')}
-                {runNowMutation.data.duration_ms != null ? ` in ${runNowMutation.data.duration_ms}ms` : ''}
-                {runNowMutation.data.error_message ? ` — ${runNowMutation.data.error_message}` : ''}
-              </div>
-            )}
-            {runNowMutation.isError && <ErrorBanner message={requestErrorMessage(runNowMutation.error)} />}
 
             <div>
               <h3 className="text-sm font-medium text-text-primary mb-2">Conditions</h3>
@@ -245,9 +204,9 @@ export default function WorkflowDetailDrawer({ open, orgId, workflowId, onClose 
 
             <div>
               <h3 className="text-sm font-medium text-text-primary mb-2">Execution history</h3>
-              <p className="mb-2 text-xs text-text-faint">These are saved results from past runs. Connection changes do not alter them; use Run now to check the current setup.</p>
+              <p className="mb-2 text-xs text-text-faint">These are saved results from past runs. Connection changes do not alter them.</p>
               {workflow.recent_runs.length === 0 ? (
-                <EmptyState icon={Clock} title="No runs yet" description="Runs will appear here once this workflow fires, or you use Run now." />
+                <EmptyState icon={Clock} title="No runs yet" description="Runs will appear here once this workflow fires." />
               ) : (
                 <div className="divide-y divide-border border border-border rounded-lg">
                   {workflow.recent_runs.map((run) => (

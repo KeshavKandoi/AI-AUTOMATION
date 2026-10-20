@@ -392,6 +392,38 @@ def test_execute_workflow_records_success_and_retires_run_once():
     assert updated.get("status") == "completed"
 
 
+def test_execute_workflow_retires_run_once_after_partial_failure():
+    workflow = {
+        "id": "wf-once", "organization_id": "org-A", "name": "One-time workflow",
+        "trigger_type": "push", "conditions": {}, "actions": ["send_email"],
+        "lifetime_mode": "run_once", "status": "active",
+    }
+    inserted = {}
+    updated = {}
+
+    def fake_insert(payload):
+        inserted.update(payload)
+        row = MagicMock()
+        row.execute.return_value.data = [payload]
+        return row
+
+    def fake_update(payload):
+        updated.update(payload)
+        row = MagicMock()
+        row.eq.return_value.eq.return_value.execute.return_value = MagicMock()
+        return row
+
+    with patch.dict(workflow_engine.ACTION_REGISTRY, {"send_email": AsyncMock(side_effect=RuntimeError("Send failed"))}), \
+         patch.object(workflow_engine.supabase_admin, "table") as mock_table, \
+         patch.object(workflow_engine, "log_event"):
+        mock_table.return_value.insert.side_effect = fake_insert
+        mock_table.return_value.update.side_effect = fake_update
+        result = run(workflow_engine.execute_workflow(workflow, {"title": "push"}))
+
+    assert inserted["status"] == result["status"] == "partial_failure"
+    assert updated["status"] == "completed"
+
+
 import pytest as _p4pytest
 
 

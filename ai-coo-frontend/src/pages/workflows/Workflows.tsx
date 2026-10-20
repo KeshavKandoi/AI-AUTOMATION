@@ -6,7 +6,6 @@ import {
   workflowService,
   ALL_TRIGGER_TYPES,
   summarizeConditions,
-  type RunStatus,
   type Workflow,
   type WorkflowStatus,
 } from '@/services/workflows'
@@ -57,7 +56,6 @@ export default function Workflows() {
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
   const [detailWorkflowId, setDetailWorkflowId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [runNowFeedback, setRunNowFeedback] = useState<{ id: string; status?: RunStatus; error?: string } | null>(null)
 
   const {
     data: workflows,
@@ -67,6 +65,7 @@ export default function Workflows() {
     queryKey: ['workflows', 'list', orgId],
     queryFn: () => workflowService.listWorkflows(orgId!),
     enabled: !!orgId,
+    refetchInterval: (query) => query.state.data?.some((workflow) => workflow.status === 'active') ? 3000 : false,
   })
 
   const toggleStatusMutation = useMutation({
@@ -82,18 +81,6 @@ export default function Workflows() {
     onSuccess: () => {
       setConfirmDeleteId(null)
       queryClient.invalidateQueries({ queryKey: ['workflows', 'list'] })
-    },
-  })
-
-  const runNowMutation = useMutation({
-    mutationFn: (workflowId: string) => workflowService.runNow(workflowId, orgId!),
-    onSuccess: (run, workflowId) => {
-      setRunNowFeedback({ id: workflowId, status: run.status, error: run.error_message ?? undefined })
-      queryClient.invalidateQueries({ queryKey: ['workflows', 'detail', workflowId] })
-    },
-    onError: (error, workflowId) => {
-      const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-      setRunNowFeedback({ id: workflowId, error: typeof detail === 'string' ? detail : 'Workflow run failed. Please try again.' })
     },
   })
 
@@ -203,34 +190,8 @@ export default function Workflows() {
                     <span className="rounded-lg border border-signal/25 bg-signal-dim px-2.5 py-1.5 text-signal">{workflow.actions.length} action{workflow.actions.length !== 1 ? 's' : ''}</span>
                   </div>
                   <p className="mt-2 text-xs text-text-faint">{workflow.actions.map((action) => action.replaceAll('_', ' ')).join(' · ')}</p>
-                  {runNowFeedback?.id === workflow.id && runNowFeedback.error && (
-                    <p className="text-xs text-alert mt-1">{runNowFeedback.error}</p>
-                  )}
-                  {runNowFeedback?.id === workflow.id && runNowFeedback.status && (
-                    <p
-                      className={
-                        runNowFeedback.status === 'success'
-                          ? 'text-xs text-signal mt-1'
-                          : runNowFeedback.status === 'partial_failure'
-                          ? 'text-xs text-alert mt-1'
-                          : 'text-xs text-amber mt-1'
-                      }
-                    >
-                      Run {runNowFeedback.status.replace('_', ' ')} — see details for logs.
-                    </p>
-                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {workflow.status === 'active' && (
-                    <Button
-                      variant="ghost"
-                      loading={runNowMutation.isPending && runNowMutation.variables === workflow.id}
-                      onClick={() => runNowMutation.mutate(workflow.id)}
-                    >
-                      <Play size={13} />
-                      Run now
-                    </Button>
-                  )}
                   <Button variant="ghost" onClick={() => setDetailWorkflowId(workflow.id)}>
                     <Clock size={13} />
                     Details
@@ -247,7 +208,7 @@ export default function Workflows() {
                       <Pause size={13} />
                       Pause
                     </Button>
-                  ) : (
+                  ) : workflow.status === 'paused' ? (
                     <Button
                       variant="ghost"
                       loading={toggleStatusMutation.isPending}
@@ -256,7 +217,7 @@ export default function Workflows() {
                       <Play size={13} />
                       Resume
                     </Button>
-                  )}
+                  ) : null}
                   {confirmDeleteId === workflow.id ? (
                     <Button
                       variant="primary"

@@ -8,6 +8,21 @@ from auth.dependencies import get_current_org_id
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
+def _complete_legacy_one_time_workflows(workflows: list[dict]) -> list[dict]:
+    """Retire one-time workflows executed before partial failures counted as runs."""
+    active_ids = [w["id"] for w in workflows if w.get("status") == "active" and w.get("lifetime_mode") == "run_once"]
+    if not active_ids:
+        return workflows
+    runs = supabase_admin.table("workflow_runs").select("workflow_id").in_("workflow_id", active_ids).in_("status", ["success", "partial_failure"]).execute()
+    completed_ids = {run["workflow_id"] for run in runs.data}
+    if completed_ids:
+        supabase_admin.table("workflows").update({"status": "completed"}).in_("id", list(completed_ids)).eq("status", "active").execute()
+        for workflow in workflows:
+            if workflow["id"] in completed_ids:
+                workflow["status"] = "completed"
+    return workflows
+
+
 @router.post("")
 def create_workflow(payload: WorkflowCreate, org_id: str = Depends(get_current_org_id)):
     data = payload.model_dump()
@@ -21,7 +36,7 @@ def create_workflow(payload: WorkflowCreate, org_id: str = Depends(get_current_o
 @router.get("")
 def list_workflows(org_id: str = Depends(get_current_org_id)):
     result = supabase_admin.table("workflows").select("*").eq("organization_id", org_id).execute()
-    return result.data
+    return _complete_legacy_one_time_workflows(result.data)
 
 
 @router.get("/{workflow_id}")
@@ -34,7 +49,8 @@ def get_workflow(workflow_id: str, org_id: str = Depends(get_current_org_id)):
         .select("*").eq("workflow_id", workflow_id) \
         .order("executed_at", desc=True).limit(20).execute()
 
-    return {**result.data[0], "recent_runs": runs.data}
+    workflow = _complete_legacy_one_time_workflows([result.data[0]])[0]
+    return {**workflow, "recent_runs": runs.data}
 
 
 @router.patch("/{workflow_id}")
@@ -66,6 +82,9 @@ def update_workflow(workflow_id: str, payload: WorkflowUpdate, org_id: str = Dep
 
     if "expires_at" in updates and updates["expires_at"] is not None:
         updates["expires_at"] = updates["expires_at"].isoformat()
+
+    if current.get("status") == "completed" and current.get("lifetime_mode") == "run_once" and updates.get("status") == "active":
+        raise HTTPException(status_code=409, detail="This one-time workflow has completed. Create a new workflow to run it again.")
 
     result = supabase_admin.table("workflows").update(updates).eq("id", workflow_id).execute()
     return {"status": "updated", "workflow": result.data[0]}
