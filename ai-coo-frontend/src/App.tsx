@@ -42,7 +42,7 @@ function App() {
   const [checkingUncachedSession, setCheckingUncachedSession] = useState(
     () => !isPublicPath(window.location.pathname) && !useAuthStore.getState().user
   )
-  const restoreOnMount = useRef(!!useAuthStore.getState().user || checkingUncachedSession)
+  const restoreOnMount = useRef(!isPublicPath(window.location.pathname))
 
   useEffect(() => {
     if (restoreOnMount.current) {

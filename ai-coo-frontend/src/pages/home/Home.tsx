@@ -71,7 +71,7 @@ const FAQS = [
 ]
 
 export default function Home() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hasSession = useAuthStore((s) => s.isAuthenticated || Boolean(s.user))
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   return (
@@ -94,7 +94,7 @@ export default function Home() {
                 Connect GitHub and the tools your team relies on. Build workflows that turn repository events into tasks, emails, scheduled commits, and team notifications—with conditions and clear task review.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                {isAuthenticated ? (
+                {hasSession ? (
                   <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3.5 text-sm font-semibold text-void transition hover:brightness-110">Open workspace <ArrowRight size={16} /></Link>
                 ) : (
                   <Link to="/signup" className="inline-flex items-center gap-2 rounded-xl bg-signal px-5 py-3.5 text-sm font-semibold text-void transition hover:brightness-110">Create your workspace <ArrowRight size={16} /></Link>
@@ -181,7 +181,7 @@ export default function Home() {
             <div aria-hidden="true" className="absolute -right-10 -top-24 h-72 w-72 rounded-full bg-pink-300/[0.09] blur-3xl" />
             <div className="relative flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
               <div className="max-w-2xl"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-signal">Start with one workflow</p><h2 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">Put your repeatable work on a clear path.</h2><p className="mt-3 text-sm leading-6 text-text-muted">Connect a service, choose what should trigger, and keep the results visible.</p></div>
-              {isAuthenticated ? (
+              {hasSession ? (
                 <Link to="/dashboard" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3.5 text-sm font-semibold text-void transition hover:brightness-110">Open workspace <ArrowRight size={16} /></Link>
               ) : (
                 <Link to="/signup" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-signal px-5 py-3.5 text-sm font-semibold text-void transition hover:brightness-110">Create your workspace <ArrowRight size={16} /></Link>
