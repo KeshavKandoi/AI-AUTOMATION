@@ -345,14 +345,14 @@ export default function Settings() {
             <KeyRound size={16} className="text-text-muted" />
             <h2 className="text-sm font-medium text-text-primary">Security</h2>
           </div>
-          <div className="flex rounded-md border border-border overflow-hidden text-xs">
+          <div className="flex rounded-md border border-border overflow-hidden text-xs font-medium">
             <button
               type="button"
               onClick={() => setMode('password')}
               className={
                 mode === 'password'
-                  ? 'px-2.5 py-1 bg-signal text-white'
-                  : 'px-2.5 py-1 text-text-muted hover:bg-surface-hover'
+                  ? 'px-2.5 py-1 bg-[#c33b64] text-white'
+                  : 'px-2.5 py-1 bg-surface text-text-primary hover:bg-surface-hover'
               }
             >
               Current password
@@ -362,8 +362,8 @@ export default function Settings() {
               onClick={() => setMode('otp')}
               className={
                 mode === 'otp'
-                  ? 'px-2.5 py-1 bg-signal text-white'
-                  : 'px-2.5 py-1 text-text-muted hover:bg-surface-hover'
+                  ? 'px-2.5 py-1 bg-[#c33b64] text-white'
+                  : 'px-2.5 py-1 bg-surface text-text-primary hover:bg-surface-hover'
               }
             >
               Email code

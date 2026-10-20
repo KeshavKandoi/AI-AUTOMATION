@@ -757,12 +757,17 @@ def _users(*items):
     return [types.SimpleNamespace(email=e, email_confirmed_at=c) for e, c in items]
 
 
-def test_signup_existing_confirmed_account_is_generic_and_sends_nothing():
+def test_signup_existing_confirmed_account_shows_account_exists_and_sends_nothing():
     from auth import service
+    from fastapi import HTTPException
+    import pytest
     auth = MagicMock()
     auth.auth.admin.get_user_by_id.return_value.user.email_confirmed_at = "2030-01-01"
     with patch.object(service, "get_auth_client", return_value=auth), patch.object(service.repository, "get_user_profile_by_email", return_value={"id": "user-1"}), patch.object(service, "_issue_otp") as issue:
-        assert service.signup("n", "a@b.com", "pw", "org") == "a@b.com"
+        with pytest.raises(HTTPException) as error:
+            service.signup("n", "a@b.com", "pw", "org")
+    assert error.value.status_code == 409
+    assert "Account already exists" in error.value.detail
     issue.assert_not_called()
     auth.auth.admin.create_user.assert_not_called()
 

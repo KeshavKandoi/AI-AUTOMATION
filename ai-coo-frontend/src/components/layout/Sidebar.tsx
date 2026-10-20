@@ -103,7 +103,6 @@ export default function Sidebar() {
             </div>
             <div className="min-w-0">
               <p className="text-xs text-text-primary truncate">{user.full_name}</p>
-              <p className="text-[11px] text-text-faint truncate">{user.organization_name}</p>
             </div>
           </div>
         )}

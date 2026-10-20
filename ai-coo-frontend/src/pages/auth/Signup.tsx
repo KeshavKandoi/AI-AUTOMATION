@@ -21,6 +21,7 @@ type SignupForm = z.infer<typeof signupSchema>
 export default function Signup() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState<string | null>(null)
+  const [accountExists, setAccountExists] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -39,11 +40,13 @@ export default function Signup() {
 
   const onSubmit = async (data: SignupForm) => {
     setServerError(null)
+    setAccountExists(false)
     setLoading(true)
     try {
       const res = await authApi.signup(data)
       navigate('/verify-otp', { state: { email: res.data.email ?? data.email } })
     } catch (err: any) {
+      setAccountExists(err?.response?.status === 409)
       setServerError(
         err?.response?.data?.detail ?? 'Could not create your account. Try again.'
       )
@@ -66,6 +69,7 @@ export default function Signup() {
           {serverError && (
             <div role="alert" className="rounded-lg bg-alert-dim border border-alert/30 px-3 py-2 text-sm text-alert">
               {serverError}
+              {accountExists && <Link to="/login" className="ml-1 font-semibold underline">Sign in</Link>}
             </div>
           )}
 

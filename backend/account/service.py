@@ -57,6 +57,16 @@ def _delete_job_sources(organization_id: str):
         supabase_admin.table("job_hunter_job_sources").delete().in_("job_id", [row["id"] for row in jobs.data]).execute()
 
 
+def _delete_children(organization_id: str, parent_table: str, child_tables: tuple[str, ...], foreign_key: str):
+    """Remove child rows using IDs from parents owned by this organization."""
+    parents = supabase_admin.table(parent_table).select("id").eq("organization_id", organization_id).execute().data
+    if not parents:
+        return
+    ids = [row["id"] for row in parents]
+    for table in child_tables:
+        supabase_admin.table(table).delete().in_(foreign_key, ids).execute()
+
+
 def delete_account(user_id: str, email: str, password: str) -> None:
     if not user_id or not email:
         raise HTTPException(status_code=401, detail="Session is incomplete. Please sign in again.")
@@ -93,21 +103,30 @@ def delete_account(user_id: str, email: str, password: str) -> None:
             stage = "organization data"
             _delete_job_hunter_attachments(organization_id)
             _delete_job_sources(organization_id)
+            for parent, children, foreign_key in (
+                ("job_hunter_applications", ("job_hunter_notes", "job_hunter_activity"), "application_id"),
+                ("commit_jobs", ("commit_job_files", "commit_job_runs"), "job_id"),
+                ("email_jobs", ("email_job_runs",), "job_id"),
+                ("workflows", ("workflow_runs",), "workflow_id"),
+            ):
+                stage = f"{parent} child data"
+                _delete_children(organization_id, parent, children, foreign_key)
             for table in (
                 "job_hunter_calendar_events", "job_hunter_gmail_events", "job_hunter_gmail_poll_runs"
             ):
+                stage = f"{table} data"
                 _delete_optional_legacy_by_org(table, organization_id)
             for table in [
-                "job_hunter_notes", "job_hunter_reminders", "job_hunter_activity", "job_hunter_applications",
+                "job_hunter_reminders", "job_hunter_applications",
                 "job_hunter_search_runs",
                 "job_hunter_provider_status", "job_hunter_preferences", "job_hunter_jobs",
-                "commit_job_files", "commit_job_runs", "commit_jobs",
-                "email_job_runs", "email_jobs", "scheduled_commits",
-                "workflow_runs", "workflows", "processed_github_events",
+                "commit_jobs", "email_jobs", "scheduled_commits",
+                "workflows", "processed_github_events",
                 "lunch_block_runs", "lunch_block_settings",
                 "memory", "tasks", "notifications", "audit_logs",
                 "github_poll_state", "github_processed_events", "oauth_states",
             ]:
+                stage = f"{table} data"
                 _delete_by_org(table, organization_id)
             stage = "integration credentials"
             _delete_integrations_and_tokens(organization_id)

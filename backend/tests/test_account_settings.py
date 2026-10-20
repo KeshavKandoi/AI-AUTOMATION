@@ -109,6 +109,7 @@ class FakeQuery:
         return self
 
     def in_(self, _field, _values):
+        self.filters.append((_field, tuple(_values)))
         return self
 
     def execute(self):
@@ -165,6 +166,31 @@ def test_sole_member_deletion_removes_jobs_tokens_and_org(monkeypatch):
     assert {"commit_jobs", "email_jobs", "scheduled_commits", "integrations", "organizations"} <= deleted_tables
     assert ("oauth_tokens", "delete", (("integration_id", "integration-1"),)) in db.calls
     auth.auth.admin.delete_user.assert_called_once_with("user-1")
+
+
+def test_child_records_are_deleted_using_parent_ids(monkeypatch):
+    db, _auth = _account_setup(monkeypatch, ["user-1"])
+    original_table = db.table
+
+    def table_with_parents(name):
+        query = original_table(name)
+        if name == "commit_jobs":
+            original_execute = query.execute
+
+            def execute():
+                if query.operation == "select":
+                    return SimpleNamespace(data=[{"id": "job-1"}])
+                return original_execute()
+
+            query.execute = execute
+        return query
+
+    db.table = table_with_parents
+    account_service.delete_account("user-1", "test@example.com", "placeholder")
+    assert ("commit_job_files", "delete", (("job_id", ("job-1",)),)) in db.calls
+    assert ("commit_job_runs", "delete", (("job_id", ("job-1",)),)) in db.calls
+    child_tables = {"job_hunter_notes", "job_hunter_activity", "commit_job_files", "commit_job_runs", "email_job_runs", "workflow_runs"}
+    assert all("organization_id" not in dict(filters) for table, action, filters in db.calls if action == "delete" and table in child_tables)
 
 
 def test_partial_deletion_reports_failure_and_keeps_auth_account(monkeypatch):

@@ -110,8 +110,9 @@ def signup(full_name: str, email: str, password: str, organization_name: str) ->
 
     if match:
         user = auth_client.auth.admin.get_user_by_id(match["id"]).user
-        if not user.email_confirmed_at:
-            _issue_otp_quiet(email, "signup")
+        if user and user.email_confirmed_at:
+            raise HTTPException(status_code=409, detail="Account already exists.")
+        _issue_otp_quiet(email, "signup")
         return email
 
     try:
