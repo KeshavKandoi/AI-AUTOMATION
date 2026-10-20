@@ -8,8 +8,13 @@ export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.includes(pathname)
 }
 
+// Keep production API calls on the same backend used by the /auth Vercel proxy.
+const apiBaseUrl = import.meta.env.PROD
+  ? 'https://ai-automation-sg.onrender.com'
+  : import.meta.env.VITE_API_BASE_URL
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -22,9 +27,9 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = axios
       .post(
-        import.meta.env.PROD ? '/auth/refresh' : `${import.meta.env.VITE_API_BASE_URL}/auth/refresh`,
+        import.meta.env.PROD ? '/auth/refresh' : `${apiBaseUrl}/auth/refresh`,
         {},
-        { withCredentials: true }
+        { withCredentials: true, timeout: 30_000 }
       )
       .then((res) => {
         const { access_token, user } = res.data

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import axios from 'axios'
 import { LockKeyhole, Mail } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -54,7 +55,9 @@ export default function Login() {
       navigate('/dashboard')
     } catch (err: any) {
       setServerError(
-        err?.response?.data?.detail ?? 'Could not sign in. Check your details and try again.'
+        axios.isAxiosError(err) && (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK')
+          ? 'The sign-in service is taking too long to respond. Please try again.'
+          : err?.response?.data?.detail ?? 'Could not sign in. Check your details and try again.'
       )
     } finally {
       setLoading(false)
