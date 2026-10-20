@@ -163,7 +163,7 @@ def test_sole_member_deletion_removes_jobs_tokens_and_org(monkeypatch):
     account_service.delete_account("user-1", "test@example.com", "placeholder")
 
     deleted_tables = {table for table, action, _ in db.calls if action == "delete"}
-    assert {"commit_jobs", "email_jobs", "scheduled_commits", "integrations", "organizations"} <= deleted_tables
+    assert {"commit_jobs", "email_jobs", "scheduled_commits", "agent_runs", "integrations", "organizations"} <= deleted_tables
     assert ("oauth_tokens", "delete", (("integration_id", "integration-1"),)) in db.calls
     auth.auth.admin.delete_user.assert_called_once_with("user-1")
 
@@ -233,6 +233,17 @@ def test_missing_legacy_table_is_skipped_but_other_errors_stop_deletion(monkeypa
 
 def test_account_delete_endpoint_requires_authentication():
     assert TestClient(app).post("/account/delete", json={"password": "placeholder"}).status_code == 401
+
+
+def test_account_delete_endpoint_returns_json_on_unexpected_failure(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: {"sub": "user-1", "email": "test@example.com"}
+    monkeypatch.setattr(account_service, "delete_account", MagicMock(side_effect=RuntimeError("unexpected")))
+    try:
+        response = TestClient(app, raise_server_exceptions=False).post("/account/delete", json={"password": "placeholder"})
+    finally:
+        app.dependency_overrides.clear()
+    assert response.status_code == 500
+    assert "detail" in response.json()
 
 
 def test_change_password_endpoint_does_not_echo_password(monkeypatch):

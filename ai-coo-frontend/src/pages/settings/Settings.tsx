@@ -73,8 +73,15 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof UserIcon; label: s
 }
 
 function safeApiError(error: unknown, fallback: string): string {
-  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
-  return typeof detail === 'string' ? detail : fallback
+  if (error instanceof Error && error.message === 'Session expired') {
+    return 'Your session expired. Sign in again, then retry account deletion.'
+  }
+  const response = (error as { response?: { status?: number; data?: { detail?: unknown } }; code?: string })?.response
+  const detail = response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (response?.status) return `${fallback} (HTTP ${response.status})`
+  if ((error as { code?: string })?.code === 'ERR_NETWORK') return 'Could not reach the server. Check your connection and try again.'
+  return fallback
 }
 
 function SectionHeader({ icon: Icon, title, tone }: { icon: typeof UserIcon; title: string; tone?: 'alert' }) {

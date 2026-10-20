@@ -70,7 +70,11 @@ def _delete_children(organization_id: str, parent_table: str, child_tables: tupl
 def delete_account(user_id: str, email: str, password: str) -> None:
     if not user_id or not email:
         raise HTTPException(status_code=401, detail="Session is incomplete. Please sign in again.")
-    profile = auth_repository.get_user_profile(user_id)
+    try:
+        profile = auth_repository.get_user_profile(user_id)
+    except Exception:
+        logger.exception("Account deletion failed while loading profile for user_id=%s", user_id)
+        raise HTTPException(status_code=502, detail="Could not load account details. Please try again.") from None
     if not profile:
         raise HTTPException(status_code=404, detail="Account not found")
     if profile.get("email", "").lower() != email.lower():
@@ -92,7 +96,11 @@ def delete_account(user_id: str, email: str, password: str) -> None:
         raise HTTPException(status_code=403, detail="Account confirmation failed. Please sign in again.")
 
     organization_id = profile["organization_id"]
-    members = supabase_admin.table("user_profiles").select("id").eq("organization_id", organization_id).limit(2).execute().data
+    try:
+        members = supabase_admin.table("user_profiles").select("id").eq("organization_id", organization_id).limit(2).execute().data
+    except Exception:
+        logger.exception("Account deletion failed while loading organization members for user_id=%s", user_id)
+        raise HTTPException(status_code=502, detail="Could not load organization membership. Please try again.") from None
     if not members or (len(members) == 1 and members[0]["id"] != user_id):
         raise HTTPException(status_code=409, detail="Organization membership changed. Please try again.")
     sole_member = len(members) == 1
@@ -123,7 +131,7 @@ def delete_account(user_id: str, email: str, password: str) -> None:
                 "commit_jobs", "email_jobs", "scheduled_commits",
                 "workflows", "processed_github_events",
                 "lunch_block_runs", "lunch_block_settings",
-                "memory", "tasks", "notifications", "audit_logs",
+                "memory", "tasks", "notifications", "agent_runs", "audit_logs",
                 "github_poll_state", "github_processed_events", "oauth_states",
             ]:
                 stage = f"{table} data"
@@ -164,7 +172,7 @@ def delete_account(user_id: str, email: str, password: str) -> None:
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error("Account deletion failed at %s for user_id=%s (%s)", stage, user_id, type(exc).__name__)
+        logger.exception("Account deletion failed at %s for user_id=%s (%s)", stage, user_id, type(exc).__name__)
         raise HTTPException(
             status_code=500,
             detail=f"Account deletion stopped during {stage}. Some data may already be removed. Please contact support; do not assume deletion finished.",
