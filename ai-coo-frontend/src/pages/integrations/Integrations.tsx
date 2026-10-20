@@ -37,6 +37,26 @@ const PROVIDER_META: Record<IntegrationProvider, { label: string; description: s
 }
 
 const ALL_PROVIDERS: IntegrationProvider[] = ['github', 'gmail', 'calendar']
+const STATUS_CACHE_MS = 5 * 60 * 1000
+
+function readStatusCache<T>(key: string): T | undefined {
+  try {
+    const cached = sessionStorage.getItem(key)
+    if (!cached) return undefined
+    const { savedAt, value } = JSON.parse(cached) as { savedAt: number; value: T }
+    return Date.now() - savedAt < STATUS_CACHE_MS ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function writeStatusCache<T>(key: string, value: T): void {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), value }))
+  } catch {
+    // Connection status still loads normally when browser storage is unavailable.
+  }
+}
 
 export default function Integrations() {
   const orgId = useAuthStore((s) => s.user?.organization_id)
@@ -51,21 +71,47 @@ export default function Integrations() {
   const callbackLabel = callbackProvider && callbackProvider in PROVIDER_META
     ? PROVIDER_META[callbackProvider as IntegrationProvider].label
     : null
+  const integrationCacheKey = `workforge-integrations:${orgId}`
+  const discordCacheKey = `workforge-discord-status:${orgId}`
 
-  const { data: integrations, isPending, isError } = useQuery({
+  const { data: integrations, isPending, isFetching, isError } = useQuery({
     queryKey: ['integrations', orgId],
-    queryFn: () => integrationsService.list(orgId!),
+    queryFn: async () => {
+      const status = await integrationsService.list(orgId!)
+      writeStatusCache(integrationCacheKey, status.map(({ id, organization_id, provider, connected, created_at }) =>
+        ({ id, organization_id, provider, connected, created_at })
+      ))
+      return status
+    },
     enabled: !!orgId,
+    placeholderData: () => {
+      const cached = readStatusCache<Integration[]>(integrationCacheKey)
+      if (callbackStatus !== 'connected' || !callbackLabel || !orgId) return cached
+      const provider = callbackProvider as IntegrationProvider
+      const updated = cached?.map((integration) =>
+        integration.provider === provider ? { ...integration, connected: true } : integration
+      ) ?? []
+      if (!updated.some((integration) => integration.provider === provider)) {
+        updated.push({ id: '', organization_id: orgId, provider, connected: true, created_at: '' })
+      }
+      return updated
+    },
   })
   const discordStatus = useQuery({
     queryKey: ['organization-settings', 'discord-webhook', orgId],
-    queryFn: organizationSettingsService.getDiscordWebhook,
+    queryFn: async () => {
+      const status = await organizationSettingsService.getDiscordWebhook()
+      writeStatusCache(discordCacheKey, status)
+      return status
+    },
     enabled: !!orgId,
+    placeholderData: () => readStatusCache<Awaited<ReturnType<typeof organizationSettingsService.getDiscordWebhook>>>(discordCacheKey),
   })
   const discordMutation = useMutation({
     mutationFn: organizationSettingsService.saveDiscordWebhook,
     onSuccess: (status) => {
       queryClient.setQueryData(['organization-settings', 'discord-webhook', orgId], status)
+      writeStatusCache(discordCacheKey, status)
       queryClient.invalidateQueries({ queryKey: ['organization-settings', 'discord-webhook', orgId] })
       setDiscordWebhookDraft('')
       setConfirmDiscordDisconnect(false)
@@ -84,11 +130,13 @@ export default function Integrations() {
   const disconnectMutation = useMutation({
     mutationFn: (provider: IntegrationProvider) => integrationsService.disconnect(provider, orgId!),
     onSuccess: (_, provider) => {
-      queryClient.setQueryData<Integration[]>(['integrations', orgId], (current) =>
-        current?.map((integration) =>
+      queryClient.setQueryData<Integration[]>(['integrations', orgId], (current) => {
+        const updated = (current ?? integrations)?.map((integration) =>
           integration.provider === provider ? { ...integration, connected: false } : integration
         )
-      )
+        if (updated) writeStatusCache(integrationCacheKey, updated)
+        return updated
+      })
       queryClient.invalidateQueries({ queryKey: ['integrations', orgId] })
       setConfirmingProvider(null)
     },
@@ -187,11 +235,12 @@ export default function Integrations() {
                   <span className="text-xs text-text-muted">Refresh to check connection status.</span>
                 ) : isConnected ? (
                     <Button
-                      variant={isConfirming ? 'primary' : 'ghost'}
+                      variant="secondary"
                       onClick={() => handleDisconnectClick(provider)}
                       onBlur={() => setConfirmingProvider(null)}
                       loading={isDisconnecting}
-                      className={`w-full ${isConfirming ? 'bg-alert! text-white!' : ''}`}
+                      className={`w-full ${isConfirming ? 'border-alert! bg-alert! text-white!' : ''}`}
+                      disabled={isFetching}
                     >
                       {isConfirming ? 'Confirm?' : 'Disconnect'}
                     </Button>
