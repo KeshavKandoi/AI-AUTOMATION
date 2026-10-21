@@ -81,6 +81,7 @@ def batch_upsert_jobs(rows: list[dict]) -> list[dict]:
     result = retry_db_call(
         lambda: supabase_admin.table("job_hunter_jobs")
             .upsert(rows, on_conflict="organization_id,dedup_key", default_to_null=False)
+            .select("id,dedup_key")
             .execute(),
         operation_name="batch_upsert_jobs",
     )
@@ -288,7 +289,7 @@ def batch_add_job_sources(rows: list[dict]) -> None:
         return
     retry_db_call(
         lambda: supabase_admin.table("job_hunter_job_sources")
-            .upsert(rows, on_conflict="job_id,platform,platform_url", ignore_duplicates=True)
+            .upsert(rows, on_conflict="job_id,platform,platform_url", ignore_duplicates=True, returning="minimal")
             .execute(),
         operation_name="batch_add_job_sources",
     )

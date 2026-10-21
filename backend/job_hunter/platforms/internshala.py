@@ -13,11 +13,10 @@ guessing or fabricating a target count, each desired_role is expanded
 into an ordered list of queries: the exact phrase first, then curated
 related terms for common tech roles (ROLE_EXPANSION_MAP), then generic
 significant-word fallbacks derived from the role text itself (so this
-also works for roles not in the curated map). Fallback queries are only
-attempted when the exact phrase underperforms (MIN_RESULTS_BEFORE_FALLBACK),
-and broadening stops early once a role has accumulated a healthy number
-of unique results (SUBSTANTIAL_RESULTS_THRESHOLD), so this never turns
-into an unbounded scrape. Every query still runs through the same
+also works for roles not in the curated map). At most one fallback is
+attempted when the exact phrase underperforms (MIN_RESULTS_BEFORE_FALLBACK).
+Each query checks at most two pages to keep daily traffic bounded. Every
+query still runs through the same
 dedup-by-platform_job_id set, so overlapping queries never double-count
 or double-insert the same job.
 """
@@ -35,11 +34,11 @@ from playwright.async_api import Page
 BASE_URL = "https://internshala.com"
 
 # Pages checked per individual query (exact phrase or a fallback term).
-MAX_PAGES_PER_ROLE = 4
+MAX_PAGES_PER_ROLE = 2
 
-# Total queries attempted per (role, listing type) — 1 exact phrase +
-# up to (MAX_QUERIES_PER_ROLE - 1) fallback queries.
-MAX_QUERIES_PER_ROLE = 7
+# Total queries attempted per (role, listing type) — one exact phrase and
+# at most one fallback query.
+MAX_QUERIES_PER_ROLE = 2
 
 # If the exact-phrase query returns at least this many cards (summed
 # across the pages it's allowed to check), fallback queries are skipped
@@ -49,7 +48,7 @@ MIN_RESULTS_BEFORE_FALLBACK = 5
 # Once a role/listing has accumulated at least this many unique results
 # across queries, remaining fallback queries for that role are skipped —
 # broadening stops once coverage is already healthy, rather than always
-# exhausting all 6 fallback queries regardless of how much was found.
+# exhausting fallback queries regardless of how much was found.
 SUBSTANTIAL_RESULTS_THRESHOLD = 30
 
 MAX_ROLES_PER_SWEEP = 5  # cap distinct role searches per org per run

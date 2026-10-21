@@ -29,7 +29,7 @@ DEFAULT_USER_AGENT = (
 async def block_nonessential_assets(context) -> None:
     """Job extraction reads page text; avoid downloading large visual assets."""
     async def route_request(route):
-        if route.request.resource_type in {"image", "media", "font"}:
+        if route.request.resource_type in {"image", "media", "font", "stylesheet"}:
             await route.abort()
         else:
             await route.continue_()

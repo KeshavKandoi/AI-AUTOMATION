@@ -7,6 +7,7 @@ calls into service.py, never touches the DB or platform adapters directly.
 """
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 
 from config import logger
 from job_hunter import repository, service
@@ -188,14 +189,31 @@ async def run_search_for_org(organization_id: str) -> dict:
 
 
 async def run_search_for_all_orgs() -> dict:
-    """Called every 24 hours by the scheduler. Loops every org with
-    completed Job Hunter onboarding; one org's failure never blocks the
-    rest since run_search_for_org catches its own exceptions."""
+    """Search each onboarded org at most once per day across server restarts.
+
+    Free Render instances restart after sleeping, and the scheduler starts
+    immediately each time. The persisted run timestamp keeps those restarts
+    from repeating a bandwidth-heavy full crawl. Manual searches bypass this
+    guard so a user can retry a failed search when needed.
+    """
     org_ids = repository.list_orgs_with_preferences()
     logger.info(f"[job_hunter] Starting daily search sweep for {len(org_ids)} orgs")
 
     results = {}
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     for org_id in org_ids:
+        latest = repository.get_latest_search_run(org_id)
+        if latest and latest.get("started_at"):
+            try:
+                started_at = datetime.fromisoformat(latest["started_at"].replace("Z", "+00:00"))
+                if started_at.tzinfo is None:
+                    started_at = started_at.replace(tzinfo=timezone.utc)
+                if started_at >= cutoff:
+                    logger.info(f"[job_hunter] Skipping org {org_id}: search already started in the last 24 hours")
+                    results[org_id] = {"skipped": True, "reason": "searched_within_24_hours"}
+                    continue
+            except ValueError:
+                logger.warning(f"[job_hunter] Invalid last search timestamp for org {org_id}; running search")
         results[org_id] = await run_search_for_org(org_id)
 
     logger.info(f"[job_hunter] Search sweep complete for {len(org_ids)} orgs")

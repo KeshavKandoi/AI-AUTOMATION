@@ -19,7 +19,7 @@ def test_job_search_blocks_visual_assets_but_keeps_page_data():
                 continue_=AsyncMock(),
             )
             await handler(route)
-            if resource_type in {"image", "media", "font"}:
+            if resource_type in {"image", "media", "font", "stylesheet"}:
                 route.abort.assert_awaited_once()
                 route.continue_.assert_not_awaited()
             else:
