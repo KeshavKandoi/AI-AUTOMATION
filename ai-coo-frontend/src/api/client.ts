@@ -10,7 +10,7 @@ export function isPublicPath(pathname: string): boolean {
 
 // Keep production API calls on the same backend used by the /auth Vercel proxy.
 const apiBaseUrl = import.meta.env.PROD
-  ? 'https://ai-automation-sg.onrender.com'
+  ? 'https://workforge-sg.onrender.com'
   : import.meta.env.VITE_API_BASE_URL
 
 export const apiClient = axios.create({
