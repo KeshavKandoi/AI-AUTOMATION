@@ -26,6 +26,17 @@ DEFAULT_USER_AGENT = (
 )
 
 
+async def block_nonessential_assets(context) -> None:
+    """Job extraction reads page text; avoid downloading large visual assets."""
+    async def route_request(route):
+        if route.request.resource_type in {"image", "media", "font"}:
+            await route.abort()
+        else:
+            await route.continue_()
+
+    await context.route("**/*", route_request)
+
+
 class PlaywrightJobProvider(BaseJobProvider):
     """Base class for browser-automation providers. Subclasses implement
     extract_jobs(page, preferences) — everything else (launching the
@@ -50,6 +61,7 @@ class PlaywrightJobProvider(BaseJobProvider):
             browser = await p.chromium.launch(headless=True)
             try:
                 context = await browser.new_context(user_agent=DEFAULT_USER_AGENT)
+                await block_nonessential_assets(context)
                 page = await context.new_page()
                 try:
                     jobs = await self.extract_jobs(page, preferences)

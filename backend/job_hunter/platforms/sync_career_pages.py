@@ -16,6 +16,7 @@ from playwright.async_api import async_playwright
 from config import logger
 from job_hunter import repository
 from job_hunter.platforms.ats_detector import detect_ats
+from job_hunter.platforms.playwright_base import block_nonessential_assets
 
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -36,6 +37,7 @@ async def sync_all_career_pages() -> dict:
         for page_row in pages:
             try:
                 context = await browser.new_context(user_agent=DEFAULT_USER_AGENT)
+                await block_nonessential_assets(context)
                 page = await context.new_page()
                 result = await detect_ats(page, page_row["career_page_url"])
                 await context.close()
