@@ -50,7 +50,9 @@ export default function ResetPassword() {
       setCooldown(30)
       navigate('/reset-password', { state: { email }, replace: true })
     } catch (err: any) {
-      setCodeRequestError(err?.response?.data?.detail ?? 'Could not send the reset code. Please try again.')
+      setCodeRequestError(err?.response?.data?.detail ?? (err instanceof Error && err.message.startsWith('The sign-in service is still starting')
+        ? err.message
+        : 'Could not send the reset code. Please try again.'))
     } finally {
       setSendingCode(false)
     }

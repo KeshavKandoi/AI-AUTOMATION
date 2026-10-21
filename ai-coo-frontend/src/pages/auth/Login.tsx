@@ -57,7 +57,9 @@ export default function Login() {
       setServerError(
         axios.isAxiosError(err) && (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK')
           ? 'The sign-in service is taking too long to respond. Please try again.'
-          : err?.response?.data?.detail ?? 'Could not sign in. Check your details and try again.'
+          : err?.response?.data?.detail ?? (err instanceof Error && err.message.startsWith('The sign-in service is still starting')
+            ? err.message
+            : 'Could not sign in. Check your details and try again.')
       )
     } finally {
       setLoading(false)

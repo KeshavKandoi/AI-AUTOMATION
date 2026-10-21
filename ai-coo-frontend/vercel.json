@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/health", "destination": "https://workforge-sg.onrender.com/health" },
     { "source": "/auth/:path*", "destination": "https://workforge-sg.onrender.com/auth/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
